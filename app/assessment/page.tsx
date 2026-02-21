@@ -71,7 +71,14 @@ export default function AssessmentPage() {
   useEffect(() => {
     const saved = loadAssessment()
     if (saved) {
-      form.reset(saved)
+      form.reset({
+        ...defaultAssessmentData,
+        ...saved,
+        languageScores: {
+          ...defaultAssessmentData.languageScores,
+          ...saved.languageScores,
+        },
+      })
     }
     const savedStep = loadStep()
     if (savedStep > 0 && savedStep < TOTAL_STEPS) {
@@ -121,6 +128,7 @@ export default function AssessmentPage() {
   }
 
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100
+  const currentStepValid = stepSchemas[currentStep].safeParse(form.watch()).success
 
   if (!isLoaded) {
     return (
@@ -183,13 +191,13 @@ export default function AssessmentPage() {
             </Button>
 
             {currentStep < TOTAL_STEPS - 1 ? (
-              <Button type="submit" className="gap-2">
+              <Button type="submit" className="gap-2" disabled={!currentStepValid}>
                 Next
                 <ArrowRight className="size-4" />
               </Button>
             ) : (
               <Button type="submit" className="gap-2">
-                View Results
+                View Snapshot
                 <Send className="size-4" />
               </Button>
             )}

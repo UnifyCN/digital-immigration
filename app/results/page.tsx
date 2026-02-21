@@ -59,12 +59,12 @@ export default function ResultsPage() {
           </Link>
         </Button>
 
-        <h1 className="font-serif text-2xl font-semibold text-foreground sm:text-3xl">
-          Your Clarity Assessment
+        <h1 className="font-heading text-foreground">
+          Your Unify Immigration Snapshot
         </h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Based on the information you provided. This is a structured overview,
-          not legal advice.
+        <p className="mt-2 type-body text-muted-foreground">
+          This summary organizes your likely pathways and possible risk points
+          from the answers you shared. It is informational, not legal advice.
         </p>
       </div>
 
@@ -88,7 +88,7 @@ export default function ResultsPage() {
       {/* Actions footer */}
       <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-6">
         <p className="text-sm text-muted-foreground text-center">
-          Want to change your answers or start fresh?
+          Want to refine your answers or start again?
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Button variant="outline" asChild className="gap-1.5">
@@ -103,17 +103,17 @@ export default function ResultsPage() {
             className="gap-1.5 text-muted-foreground"
           >
             <RotateCcw className="size-3.5" />
-            Reset assessment
+            Reset snapshot
           </Button>
         </div>
       </div>
 
       {/* Footer disclaimer */}
-      <p className="mt-8 text-center text-[10px] leading-relaxed text-muted-foreground">
-        This tool provides a structured overview based on publicly available
-        immigration requirements. It does not constitute legal advice and
-        should not be relied upon as such. For professional guidance, consult a
-        licensed immigration consultant or lawyer.
+      <p className="type-caption mt-8 text-center text-muted-foreground">
+        This Unify Social tool uses public immigration information to help
+        organize your planning. It does not provide legal advice. For
+        case-specific legal guidance, consult a licensed immigration consultant
+        or lawyer.
       </p>
     </div>
   )

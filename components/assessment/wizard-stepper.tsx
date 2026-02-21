@@ -11,14 +11,23 @@ interface WizardStepperProps {
 export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
   return (
     <nav aria-label="Assessment progress" className="w-full">
-      <ol className="flex items-center gap-1">
+      <ol className="flex items-start">
         {steps.map((step, index) => {
           const isCompleted = index < currentStep
           const isCurrent = index === currentStep
 
           return (
-            <li key={step} className="flex flex-1 items-center">
-              <div className="flex w-full flex-col items-center gap-1.5">
+            <li key={step} className="relative flex flex-1 justify-center">
+              {index < steps.length - 1 && (
+                <div
+                  className={cn(
+                    "absolute top-3.5 h-px left-[calc(50%+14px)] right-[calc(-50%+14px)]",
+                    index < currentStep ? "bg-primary" : "bg-border"
+                  )}
+                />
+              )}
+
+              <div className="relative z-10 flex w-full flex-col items-center gap-1.5">
                 <div
                   className={cn(
                     "flex size-7 items-center justify-center rounded-full border text-xs font-medium transition-colors",
@@ -48,14 +57,6 @@ export function WizardStepper({ steps, currentStep }: WizardStepperProps) {
                   {step}
                 </span>
               </div>
-              {index < steps.length - 1 && (
-                <div
-                  className={cn(
-                    "mb-5 h-px w-full shrink-0 sm:mb-8",
-                    index < currentStep ? "bg-primary" : "bg-border"
-                  )}
-                />
-              )}
             </li>
           )
         })}

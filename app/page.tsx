@@ -41,101 +41,81 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="flex min-h-[calc(100vh-2.5rem)] flex-col items-center justify-center px-4 py-16">
-      <div className="mx-auto flex w-full max-w-xl flex-col items-center gap-8 text-center">
-        {/* Logo mark */}
-        <div className="flex size-12 items-center justify-center rounded-lg bg-primary">
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            className="size-6 text-primary-foreground"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M12 2L2 7l10 5 10-5-10-5z" />
-            <path d="M2 17l10 5 10-5" />
-            <path d="M2 12l10 5 10-5" />
-          </svg>
+    <div className="relative flex min-h-[calc(100vh-2.5rem)] flex-col items-center justify-center overflow-hidden px-4 py-16">
+      <div className="pointer-events-none absolute -left-8 top-10 h-14 w-56 rounded-full bg-accent/28" />
+      <div className="pointer-events-none absolute -right-12 bottom-9 h-12 w-80 rounded-full bg-accent/36" />
+
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-9 text-center">
+        <div className="rounded-full border border-border bg-card px-6 py-2 text-[14px] font-semibold uppercase tracking-[0.12em] text-muted-foreground sm:text-[17px]">
+          Immigration Snapshot
         </div>
 
-        {/* Headline */}
-        <div className="flex flex-col gap-3">
-          <h1 className="font-serif text-3xl font-semibold tracking-tight text-foreground text-balance sm:text-4xl">
-            {"Let\u2019s understand your situation first."}
+        <div className="flex max-w-4xl flex-col gap-5">
+          <h1 className="font-heading text-[clamp(2.25rem,5vw,5.2rem)] font-medium leading-[1.14] tracking-[-0.02em] text-foreground">
+            Let’s understand your situation first.
           </h1>
-          <p className="text-base leading-relaxed text-muted-foreground text-pretty">
-            Answer a few questions to get a structured overview of your options
-            and risks.
+          <p className="mx-auto max-w-3xl text-[clamp(1.1rem,2.1vw,2rem)] leading-[1.5] text-muted-foreground">
+            Answer a few questions to get a warm, structured overview of
+            pathway options, likely blockers, and your most practical next
+            steps.
           </p>
         </div>
 
-        {/* Trust chips */}
-        <div className="flex flex-wrap items-center justify-center gap-2">
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-xs font-normal">
-            <Clock className="size-3" />
-            {"Takes ~5\u20138 minutes"}
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <Badge variant="secondary" className="gap-2 rounded-[15px] px-5 py-2.5 text-[clamp(0.95rem,1.1vw,1.3rem)] font-semibold">
+            <Clock className="size-5" />
+            Takes 5 to 8 minutes
           </Badge>
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-xs font-normal">
-            <PenLine className="size-3" />
-            You can edit later
+          <Badge variant="secondary" className="gap-2 rounded-[15px] px-5 py-2.5 text-[clamp(0.95rem,1.1vw,1.3rem)] font-semibold">
+            <PenLine className="size-5" />
+            Friendly, editable answers
           </Badge>
-          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-xs font-normal">
-            <Lock className="size-3" />
-            Your data stays private
+          <Badge variant="secondary" className="gap-2 rounded-[15px] px-5 py-2.5 text-[clamp(0.95rem,1.1vw,1.3rem)] font-semibold">
+            <Lock className="size-5" />
+            Private on your device
           </Badge>
         </div>
 
-        {/* CTAs */}
-        <div className="flex flex-col items-center gap-3">
-          <Button asChild size="lg" className="h-12 px-8 text-sm font-medium">
+        <div className="flex flex-col items-center gap-5">
+          <Button asChild size="lg" className="h-14 rounded-[20px] px-10 text-[clamp(1.1rem,1.25vw,1.8rem)] font-semibold">
             <Link href="/assessment">
-              Start Clarity Assessment
-              <ArrowRight className="ml-2 size-4" />
+              Start assessment
+              <ArrowRight className="ml-2 size-5" />
             </Link>
           </Button>
 
           {draftExists && (
-            <Button
-              asChild
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-            >
-              <Link href="/assessment">Resume assessment</Link>
+            <Button asChild variant="ghost" size="sm" className="text-muted-foreground">
+              <Link href="/assessment">Resume snapshot</Link>
             </Button>
           )}
         </div>
 
-        {/* Reset + Seed controls */}
-        <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-card p-4">
-          <div className="flex items-center gap-3">
-            <Switch
-              id="seed-toggle"
-              checked={seedLoaded}
-              onCheckedChange={handleSeedToggle}
-            />
-            <Label
-              htmlFor="seed-toggle"
-              className="text-sm text-muted-foreground cursor-pointer"
-            >
-              Load sample data (for demo)
-            </Label>
-          </div>
-
-          {draftExists && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleReset}
-              className="gap-1.5 text-xs text-muted-foreground"
-            >
-              <RotateCcw className="size-3" />
-              Reset assessment
-            </Button>
-          )}
+        <div className="flex items-center gap-3 rounded-[15px] border border-border bg-card px-6 py-5">
+          <Switch
+            id="seed-toggle"
+            checked={seedLoaded}
+            onCheckedChange={handleSeedToggle}
+          />
+          <Label
+            htmlFor="seed-toggle"
+            className="cursor-pointer text-[clamp(1.1rem,1.25vw,1.75rem)] font-semibold text-muted-foreground"
+          >
+            Load demo profile
+          </Label>
         </div>
+
+        {draftExists && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleReset}
+            className="gap-1.5 text-xs text-muted-foreground"
+          >
+            <RotateCcw className="size-3" />
+            Reset snapshot
+          </Button>
+        )}
       </div>
     </div>
   )

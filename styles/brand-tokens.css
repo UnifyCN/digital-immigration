@@ -1,0 +1,155 @@
+:root {
+  /* Core brand colors */
+  --unify-red: #d8492c;
+  --unify-cream: #fffcf3;
+  --unify-ink: #171616;
+  --unify-orange: #ffb570;
+  --unify-pink: #f3b0db;
+  --unify-lime: #dfe07c;
+  --unify-blue: #5182c7;
+
+  /* Type scale */
+  --text-h1: clamp(2rem, 3.2vw, 3rem);
+  --text-h2: clamp(1.625rem, 2.5vw, 2.25rem);
+  --text-h3: clamp(1.375rem, 1.8vw, 1.75rem);
+  --text-h4: clamp(1.125rem, 1.4vw, 1.375rem);
+  --text-body: 1rem;
+  --text-caption: 0.8125rem;
+
+  --lh-heading: 1.2;
+  --lh-body: 1.6;
+  --lh-caption: 1.45;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Radius and shadows */
+  --radius: 0.75rem;
+  --shadow-soft: 0 6px 20px -14px rgb(23 22 22 / 0.28);
+  --shadow-none: none;
+}
+
+/* Learning / Informative (red default) */
+[data-brand-theme='learning'] {
+  --background: #d8492c;
+  --foreground: #fffcf3;
+  --card: color-mix(in srgb, #fffcf3 14%, #d8492c);
+  --card-foreground: #fffcf3;
+  --popover: #fffcf3;
+  --popover-foreground: #171616;
+  --primary: #171616;
+  --primary-foreground: #fffcf3;
+  --secondary: color-mix(in srgb, #fffcf3 22%, #d8492c);
+  --secondary-foreground: #fffcf3;
+  --muted: color-mix(in srgb, #fffcf3 16%, #d8492c);
+  --muted-foreground: color-mix(in srgb, #fffcf3 82%, #171616);
+  --accent: #ffb570;
+  --accent-foreground: #171616;
+  --destructive: #171616;
+  --destructive-foreground: #fffcf3;
+  --border: color-mix(in srgb, #fffcf3 34%, #d8492c);
+  --input: color-mix(in srgb, #fffcf3 22%, #d8492c);
+  --ring: #fffcf3;
+  --chart-1: #ffb570;
+  --chart-2: #5182c7;
+  --chart-3: #f3b0db;
+  --chart-4: #dfe07c;
+  --chart-5: #171616;
+  --sidebar: color-mix(in srgb, #fffcf3 15%, #d8492c);
+  --sidebar-foreground: #fffcf3;
+  --sidebar-primary: #171616;
+  --sidebar-primary-foreground: #fffcf3;
+  --sidebar-accent: #ffb570;
+  --sidebar-accent-foreground: #171616;
+  --sidebar-border: color-mix(in srgb, #fffcf3 34%, #d8492c);
+  --sidebar-ring: #fffcf3;
+  --tier-clean: #dfe07c;
+  --tier-moderate: #ffb570;
+  --tier-complex: #f3b0db;
+}
+
+/* Events / General UI (white) */
+[data-brand-theme='events'] {
+  --background: #fffcf3;
+  --foreground: #171616;
+  --card: #fffef9;
+  --card-foreground: #171616;
+  --popover: #fffef9;
+  --popover-foreground: #171616;
+  --primary: #d8492c;
+  --primary-foreground: #fffcf3;
+  --secondary: color-mix(in srgb, #fffcf3 86%, #ffb570);
+  --secondary-foreground: #171616;
+  --muted: color-mix(in srgb, #fffcf3 92%, #171616);
+  --muted-foreground: color-mix(in srgb, #171616 70%, #fffcf3);
+  --accent: #ffb570;
+  --accent-foreground: #171616;
+  --destructive: #d8492c;
+  --destructive-foreground: #fffcf3;
+  --border: color-mix(in srgb, #171616 14%, #fffcf3);
+  --input: color-mix(in srgb, #171616 10%, #fffcf3);
+  --ring: #d8492c;
+  --chart-1: #d8492c;
+  --chart-2: #5182c7;
+  --chart-3: #ffb570;
+  --chart-4: #dfe07c;
+  --chart-5: #171616;
+  --sidebar: #fffdf7;
+  --sidebar-foreground: #171616;
+  --sidebar-primary: #d8492c;
+  --sidebar-primary-foreground: #fffcf3;
+  --sidebar-accent: #ffb570;
+  --sidebar-accent-foreground: #171616;
+  --sidebar-border: color-mix(in srgb, #171616 14%, #fffcf3);
+  --sidebar-ring: #d8492c;
+  --tier-clean: #5182c7;
+  --tier-moderate: #ffb570;
+  --tier-complex: #d8492c;
+}
+
+/* Hiring + Admin / Internal (dark) */
+[data-brand-theme='admin'] {
+  --background: #171616;
+  --foreground: #fffcf3;
+  --card: color-mix(in srgb, #fffcf3 7%, #171616);
+  --card-foreground: #fffcf3;
+  --popover: #242222;
+  --popover-foreground: #fffcf3;
+  --primary: #d8492c;
+  --primary-foreground: #fffcf3;
+  --secondary: color-mix(in srgb, #fffcf3 12%, #171616);
+  --secondary-foreground: #fffcf3;
+  --muted: color-mix(in srgb, #fffcf3 10%, #171616);
+  --muted-foreground: color-mix(in srgb, #fffcf3 78%, #171616);
+  --accent: #ffb570;
+  --accent-foreground: #171616;
+  --destructive: #d8492c;
+  --destructive-foreground: #fffcf3;
+  --border: color-mix(in srgb, #fffcf3 22%, #171616);
+  --input: color-mix(in srgb, #fffcf3 16%, #171616);
+  --ring: #ffb570;
+  --chart-1: #d8492c;
+  --chart-2: #ffb570;
+  --chart-3: #5182c7;
+  --chart-4: #dfe07c;
+  --chart-5: #f3b0db;
+  --sidebar: color-mix(in srgb, #fffcf3 8%, #171616);
+  --sidebar-foreground: #fffcf3;
+  --sidebar-primary: #d8492c;
+  --sidebar-primary-foreground: #fffcf3;
+  --sidebar-accent: #ffb570;
+  --sidebar-accent-foreground: #171616;
+  --sidebar-border: color-mix(in srgb, #fffcf3 22%, #171616);
+  --sidebar-ring: #ffb570;
+  --tier-clean: #5182c7;
+  --tier-moderate: #ffb570;
+  --tier-complex: #d8492c;
+}

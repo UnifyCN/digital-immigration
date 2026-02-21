@@ -1,26 +1,27 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter, Source_Serif_4 } from 'next/font/google'
+import { Anek_Latin, Funnel_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { DisclaimerBanner } from '@/components/disclaimer-banner'
 import './globals.css'
 
-const inter = Inter({
+const anekLatin = Anek_Latin({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-anek",
 })
 
-const sourceSerif = Source_Serif_4({
+const funnelSans = Funnel_Sans({
   subsets: ["latin"],
-  variable: "--font-source-serif",
+  variable: "--font-funnel",
 })
 
 export const metadata: Metadata = {
-  title: 'Clarity Assessment - Immigration Pathway Tool',
-  description: 'Understand your immigration options and risks with a structured clarity assessment. Not legal advice.',
+  title: 'Unify Social - Immigration Snapshot',
+  description:
+    'A warm, supportive immigration snapshot to help newcomers plan next steps with confidence.',
 }
 
 export const viewport: Viewport = {
-  themeColor: '#5a8a9a',
+  themeColor: '#D8492C',
   maximumScale: 1,
 }
 
@@ -30,8 +31,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${sourceSerif.variable}`}>
-      <body className="font-sans antialiased min-h-screen bg-background text-foreground">
+    <html
+      lang="en"
+      data-brand-theme="events"
+      className={`${anekLatin.variable} ${funnelSans.variable}`}
+    >
+      <body className="min-h-screen bg-background text-foreground">
         <DisclaimerBanner />
         <main>{children}</main>
         <Analytics />
