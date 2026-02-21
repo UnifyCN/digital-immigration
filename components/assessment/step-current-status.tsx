@@ -1,6 +1,8 @@
 "use client"
 
+import { useEffect } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
+import { format } from "date-fns"
 import {
   FormField,
   FormItem,
@@ -19,13 +21,16 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { HelpCircle } from "lucide-react"
+import { CalendarIcon, HelpCircle } from "lucide-react"
 import type { AssessmentData } from "@/lib/types"
 
 const statuses = [
@@ -37,10 +42,50 @@ const statuses = [
   { value: "other", label: "Other" },
 ]
 
+const applicationTypeOptions = [
+  { value: "visitor", label: "Visitor" },
+  { value: "study", label: "Study" },
+  { value: "work", label: "Work" },
+  { value: "pr", label: "PR" },
+  { value: "sponsorship", label: "Sponsorship" },
+  { value: "other", label: "Other" },
+  { value: "not-sure", label: "Not sure" },
+]
+
 export function StepCurrentStatus() {
-  const { control } = useFormContext<AssessmentData>()
+  const { control, setValue } = useFormContext<AssessmentData>()
   const currentStatus = useWatch({ control, name: "currentStatus" })
+  const currentLocation = useWatch({ control, name: "currentLocation" })
+  const priorApplications = useWatch({ control, name: "priorApplications" })
+  const refusalHistory = useWatch({ control, name: "refusalHistory" })
   const showExpiry = currentStatus !== "citizen" && currentStatus !== "pr" && currentStatus !== ""
+  const showMaintainedStatus = currentLocation === "inside-canada"
+  const showRefusalFollowup = refusalHistory !== "" && refusalHistory !== "no"
+  const showPriorApplicationType = priorApplications === "yes"
+
+  useEffect(() => {
+    if (!showExpiry) {
+      setValue("statusExpiryDate", "", { shouldValidate: true })
+    }
+  }, [setValue, showExpiry])
+
+  useEffect(() => {
+    if (!showMaintainedStatus) {
+      setValue("hasAppliedToExtendStatus", "", { shouldValidate: true })
+    }
+  }, [setValue, showMaintainedStatus])
+
+  useEffect(() => {
+    if (!showRefusalFollowup) {
+      setValue("mostRecentRefusalType", "", { shouldValidate: true })
+    }
+  }, [setValue, showRefusalFollowup])
+
+  useEffect(() => {
+    if (!showPriorApplicationType) {
+      setValue("priorCanadaApplicationType", "", { shouldValidate: true })
+    }
+  }, [setValue, showPriorApplicationType])
 
   return (
     <div className="flex flex-col gap-8">
@@ -99,11 +144,67 @@ export function StepCurrentStatus() {
           control={control}
           name="statusExpiryDate"
           render={({ field }) => (
+            <FormItem className="flex flex-col">
+              <FormLabel>When does your current status expire?</FormLabel>
+              <FormDescription>This helps assess urgency and available options.</FormDescription>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <FormControl>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full justify-between font-normal"
+                    >
+                      {field.value ? format(new Date(field.value), "PPP") : "Select expiry date"}
+                      <CalendarIcon className="size-4 text-muted-foreground" />
+                    </Button>
+                  </FormControl>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={field.value ? new Date(field.value) : undefined}
+                    onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                  />
+                </PopoverContent>
+              </Popover>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {showMaintainedStatus && (
+        <FormField
+          control={control}
+          name="hasAppliedToExtendStatus"
+          render={({ field }) => (
             <FormItem>
-              <FormLabel>Status expiry date</FormLabel>
-              <FormDescription>If known, enter your status expiry date.</FormDescription>
+              <FormLabel>
+                Have you applied to extend your status (or change status) and are waiting for a decision?
+              </FormLabel>
+              <FormDescription>Sometimes called maintained (implied) status.</FormDescription>
               <FormControl>
-                <Input type="date" {...field} />
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  className="flex gap-4"
+                >
+                  {[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                    { value: "unsure", label: "Not sure" },
+                  ].map((o) => (
+                    <Label
+                      key={o.value}
+                      htmlFor={`maintained-${o.value}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    >
+                      <RadioGroupItem value={o.value} id={`maintained-${o.value}`} />
+                      <span className="text-foreground">{o.label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -141,6 +242,68 @@ export function StepCurrentStatus() {
 
       <FormField
         control={control}
+        name="refusalHistory"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Have you ever had an application refused (Canada or another country)?</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="flex flex-col gap-2"
+              >
+                {[
+                  { value: "no", label: "No" },
+                  { value: "canada", label: "Yes — Canada" },
+                  { value: "another-country", label: "Yes — another country" },
+                  { value: "both", label: "Yes — both" },
+                  { value: "unsure", label: "Not sure" },
+                ].map((o) => (
+                  <Label
+                    key={o.value}
+                    htmlFor={`refusal-${o.value}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                  >
+                    <RadioGroupItem value={o.value} id={`refusal-${o.value}`} />
+                    <span className="text-foreground">{o.label}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {showRefusalFollowup && (
+        <FormField
+          control={control}
+          name="mostRecentRefusalType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>What was the most recent refusal for?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select refusal type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {applicationTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      <FormField
+        control={control}
         name="priorApplications"
         render={({ field }) => (
           <FormItem>
@@ -171,6 +334,33 @@ export function StepCurrentStatus() {
           </FormItem>
         )}
       />
+
+      {showPriorApplicationType && (
+        <FormField
+          control={control}
+          name="priorCanadaApplicationType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>What type of application have you submitted to Canada before?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select application type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {applicationTypeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
     </div>
   )
 }

@@ -1,88 +1,13 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
+@import '../styles/brand-tokens.css';
 
 @custom-variant dark (&:is(.dark *));
 
-:root {
-  --background: oklch(0.98 0.005 80);
-  --foreground: oklch(0.22 0.02 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.02 250);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.02 250);
-  --primary: oklch(0.45 0.08 200);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.01 80);
-  --secondary-foreground: oklch(0.30 0.02 250);
-  --muted: oklch(0.94 0.008 80);
-  --muted-foreground: oklch(0.50 0.015 250);
-  --accent: oklch(0.92 0.015 80);
-  --accent-foreground: oklch(0.22 0.02 250);
-  --destructive: oklch(0.55 0.22 27);
-  --destructive-foreground: oklch(0.55 0.22 27);
-  --border: oklch(0.90 0.01 80);
-  --input: oklch(0.90 0.01 80);
-  --ring: oklch(0.45 0.08 200);
-  --chart-1: oklch(0.45 0.08 200);
-  --chart-2: oklch(0.60 0.10 160);
-  --chart-3: oklch(0.55 0.06 250);
-  --chart-4: oklch(0.70 0.12 80);
-  --chart-5: oklch(0.65 0.08 40);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.97 0.005 80);
-  --sidebar-foreground: oklch(0.22 0.02 250);
-  --sidebar-primary: oklch(0.45 0.08 200);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.94 0.01 80);
-  --sidebar-accent-foreground: oklch(0.22 0.02 250);
-  --sidebar-border: oklch(0.90 0.01 80);
-  --sidebar-ring: oklch(0.45 0.08 200);
-  --tier-clean: oklch(0.55 0.12 160);
-  --tier-moderate: oklch(0.65 0.15 80);
-  --tier-complex: oklch(0.55 0.22 27);
-}
-
-.dark {
-  --background: oklch(0.18 0.015 250);
-  --foreground: oklch(0.93 0.005 80);
-  --card: oklch(0.22 0.015 250);
-  --card-foreground: oklch(0.93 0.005 80);
-  --popover: oklch(0.22 0.015 250);
-  --popover-foreground: oklch(0.93 0.005 80);
-  --primary: oklch(0.60 0.10 200);
-  --primary-foreground: oklch(0.15 0.02 250);
-  --secondary: oklch(0.28 0.015 250);
-  --secondary-foreground: oklch(0.93 0.005 80);
-  --muted: oklch(0.28 0.015 250);
-  --muted-foreground: oklch(0.65 0.01 80);
-  --accent: oklch(0.28 0.015 250);
-  --accent-foreground: oklch(0.93 0.005 80);
-  --destructive: oklch(0.50 0.20 27);
-  --destructive-foreground: oklch(0.60 0.22 27);
-  --border: oklch(0.30 0.015 250);
-  --input: oklch(0.30 0.015 250);
-  --ring: oklch(0.50 0.08 200);
-  --chart-1: oklch(0.55 0.10 200);
-  --chart-2: oklch(0.65 0.12 160);
-  --chart-3: oklch(0.60 0.08 250);
-  --chart-4: oklch(0.70 0.14 80);
-  --chart-5: oklch(0.65 0.10 40);
-  --sidebar: oklch(0.22 0.015 250);
-  --sidebar-foreground: oklch(0.93 0.005 80);
-  --sidebar-primary: oklch(0.60 0.10 200);
-  --sidebar-primary-foreground: oklch(0.15 0.02 250);
-  --sidebar-accent: oklch(0.28 0.015 250);
-  --sidebar-accent-foreground: oklch(0.93 0.005 80);
-  --sidebar-border: oklch(0.30 0.015 250);
-  --sidebar-ring: oklch(0.50 0.08 200);
-  --tier-clean: oklch(0.60 0.14 160);
-  --tier-moderate: oklch(0.70 0.15 80);
-  --tier-complex: oklch(0.60 0.22 27);
-}
-
 @theme inline {
-  --font-sans: var(--font-inter), 'Inter', system-ui, sans-serif;
-  --font-serif: var(--font-source-serif), 'Source Serif 4', Georgia, serif;
+  --font-sans: var(--font-funnel), 'Funnel Sans', system-ui, sans-serif;
+  --font-serif: var(--font-anek), 'Anek Latin', system-ui, sans-serif;
+  --font-heading: var(--font-anek), 'Anek Latin', system-ui, sans-serif;
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -129,7 +54,68 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    font-size: 16px;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+    line-height: var(--lh-body);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-heading text-balance;
+    line-height: var(--lh-heading);
+    letter-spacing: -0.015em;
+  }
+
+  h1 {
+    font-size: var(--text-h1);
+  }
+
+  h2 {
+    font-size: var(--text-h2);
+  }
+
+  h3 {
+    font-size: var(--text-h3);
+  }
+
+  h4 {
+    font-size: var(--text-h4);
+  }
+}
+
+@layer utilities {
+  .type-body {
+    font-size: var(--text-body);
+    line-height: var(--lh-body);
+  }
+
+  .type-caption {
+    font-size: var(--text-caption);
+    line-height: var(--lh-caption);
+  }
+
+  .organic-line {
+    width: min(160px, 28vw);
+    border-top: 40px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    border-radius: 999px;
+    opacity: 0.2;
+    pointer-events: none;
+  }
+
+  .organic-line--dashed {
+    width: min(220px, 34vw);
+    border-top: 10px dashed color-mix(in srgb, var(--accent) 84%, transparent);
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    opacity: 0.3;
+    pointer-events: none;
+    stroke-dasharray: 15 35;
   }
 }
