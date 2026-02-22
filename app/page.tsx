@@ -5,39 +5,18 @@ import Link from "next/link"
 import { ArrowRight, Clock, Lock, PenLine, RotateCcw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
-import {
-  hasDraft,
-  clearAssessment,
-  saveAssessment,
-  sampleAssessmentData,
-} from "@/lib/storage"
+import { hasDraft, clearAssessment } from "@/lib/storage"
 
 export default function LandingPage() {
   const [draftExists, setDraftExists] = useState(false)
-  const [seedLoaded, setSeedLoaded] = useState(false)
 
   useEffect(() => {
     setDraftExists(hasDraft())
   }, [])
 
-  function handleSeedToggle(checked: boolean) {
-    if (checked) {
-      saveAssessment(sampleAssessmentData)
-      setDraftExists(true)
-      setSeedLoaded(true)
-    } else {
-      clearAssessment()
-      setDraftExists(false)
-      setSeedLoaded(false)
-    }
-  }
-
   function handleReset() {
     clearAssessment()
     setDraftExists(false)
-    setSeedLoaded(false)
   }
 
   return (
@@ -89,20 +68,6 @@ export default function LandingPage() {
               <Link href="/assessment">Resume snapshot</Link>
             </Button>
           )}
-        </div>
-
-        <div className="flex items-center gap-3 rounded-[15px] border border-border bg-card px-6 py-5">
-          <Switch
-            id="seed-toggle"
-            checked={seedLoaded}
-            onCheckedChange={handleSeedToggle}
-          />
-          <Label
-            htmlFor="seed-toggle"
-            className="cursor-pointer text-[clamp(1.1rem,1.25vw,1.75rem)] font-semibold text-muted-foreground"
-          >
-            Load demo profile
-          </Label>
         </div>
 
         {draftExists && (

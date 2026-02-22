@@ -17,6 +17,16 @@ export type YesNoUnsure = "yes" | "no" | "unsure"
 export type RefusalHistory = "no" | "canada" | "another-country" | "both" | "unsure"
 export type ApplicationType = "visitor" | "study" | "work" | "pr" | "sponsorship" | "other" | "not-sure"
 export type WorkExperience = "0-1" | "1-3" | "3-5" | "5+" | "not-sure"
+export type HoursPerWeekRange = "lt15" | "15-29" | "30plus" | "varies-not-sure"
+export type PaidWorkStatus = "yes" | "no" | "mix-not-sure"
+export type EmploymentType = "employee" | "self-employed-contractor" | "mix" | "unsure"
+export type EmployerLetterFeasibility = "yes" | "no" | "unsure"
+export type EmployerLetterChallenge =
+  | "employer-wont-include-duties"
+  | "employer-closed-cant-contact"
+  | "self-employed"
+  | "informal-work-no-records"
+  | "other-not-sure"
 export type LanguageTestStatus = "yes" | "no" | "planning"
 export type LanguageApproxCLB = "clb-4-6" | "clb-7" | "clb-8" | "clb-9-plus" | "not-sure"
 export type LanguagePlannedTiming = "within-1-month" | "1-3-months" | "3-plus-months" | "not-scheduled"
@@ -49,6 +59,9 @@ export interface JobEntry {
   title: string
   country: string
   yearsRange: string
+  startMonth: string
+  endMonth: string
+  present: boolean
 }
 
 export interface AdditionalCredential {
@@ -88,6 +101,15 @@ export interface AssessmentData {
   totalExperience: WorkExperience | ""
   industryCategory: string
   employmentGaps: YesNoUnsure | ""
+  mostRecentJobStart: string
+  mostRecentJobEnd: string
+  mostRecentJobPresent: boolean
+  hoursPerWeekRange: HoursPerWeekRange | ""
+  paidWorkStatus: PaidWorkStatus | ""
+  employmentType: EmploymentType | ""
+  canObtainEmployerLetter: EmployerLetterFeasibility | ""
+  employerLetterChallenge: EmployerLetterChallenge | ""
+  hasOverlappingPeriods: YesNoUnsure | ""
   jobs: JobEntry[]
 
   // Step 4: Education

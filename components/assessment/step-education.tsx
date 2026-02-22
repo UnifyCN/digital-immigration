@@ -141,7 +141,7 @@ export function StepEducation() {
                 {[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
-                  { value: "not-sure", label: "Not sure" },
+                  { value: "unsure", label: "Not sure" },
                 ].map((o) => (
                   <Label
                     key={o.value}

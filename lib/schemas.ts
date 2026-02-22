@@ -4,148 +4,235 @@ export const jobEntrySchema = z.object({
   title: z.string(),
   country: z.string(),
   yearsRange: z.string(),
+  startMonth: z.string().optional(),
+  endMonth: z.string().optional(),
+  present: z.boolean().optional(),
 })
 
 const step1BaseSchema = z.object({
-    primaryGoal: z.enum(["pr", "study-permit", "work-permit", "sponsorship", "not-sure"], {
-      required_error: "Please select a goal",
-    }),
-    timeUrgency: z.enum(["less-than-3", "3-to-6", "6-to-12", "flexible"], {
-      required_error: "Please select a timeline",
-    }),
-    currentLocation: z.enum(["inside-canada", "outside-canada"], {
-      required_error: "Please select your location",
-    }),
-    geographicFlexibility: z.enum(["yes-anywhere", "prefer-specific", "only-specific"], {
+  primaryGoal: z.enum(["pr", "study-permit", "work-permit", "sponsorship", "not-sure"], {
+    required_error: "Please select a goal",
+  }),
+  timeUrgency: z.enum(["less-than-3", "3-to-6", "6-to-12", "flexible"], {
+    required_error: "Please select a timeline",
+  }),
+  currentLocation: z.enum(["inside-canada", "outside-canada"], {
+    required_error: "Please select your location",
+  }),
+  geographicFlexibility: z.enum(["yes-anywhere", "prefer-specific", "only-specific"], {
+    required_error: "Please select an option",
+  }),
+  preferredProvince: z.string().optional(),
+  deadlineTrigger: z.enum(
+    [
+      "status-expiring",
+      "job-offer-start",
+      "school-intake",
+      "family-situation",
+      "no-hard-deadline",
+    ],
+    {
       required_error: "Please select an option",
-    }),
-    preferredProvince: z.string().optional(),
-    deadlineTrigger: z.enum(
-      [
-        "status-expiring",
-        "job-offer-start",
-        "school-intake",
-        "family-situation",
-        "no-hard-deadline",
-      ],
-      {
-        required_error: "Please select an option",
-      },
-    ),
-    deadlineDate: z.string().optional(),
-    studyPermitHasLOA: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
-    workPermitHasJobOffer: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
-    sponsorshipRelation: z
-      .union([z.enum(["spouse-partner", "child", "parent-grandparent", "other"]), z.literal("")])
-      .optional(),
-  })
+    },
+  ),
+  deadlineDate: z.string().optional(),
+  studyPermitHasLOA: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  workPermitHasJobOffer: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  sponsorshipRelation: z
+    .union([z.enum(["spouse-partner", "child", "parent-grandparent", "other"]), z.literal("")])
+    .optional(),
+})
 
-export const step1Schema = step1BaseSchema
-  .superRefine((data, ctx) => {
-    if (
-      (data.geographicFlexibility === "prefer-specific" ||
-        data.geographicFlexibility === "only-specific") &&
-      !data.preferredProvince
-    ) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["preferredProvince"],
-        message: "Please select a province or territory",
-      })
-    }
+export const step1Schema = step1BaseSchema.superRefine((data, ctx) => {
+  if (
+    (data.geographicFlexibility === "prefer-specific" ||
+      data.geographicFlexibility === "only-specific") &&
+    !data.preferredProvince
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["preferredProvince"],
+      message: "Please select a province or territory",
+    })
+  }
 
-    if (data.deadlineTrigger !== "no-hard-deadline" && !data.deadlineDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["deadlineDate"],
-        message: "Please provide the deadline date",
-      })
-    }
+  if (data.deadlineTrigger !== "no-hard-deadline" && !data.deadlineDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["deadlineDate"],
+      message: "Please provide the deadline date",
+    })
+  }
 
-    if (data.primaryGoal === "study-permit" && !data.studyPermitHasLOA) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["studyPermitHasLOA"],
-        message: "Please select an option",
-      })
-    }
+  if (data.primaryGoal === "study-permit" && !data.studyPermitHasLOA) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["studyPermitHasLOA"],
+      message: "Please select an option",
+    })
+  }
 
-    if (data.primaryGoal === "work-permit" && !data.workPermitHasJobOffer) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["workPermitHasJobOffer"],
-        message: "Please select an option",
-      })
-    }
+  if (data.primaryGoal === "work-permit" && !data.workPermitHasJobOffer) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["workPermitHasJobOffer"],
+      message: "Please select an option",
+    })
+  }
 
-    if (data.primaryGoal === "sponsorship" && !data.sponsorshipRelation) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["sponsorshipRelation"],
-        message: "Please select an option",
-      })
-    }
-  })
+  if (data.primaryGoal === "sponsorship" && !data.sponsorshipRelation) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["sponsorshipRelation"],
+      message: "Please select an option",
+    })
+  }
+})
 
 const step2BaseSchema = z.object({
-    currentStatus: z.enum(["citizen", "pr", "visitor", "student", "worker", "other"], {
-      required_error: "Please select your status",
-    }),
-    statusExpiryDate: z.string().optional(),
-    hasAppliedToExtendStatus: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
-    refusalHistory: z.enum(["no", "canada", "another-country", "both", "unsure"], {
-      required_error: "Please select an option",
-    }),
-    mostRecentRefusalType: z
-      .union([z.enum(["visitor", "study", "work", "pr", "sponsorship", "other", "not-sure"]), z.literal("")])
-      .optional(),
-    priorCanadaApplicationType: z
-      .union([z.enum(["visitor", "study", "work", "pr", "sponsorship", "other", "not-sure"]), z.literal("")])
-      .optional(),
-    countryOfResidence: z.string().min(1, "Please enter your country of residence"),
-    nationality: z.string().min(1, "Please enter your nationality"),
-    priorApplications: z.enum(["yes", "no", "unsure"], {
-      required_error: "Please select an option",
-    }),
-    currentLocation: z.enum(["inside-canada", "outside-canada"], {
-      required_error: "Please select your location",
-    }),
-  })
+  currentStatus: z.enum(["citizen", "pr", "visitor", "student", "worker", "other"], {
+    required_error: "Please select your status",
+  }),
+  statusExpiryDate: z.string().optional(),
+  hasAppliedToExtendStatus: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  refusalHistory: z.enum(["no", "canada", "another-country", "both", "unsure"], {
+    required_error: "Please select an option",
+  }),
+  mostRecentRefusalType: z
+    .union([z.enum(["visitor", "study", "work", "pr", "sponsorship", "other", "not-sure"]), z.literal("")])
+    .optional(),
+  priorCanadaApplicationType: z
+    .union([z.enum(["visitor", "study", "work", "pr", "sponsorship", "other", "not-sure"]), z.literal("")])
+    .optional(),
+  countryOfResidence: z.string().min(1, "Please enter your country of residence"),
+  nationality: z.string().min(1, "Please enter your nationality"),
+  priorApplications: z.enum(["yes", "no", "unsure"], {
+    required_error: "Please select an option",
+  }),
+  currentLocation: z.enum(["inside-canada", "outside-canada"], {
+    required_error: "Please select your location",
+  }),
+})
 
-export const step2Schema = step2BaseSchema
-  .superRefine((data, ctx) => {
-    if (data.currentStatus !== "citizen" && data.currentStatus !== "pr" && !data.statusExpiryDate) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["statusExpiryDate"],
-        message: "Please provide your status expiry date",
-      })
-    }
+export const step2Schema = step2BaseSchema.superRefine((data, ctx) => {
+  if (data.currentStatus !== "citizen" && data.currentStatus !== "pr" && !data.statusExpiryDate) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["statusExpiryDate"],
+      message: "Please provide your status expiry date",
+    })
+  }
 
-    if (data.currentLocation === "inside-canada" && !data.hasAppliedToExtendStatus) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["hasAppliedToExtendStatus"],
-        message: "Please select an option",
-      })
-    }
+  if (data.currentLocation === "inside-canada" && !data.hasAppliedToExtendStatus) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["hasAppliedToExtendStatus"],
+      message: "Please select an option",
+    })
+  }
 
-    if (data.refusalHistory !== "no" && !data.mostRecentRefusalType) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["mostRecentRefusalType"],
-        message: "Please select the most recent refusal type",
-      })
-    }
-  })
+  if (data.refusalHistory !== "no" && !data.mostRecentRefusalType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mostRecentRefusalType"],
+      message: "Please select the most recent refusal type",
+    })
+  }
+})
 
-export const step3Schema = z.object({
+const step3BaseSchema = z.object({
   currentJobTitle: z.string().optional(),
   countryOfWork: z.string().optional(),
-  totalExperience: z.enum(["0-1", "1-3", "3-5", "5+", "not-sure"]).optional(),
+  totalExperience: z.union([z.enum(["0-1", "1-3", "3-5", "5+", "not-sure"]), z.literal("")]).optional(),
   industryCategory: z.string().optional(),
-  employmentGaps: z.enum(["yes", "no", "unsure"]).optional(),
+  employmentGaps: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  mostRecentJobStart: z.string().optional(),
+  mostRecentJobEnd: z.string().optional(),
+  mostRecentJobPresent: z.boolean().optional(),
+  hoursPerWeekRange: z.union([z.enum(["lt15", "15-29", "30plus", "varies-not-sure"]), z.literal("")]).optional(),
+  paidWorkStatus: z.union([z.enum(["yes", "no", "mix-not-sure"]), z.literal("")]).optional(),
+  employmentType: z.union([z.enum(["employee", "self-employed-contractor", "mix", "unsure"]), z.literal("")]).optional(),
+  canObtainEmployerLetter: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  employerLetterChallenge: z
+    .union([
+      z.enum([
+        "employer-wont-include-duties",
+        "employer-closed-cant-contact",
+        "self-employed",
+        "informal-work-no-records",
+        "other-not-sure",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
+  hasOverlappingPeriods: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
   jobs: z.array(jobEntrySchema).optional(),
+})
+
+export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
+  if (!data.mostRecentJobStart) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mostRecentJobStart"],
+      message: "Please provide the start date",
+    })
+  }
+
+  if (!data.mostRecentJobPresent && !data.mostRecentJobEnd) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mostRecentJobEnd"],
+      message: "Please provide the end date or mark Present",
+    })
+  }
+
+  if (!data.hoursPerWeekRange) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["hoursPerWeekRange"],
+      message: "Please select an option",
+    })
+  }
+
+  if (!data.paidWorkStatus) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["paidWorkStatus"],
+      message: "Please select an option",
+    })
+  }
+
+  if (!data.employmentType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["employmentType"],
+      message: "Please select an option",
+    })
+  }
+
+  if (!data.canObtainEmployerLetter) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["canObtainEmployerLetter"],
+      message: "Please select an option",
+    })
+  }
+
+  if (data.canObtainEmployerLetter && data.canObtainEmployerLetter !== "yes" && !data.employerLetterChallenge) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["employerLetterChallenge"],
+      message: "Please select the main challenge",
+    })
+  }
+
+  if (!data.hasOverlappingPeriods) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["hasOverlappingPeriods"],
+      message: "Please select an option",
+    })
+  }
 })
 
 const additionalCredentialSchema = z.object({
@@ -167,10 +254,7 @@ const additionalCredentialSchema = z.object({
   country: z.string().optional(),
   graduationYear: z.string().optional(),
   programLength: z
-    .union([
-      z.enum(["less-than-1-year", "1-year", "2-years", "3-plus-years", "not-sure"]),
-      z.literal(""),
-    ])
+    .union([z.enum(["less-than-1-year", "1-year", "2-years", "3-plus-years", "not-sure"]), z.literal("")])
     .optional(),
 })
 
@@ -295,48 +379,48 @@ const step6BaseSchema = z.object({
 
 function getStep6Schema(primaryGoal: "pr" | "study-permit" | "work-permit" | "sponsorship" | "not-sure" | "") {
   return step6BaseSchema.superRefine((data, ctx) => {
-  const isPartnerCase = data.maritalStatus === "married" || data.maritalStatus === "common-law"
-  if (isPartnerCase) {
-    if (!data.spouseAccompanying) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["spouseAccompanying"],
-        message: "Please select an option",
-      })
+    const isPartnerCase = data.maritalStatus === "married" || data.maritalStatus === "common-law"
+    if (isPartnerCase) {
+      if (!data.spouseAccompanying) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["spouseAccompanying"],
+          message: "Please select an option",
+        })
+      }
+      if (!data.spouseLocation) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["spouseLocation"],
+          message: "Please select an option",
+        })
+      }
     }
-    if (!data.spouseLocation) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["spouseLocation"],
-        message: "Please select an option",
-      })
-    }
-  }
 
-  if (data.closeRelativeInCanada === "yes" && !data.closeRelativeRelationship) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      path: ["closeRelativeRelationship"],
-      message: "Please select the relationship",
-    })
-  }
+    if (data.closeRelativeInCanada === "yes" && !data.closeRelativeRelationship) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["closeRelativeRelationship"],
+        message: "Please select the relationship",
+      })
+    }
 
-  if (primaryGoal === "sponsorship") {
-    if (!data.sponsorshipTarget) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["sponsorshipTarget"],
-        message: "Please select an option",
-      })
+    if (primaryGoal === "sponsorship") {
+      if (!data.sponsorshipTarget) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sponsorshipTarget"],
+          message: "Please select an option",
+        })
+      }
+      if (!data.sponsorStatus) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["sponsorStatus"],
+          message: "Please select an option",
+        })
+      }
     }
-    if (!data.sponsorStatus) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["sponsorStatus"],
-        message: "Please select an option",
-      })
-    }
-  }
   })
 }
 

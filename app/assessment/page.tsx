@@ -148,10 +148,24 @@ function AssessmentPageContent() {
     if (currentStep > 0) {
       setCurrentStep((s) => s - 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
+      return
     }
+
+    router.push("/")
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    const values = form.getValues()
+    const result =
+      currentStep === 5
+        ? validateStep6(values.primaryGoal || "", values)
+        : stepSchemas[currentStep].safeParse(values)
+
+    if (!result.success) {
+      await form.trigger()
+      return
+    }
+
     persistData()
     router.push("/results")
   }
