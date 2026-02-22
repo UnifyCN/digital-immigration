@@ -22,6 +22,7 @@ export function ResultsPage() {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [pendingAIQuestion, setPendingAIQuestion] = useState<string | null>(null)
 
   useEffect(() => {
     const data = loadAssessment()
@@ -52,6 +53,10 @@ export function ResultsPage() {
     }
     return hash.toString(36)
   }, [assessment])
+
+  function handleAskAI(_riskId: string, openerQuestion: string) {
+    setPendingAIQuestion(openerQuestion)
+  }
 
   function handleReset() {
     clearAssessment()
@@ -88,7 +93,12 @@ export function ResultsPage() {
 
   return (
     <>
-      <ChatSupportDrawer results={results} resultsId={resultsId} />
+      <ChatSupportDrawer
+        results={results}
+        resultsId={resultsId}
+        pendingQuestion={pendingAIQuestion}
+        onQuestionConsumed={() => setPendingAIQuestion(null)}
+      />
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-8">
         <Button
@@ -120,7 +130,7 @@ export function ResultsPage() {
 
         <Separator />
 
-        <RiskFlagsPanel flags={results.riskFlags} />
+        <RiskFlagsPanel flags={results.riskFlags} onAskAI={handleAskAI} />
 
         <Separator />
 
