@@ -1,10 +1,5 @@
 import type { AssessmentData } from "@/lib/types"
-import type { ChecklistStatus } from "@/lib/pathways/pnpContent"
-
-export interface ChecklistRow {
-  label: string
-  status: ChecklistStatus
-}
+import type { ChecklistRow, ChecklistStatus } from "@/lib/pathways/types"
 
 export interface ExpressEntryBrief {
   whyIntro: string
@@ -30,15 +25,21 @@ export interface ExpressEntryBrief {
   professionalReviewCases: string[]
 }
 
+// Keep this mapped from AssessmentData["educationLevel"] so new levels are handled intentionally.
 function hasPostSecondaryEducation(level: AssessmentData["educationLevel"]): boolean {
-  return [
-    "one-year-diploma",
-    "two-year-diploma",
-    "bachelors",
-    "two-or-more-degrees",
-    "masters",
-    "phd",
-  ].includes(level)
+  switch (level) {
+    case "one-year-diploma":
+    case "two-year-diploma":
+    case "bachelors":
+    case "two-or-more-degrees":
+    case "masters":
+    case "phd":
+      return true
+    case "":
+    case "none":
+    case "high-school":
+      return false
+  }
 }
 
 function hasSkilledWorkExperience(data: AssessmentData): boolean {
@@ -47,7 +48,25 @@ function hasSkilledWorkExperience(data: AssessmentData): boolean {
 }
 
 function hasCanadianWorkOneYearPlus(data: AssessmentData): boolean {
-  return data.canadianWorkExperience === "yes" || ["1-year", "2-plus-years"].includes(data.canadianWorkDuration)
+  return ["1-year", "2-plus-years"].includes(data.canadianWorkDuration)
+}
+
+function isCanadaCountry(value: string): boolean {
+  const normalized = value.trim().toLowerCase()
+  if (!normalized) return false
+
+  const canadaAliases = new Set([
+    "ca",
+    "can",
+    "canada",
+    "canadian",
+    "canada (ca)",
+  ])
+
+  if (canadaAliases.has(normalized)) return true
+
+  const compact = normalized.replace(/[\s.,()-]/g, "")
+  return compact === "ca" || compact === "can" || compact === "canada"
 }
 
 function getLanguageReadinessStatus(data: AssessmentData): ChecklistStatus {
@@ -58,9 +77,8 @@ function getLanguageReadinessStatus(data: AssessmentData): ChecklistStatus {
 }
 
 function getEcaStatus(data: AssessmentData): ChecklistStatus {
-  const hasEducationCountry = Boolean(data.educationCountry)
-  const educationOutsideCanada =
-    hasEducationCountry && !data.educationCountry.toLowerCase().includes("canada")
+  const hasEducationCountry = Boolean(data.educationCountry.trim())
+  const educationOutsideCanada = hasEducationCountry && !isCanadaCountry(data.educationCountry)
 
   if (!educationOutsideCanada) return "unknown"
   if (data.ecaValid === "yes" || data.ecaStatus === "yes") return "complete"

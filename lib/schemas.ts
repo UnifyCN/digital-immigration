@@ -23,6 +23,7 @@ const step1BaseSchema = z.object({
     required_error: "Please select an option",
   }),
   preferredProvince: z.string().optional(),
+  pnpTargetProvince: z.string().optional(),
   deadlineTrigger: z.enum(
     [
       "status-expiring",

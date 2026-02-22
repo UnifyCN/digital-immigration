@@ -1,11 +1,5 @@
 import type { AssessmentData } from "@/lib/types"
-
-export type ChecklistStatus = "complete" | "warning" | "unknown"
-
-export interface ChecklistRow {
-  label: string
-  status: ChecklistStatus
-}
+import type { ChecklistRow, ChecklistStatus } from "@/lib/pathways/types"
 
 export interface PnpBrief {
   whyIntro: string
@@ -41,7 +35,7 @@ function hasPostSecondaryEducation(level: AssessmentData["educationLevel"]): boo
 }
 
 function hasSkilledWorkExperience(data: AssessmentData): boolean {
-  if (data.totalExperience && data.totalExperience !== "not-sure") {
+  if (data.totalExperience === "1-3" || data.totalExperience === "3-5" || data.totalExperience === "5+") {
     return true
   }
 

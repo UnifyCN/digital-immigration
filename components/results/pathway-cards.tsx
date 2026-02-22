@@ -37,8 +37,8 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
           const card = (
             <Card
               className={cn(
-                "transition-shadow hover:shadow-md",
-                href ? "cursor-pointer focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2" : "",
+                "transition-shadow",
+                href ? "cursor-pointer hover:shadow-md" : "",
               )}
             >
               <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
@@ -95,7 +95,12 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
           }
 
           return (
-            <Link key={pathway.id} href={href} aria-label={`View ${pathway.name} details`} className="block">
+            <Link
+              key={pathway.id}
+              href={href}
+              aria-label={`View ${pathway.name} details`}
+              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            >
               {card}
             </Link>
           )

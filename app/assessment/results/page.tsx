@@ -1,4 +1,4 @@
-import ResultsPage from "@/app/results/page"
+import { ResultsPage } from "@/components/results/results-page"
 
 export default function AssessmentResultsPage() {
   return <ResultsPage />
