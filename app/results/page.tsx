@@ -11,7 +11,9 @@ import { PathwayCards } from "@/components/results/pathway-cards"
 import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
-import { loadAssessment, clearAssessment } from "@/lib/storage"
+import { ExportResults } from "@/components/results/export-results"
+import { safeGetAssessmentFromLocalStorage } from "@/lib/export-utils"
+import { clearAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
 
@@ -22,7 +24,7 @@ export default function ResultsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const data = loadAssessment()
+    const data = safeGetAssessmentFromLocalStorage()
     if (!data) {
       setIsLoaded(true)
       return
@@ -116,6 +118,10 @@ export default function ResultsPage() {
         <Separator />
 
         <ReviewAnswers assessment={assessment} />
+
+        <Separator />
+
+        <ExportResults assessment={assessment} results={results} />
       </div>
 
       {/* Actions footer */}
