@@ -12,6 +12,7 @@ export type DeadlineTrigger =
   | "no-hard-deadline"
 export type SponsorshipRelation = "spouse-partner" | "child" | "parent-grandparent" | "other"
 export type CurrentStatus = "citizen" | "pr" | "visitor" | "student" | "worker" | "other"
+// Red-flag flows still store "unsure" and are intentionally normalized separately from "not-sure" fields.
 export type YesNoUnsure = "yes" | "no" | "unsure"
 export type RefusalHistory = "no" | "canada" | "another-country" | "both" | "unsure"
 export type ApplicationType = "visitor" | "study" | "work" | "pr" | "sponsorship" | "other" | "not-sure"
@@ -21,6 +22,8 @@ export type LanguageApproxCLB = "clb-4-6" | "clb-7" | "clb-8" | "clb-9-plus" | "
 export type LanguagePlannedTiming = "within-1-month" | "1-3-months" | "3-plus-months" | "not-scheduled"
 export type CanadianWorkDuration = "none" | "less-than-1-year" | "1-year" | "2-plus-years" | "not-sure"
 export type SecondOfficialLanguageIntent = "yes" | "no" | "not-sure"
+export type YesNoNotSure = "yes" | "no" | "not-sure"
+// Keep EcaStatus ECA-specific so non-ECA fields can evolve independently without hidden coupling.
 export type EcaStatus = "yes" | "no" | "not-sure"
 export type CanadaEducationStatus = "yes" | "no" | "mix-some-in-canada" | "not-sure"
 export type ProgramLength = "less-than-1-year" | "1-year" | "2-years" | "3-plus-years" | "not-sure"
@@ -94,7 +97,7 @@ export interface AssessmentData {
   ecaStatus: EcaStatus | ""
   canadaEducationStatus: CanadaEducationStatus | ""
   programLength: ProgramLength | ""
-  hasMultipleCredentials: EcaStatus | ""
+  hasMultipleCredentials: YesNoNotSure | ""
   additionalCredentials: AdditionalCredential[]
   ecaValid: EcaStatus | ""
 
@@ -109,10 +112,10 @@ export interface AssessmentData {
   addScoresLater: boolean
   plannedTestDate: string
   languageApproxCLB: LanguageApproxCLB | ""
-  languageTestValid: EcaStatus | ""
+  languageTestValid: YesNoNotSure | ""
   languagePlannedTiming: LanguagePlannedTiming | ""
   ageRange: AgeRange | ""
-  canadianEducation: YesNoUnsure | ""
+  canadianEducation: YesNoNotSure | ""
   canadianWorkExperience: YesNoUnsure | ""
   canadianWorkDuration: CanadianWorkDuration | ""
   secondOfficialLanguageIntent: SecondOfficialLanguageIntent | ""
@@ -122,10 +125,10 @@ export interface AssessmentData {
   dependents: number
   spouseAccompanying: SpouseAccompanying | ""
   spouseLocation: SpouseLocation | ""
-  closeRelativeInCanada: EcaStatus | ""
+  closeRelativeInCanada: YesNoNotSure | ""
   closeRelativeRelationship: CloseRelativeRelationship | ""
-  hasDependentsUnder18: EcaStatus | ""
-  hasDependents18Plus: EcaStatus | ""
+  hasDependentsUnder18: YesNoNotSure | ""
+  hasDependents18Plus: YesNoNotSure | ""
   sponsorshipTarget: SponsorshipTarget | ""
   sponsorStatus: SponsorStatus | ""
   partnerEducation: boolean

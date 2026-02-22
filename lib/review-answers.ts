@@ -138,6 +138,11 @@ const enumLabels: Record<string, string> = {
   "yes-anywhere": "Yes, anywhere in Canada",
   "prefer-specific": "Prefer specific provinces",
   "only-specific": "Only specific provinces",
+  "status-expiring": "My status is expiring soon",
+  "job-offer-start": "I have a job offer start date",
+  "school-intake": "I have a school intake deadline",
+  "family-situation": "Family situation",
+  "no-hard-deadline": "No hard deadline",
   "less-than-3": "Less than 3 months",
   "3-to-6": "3 to 6 months",
   "6-to-12": "6 to 12 months",
@@ -164,11 +169,25 @@ const enumLabels: Record<string, string> = {
   "2-years": "2 years",
   "2-plus-years": "2+ years",
   "3-plus-years": "3+ years",
+  "high-school": "High school diploma",
+  "one-year-diploma": "One-year diploma or certificate",
+  "two-year-diploma": "Two-year diploma",
+  bachelor: "Bachelor's degree",
+  bachelors: "Bachelor's degree",
+  "two-or-more-degrees": "Two or more degrees",
+  masters: "Master's degree",
+  phd: "Doctoral degree (PhD)",
   "within-1-month": "Within 1 month",
   "1-3-months": "1–3 months",
   "3-plus-months": "3+ months",
   "yes-accompanying": "Yes (accompanying)",
   "no-non-accompanying": "No (non-accompanying)",
+  single: "Single",
+  married: "Married",
+  "common-law": "Common-law",
+  separated: "Separated",
+  divorced: "Divorced",
+  widowed: "Widowed",
   "in-canada": "In Canada",
   "spouse-partner": "Spouse/partner",
   "parent-grandparent": "Parent/grandparent",
@@ -196,6 +215,17 @@ function formatMonthYear(value: string): string {
   }).format(date)
 }
 
+function formatFullDate(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("en-US", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date)
+}
+
 function humanizeToken(value: string): string {
   return value
     .replace(/-/g, " ")
@@ -210,7 +240,7 @@ export function formatAnswer(value: unknown): string {
   if (typeof value !== "string") return String(value)
 
   if (/^\d{4}-\d{2}$/.test(value)) return formatMonthYear(value)
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return formatFullDate(value)
 
   if (enumLabels[value]) return enumLabels[value]
   return humanizeToken(value)

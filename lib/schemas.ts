@@ -228,7 +228,7 @@ const step5BaseSchema = z.object({
   ageRange: z.enum(["17-or-less", "18-24", "25-29", "30-34", "35-39", "40-44", "45+"], {
     required_error: "Please select your age range",
   }),
-  canadianEducation: z.enum(["yes", "no", "unsure"], {
+  canadianEducation: z.enum(["yes", "no", "not-sure"], {
     required_error: "Please select an option",
   }),
   canadianWorkExperience: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
@@ -266,9 +266,6 @@ export const step5Schema = step5BaseSchema.superRefine((data, ctx) => {
 })
 
 const step6BaseSchema = z.object({
-  primaryGoal: z
-    .union([z.enum(["pr", "study-permit", "work-permit", "sponsorship", "not-sure"]), z.literal("")])
-    .optional(),
   maritalStatus: z.enum(["single", "married", "common-law", "separated", "divorced", "widowed"], {
     required_error: "Please select your marital status",
   }),
@@ -296,7 +293,8 @@ const step6BaseSchema = z.object({
   partnerWorkExperience: z.boolean().optional(),
 })
 
-export const step6Schema = step6BaseSchema.superRefine((data, ctx) => {
+function getStep6Schema(primaryGoal: "pr" | "study-permit" | "work-permit" | "sponsorship" | "not-sure" | "") {
+  return step6BaseSchema.superRefine((data, ctx) => {
   const isPartnerCase = data.maritalStatus === "married" || data.maritalStatus === "common-law"
   if (isPartnerCase) {
     if (!data.spouseAccompanying) {
@@ -323,7 +321,7 @@ export const step6Schema = step6BaseSchema.superRefine((data, ctx) => {
     })
   }
 
-  if (data.primaryGoal === "sponsorship") {
+  if (primaryGoal === "sponsorship") {
     if (!data.sponsorshipTarget) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -339,7 +337,17 @@ export const step6Schema = step6BaseSchema.superRefine((data, ctx) => {
       })
     }
   }
-})
+  })
+}
+
+export const step6Schema = getStep6Schema("")
+
+export function validateStep6(
+  primaryGoal: "pr" | "study-permit" | "work-permit" | "sponsorship" | "not-sure" | "",
+  data: unknown,
+) {
+  return getStep6Schema(primaryGoal).safeParse(data)
+}
 
 export const step7Schema = z.object({
   priorRefusals: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
@@ -354,14 +362,4 @@ export const step7Schema = z.object({
   removalOrDeportationHistory: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
   hasActiveApplication: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
   employerLetterUnwilling: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
-})
-
-export const fullAssessmentSchema = z.object({
-  ...step1BaseSchema.shape,
-  ...step2BaseSchema.shape,
-  ...step3Schema.shape,
-  ...step4Schema.shape,
-  ...step5BaseSchema.shape,
-  ...step6BaseSchema.shape,
-  ...step7Schema.shape,
 })

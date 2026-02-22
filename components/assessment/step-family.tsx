@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import {
   FormField,
@@ -17,9 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
+import { RadioGroup } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
+import { RadioCard } from "@/components/ui/radio-card"
 import type { AssessmentData } from "@/lib/types"
 
 const maritalStatuses = [
@@ -32,12 +33,32 @@ const maritalStatuses = [
 ]
 
 export function StepFamily() {
-  const { control } = useFormContext<AssessmentData>()
+  const { control, setValue } = useFormContext<AssessmentData>()
   const maritalStatus = useWatch({ control, name: "maritalStatus" })
   const primaryGoal = useWatch({ control, name: "primaryGoal" })
   const closeRelativeInCanada = useWatch({ control, name: "closeRelativeInCanada" })
   const showPartner = maritalStatus === "married" || maritalStatus === "common-law"
   const isSponsorshipGoal = primaryGoal === "sponsorship"
+
+  useEffect(() => {
+    if (!showPartner) {
+      setValue("spouseAccompanying", "", { shouldValidate: true })
+      setValue("spouseLocation", "", { shouldValidate: true })
+    }
+  }, [setValue, showPartner])
+
+  useEffect(() => {
+    if (closeRelativeInCanada !== "yes") {
+      setValue("closeRelativeRelationship", "", { shouldValidate: true })
+    }
+  }, [closeRelativeInCanada, setValue])
+
+  useEffect(() => {
+    if (!isSponsorshipGoal) {
+      setValue("sponsorshipTarget", "", { shouldValidate: true })
+      setValue("sponsorStatus", "", { shouldValidate: true })
+    }
+  }, [isSponsorshipGoal, setValue])
 
   return (
     <div className="flex flex-col gap-8">
@@ -114,14 +135,12 @@ export function StepFamily() {
                       { value: "no-non-accompanying", label: "No (non-accompanying)" },
                       { value: "not-sure", label: "Not sure" },
                     ].map((o) => (
-                      <Label
+                      <RadioCard
                         key={o.value}
-                        htmlFor={`spouse-accompanying-${o.value}`}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                      >
-                        <RadioGroupItem value={o.value} id={`spouse-accompanying-${o.value}`} />
-                        <span className="text-foreground">{o.label}</span>
-                      </Label>
+                        value={o.value}
+                        id={`spouse-accompanying-${o.value}`}
+                        label={o.label}
+                      />
                     ))}
                   </RadioGroup>
                 </FormControl>
@@ -148,14 +167,12 @@ export function StepFamily() {
                       { value: "outside-canada", label: "Outside Canada" },
                       { value: "not-sure", label: "Not sure" },
                     ].map((o) => (
-                      <Label
+                      <RadioCard
                         key={o.value}
-                        htmlFor={`spouse-location-${o.value}`}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                      >
-                        <RadioGroupItem value={o.value} id={`spouse-location-${o.value}`} />
-                        <span className="text-foreground">{o.label}</span>
-                      </Label>
+                        value={o.value}
+                        id={`spouse-location-${o.value}`}
+                        label={o.label}
+                      />
                     ))}
                   </RadioGroup>
                 </FormControl>
@@ -185,14 +202,43 @@ export function StepFamily() {
                   { value: "no", label: "No" },
                   { value: "not-sure", label: "Not sure" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`dependents-18-plus-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`dependents-18-plus-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`dependents-18-plus-${o.value}`}
+                    label={o.label}
+                  />
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="hasDependentsUnder18"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Do you have any dependents under 18?</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="flex gap-4"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                  { value: "not-sure", label: "Not sure" },
+                ].map((o) => (
+                  <RadioCard
+                    key={o.value}
+                    value={o.value}
+                    id={`dependents-under-18-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -218,14 +264,12 @@ export function StepFamily() {
                   { value: "no", label: "No" },
                   { value: "not-sure", label: "Not sure" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`close-relative-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`close-relative-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`close-relative-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -266,39 +310,6 @@ export function StepFamily() {
           )}
         />
       )}
-
-      <FormField
-        control={control}
-        name="hasDependentsUnder18"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Do you have any dependents under 18?</FormLabel>
-            <FormControl>
-              <RadioGroup
-                onValueChange={field.onChange}
-                value={field.value}
-                className="flex gap-4"
-              >
-                {[
-                  { value: "yes", label: "Yes" },
-                  { value: "no", label: "No" },
-                  { value: "not-sure", label: "Not sure" },
-                ].map((o) => (
-                  <Label
-                    key={o.value}
-                    htmlFor={`dependents-under-18-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`dependents-under-18-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
-                ))}
-              </RadioGroup>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
 
       {isSponsorshipGoal && (
         <>
@@ -352,14 +363,12 @@ export function StepFamily() {
                       { value: "permanent-resident", label: "Permanent resident" },
                       { value: "not-sure", label: "Not sure" },
                     ].map((o) => (
-                      <Label
+                      <RadioCard
                         key={o.value}
-                        htmlFor={`sponsor-status-${o.value}`}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                      >
-                        <RadioGroupItem value={o.value} id={`sponsor-status-${o.value}`} />
-                        <span className="text-foreground">{o.label}</span>
-                      </Label>
+                        value={o.value}
+                        id={`sponsor-status-${o.value}`}
+                        label={o.label}
+                      />
                     ))}
                   </RadioGroup>
                 </FormControl>

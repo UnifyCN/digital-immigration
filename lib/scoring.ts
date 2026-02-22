@@ -74,7 +74,6 @@ export function computeTier(data: AssessmentData): TierResult {
     data.nonTraditionalEmployment,
     data.missingDocuments,
     data.employmentGaps,
-    data.ecaStatus,
   ]
   const unsureCount = unsureFields.filter((v) => v === "unsure").length
   const ecaUnsureCount = data.ecaStatus === "not-sure" ? 1 : 0

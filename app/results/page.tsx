@@ -27,10 +27,17 @@ export default function ResultsPage() {
       setIsLoaded(true)
       return
     }
-    setAssessment(data)
-    const computed = computeResults(data)
-    setResults(computed)
-    setIsLoaded(true)
+    try {
+      setAssessment(data)
+      const computed = computeResults(data)
+      setResults(computed)
+    } catch (error) {
+      console.error("Failed to compute assessment results", error)
+      setAssessment(null)
+      setResults(null)
+    } finally {
+      setIsLoaded(true)
+    }
   }, [])
 
   function handleReset() {

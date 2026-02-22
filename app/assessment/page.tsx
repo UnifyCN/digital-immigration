@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -24,6 +24,7 @@ import {
   step5Schema,
   step6Schema,
   step7Schema,
+  validateStep6,
 } from "@/lib/schemas"
 import {
   loadAssessment,
@@ -56,9 +57,30 @@ const stepSchemas = [
   step7Schema,
 ]
 
-export default function AssessmentPage() {
-  const router = useRouter()
+function SearchParamsClient({
+  onResolved,
+}: {
+  onResolved: (step: number | null) => void
+}) {
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const stepFromQuery = searchParams.get("step")
+    const parsedStep = stepFromQuery ? Number.parseInt(stepFromQuery, 10) : NaN
+    if (!Number.isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= TOTAL_STEPS) {
+      onResolved(parsedStep - 1)
+      return
+    }
+    onResolved(null)
+  }, [onResolved, searchParams])
+
+  return null
+}
+
+function AssessmentPageContent() {
+  const router = useRouter()
+  const [queryStep, setQueryStep] = useState<number | null>(null)
+  const [queryResolved, setQueryResolved] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -68,8 +90,9 @@ export default function AssessmentPage() {
     mode: "onTouched",
   })
 
-  // Load saved data on mount
   useEffect(() => {
+    if (!queryResolved) return
+
     const saved = loadAssessment()
     if (saved) {
       form.reset({
@@ -81,10 +104,9 @@ export default function AssessmentPage() {
         },
       })
     }
-    const stepFromQuery = searchParams.get("step")
-    const parsedStep = stepFromQuery ? Number.parseInt(stepFromQuery, 10) : NaN
-    if (!Number.isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= TOTAL_STEPS) {
-      setCurrentStep(parsedStep - 1)
+
+    if (queryStep !== null) {
+      setCurrentStep(queryStep)
     } else {
       const savedStep = loadStep()
       if (savedStep > 0 && savedStep < TOTAL_STEPS) {
@@ -92,9 +114,8 @@ export default function AssessmentPage() {
       }
     }
     setIsLoaded(true)
-  }, [form, searchParams])
+  }, [form, queryResolved, queryStep])
 
-  // Save on each step change
   const persistData = useCallback(() => {
     const values = form.getValues()
     saveAssessment(values)
@@ -102,13 +123,14 @@ export default function AssessmentPage() {
   }, [form, currentStep])
 
   async function handleNext() {
-    const schema = stepSchemas[currentStep]
     const values = form.getValues()
 
-    // Validate current step only
-    const result = schema.safeParse(values)
+    const result =
+      currentStep === 5
+        ? validateStep6(values.primaryGoal || "", values)
+        : stepSchemas[currentStep].safeParse(values)
+
     if (!result.success) {
-      // Trigger validation errors
       await form.trigger()
       return
     }
@@ -135,82 +157,113 @@ export default function AssessmentPage() {
   }
 
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100
-  const currentStepValid = stepSchemas[currentStep].safeParse(form.watch()).success
+  const currentStepValues = form.watch()
+  const currentStepValid =
+    currentStep === 5
+      ? validateStep6(currentStepValues.primaryGoal || "", currentStepValues).success
+      : stepSchemas[currentStep].safeParse(currentStepValues).success
+
+  const searchParamsResolver = (
+    <Suspense fallback={null}>
+      <SearchParamsClient
+        onResolved={(step) => {
+          setQueryStep(step)
+          setQueryResolved(true)
+        }}
+      />
+    </Suspense>
+  )
 
   if (!isLoaded) {
     return (
-      <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
-        <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
+      <>
+        {searchParamsResolver}
+        <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      </>
     )
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      {/* Progress bar */}
-      <div className="mb-6">
-        <Progress value={progressPercent} className="h-1.5" />
-        <p className="mt-2 text-xs text-muted-foreground text-right">
-          Step {currentStep + 1} of {TOTAL_STEPS}
-        </p>
-      </div>
+    <>
+      {searchParamsResolver}
 
-      {/* Stepper */}
-      <div className="mb-8">
-        <WizardStepper steps={STEP_LABELS} currentStep={currentStep} />
-      </div>
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-6">
+          <Progress value={progressPercent} className="h-1.5" />
+          <p className="mt-2 text-xs text-muted-foreground text-right">
+            Step {currentStep + 1} of {TOTAL_STEPS}
+          </p>
+        </div>
 
-      {/* Form */}
-      <Form {...form}>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            if (currentStep === TOTAL_STEPS - 1) {
-              handleSubmit()
-            } else {
-              handleNext()
-            }
-          }}
-          className="flex flex-col gap-8"
-        >
-          {/* Step content */}
-          <div className="min-h-[400px]">
-            {currentStep === 0 && <StepGoalTimeline />}
-            {currentStep === 1 && <StepCurrentStatus />}
-            {currentStep === 2 && <StepWorkHistory />}
-            {currentStep === 3 && <StepEducation />}
-            {currentStep === 4 && <StepLanguageCRS />}
-            {currentStep === 5 && <StepFamily />}
-            {currentStep === 6 && <StepRedFlags />}
-          </div>
+        <div className="mb-8">
+          <WizardStepper steps={STEP_LABELS} currentStep={currentStep} />
+        </div>
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between border-t border-border pt-6">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={handleBack}
-              disabled={currentStep === 0}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" />
-              Back
-            </Button>
+        <Form {...form}>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              if (currentStep === TOTAL_STEPS - 1) {
+                handleSubmit()
+              } else {
+                handleNext()
+              }
+            }}
+            className="flex flex-col gap-8"
+          >
+            <div className="min-h-[400px]">
+              {currentStep === 0 && <StepGoalTimeline />}
+              {currentStep === 1 && <StepCurrentStatus />}
+              {currentStep === 2 && <StepWorkHistory />}
+              {currentStep === 3 && <StepEducation />}
+              {currentStep === 4 && <StepLanguageCRS />}
+              {currentStep === 5 && <StepFamily />}
+              {currentStep === 6 && <StepRedFlags />}
+            </div>
 
-            {currentStep < TOTAL_STEPS - 1 ? (
-              <Button type="submit" className="gap-2" disabled={!currentStepValid}>
-                Next
-                <ArrowRight className="size-4" />
+            <div className="flex items-center justify-between border-t border-border pt-6">
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleBack}
+                disabled={currentStep === 0}
+                className="gap-2"
+              >
+                <ArrowLeft className="size-4" />
+                Back
               </Button>
-            ) : (
-              <Button type="submit" className="gap-2">
-                View Snapshot
-                <Send className="size-4" />
-              </Button>
-            )}
-          </div>
-        </form>
-      </Form>
-    </div>
+
+              {currentStep < TOTAL_STEPS - 1 ? (
+                <Button type="submit" className="gap-2" disabled={!currentStepValid}>
+                  Next
+                  <ArrowRight className="size-4" />
+                </Button>
+              ) : (
+                <Button type="submit" className="gap-2">
+                  View Snapshot
+                  <Send className="size-4" />
+                </Button>
+              )}
+            </div>
+          </form>
+        </Form>
+      </div>
+    </>
+  )
+}
+
+export default function AssessmentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
+          <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      }
+    >
+      <AssessmentPageContent />
+    </Suspense>
   )
 }

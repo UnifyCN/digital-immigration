@@ -7,8 +7,8 @@ import {
   FormLabel,
   FormControl,
 } from "@/components/ui/form"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
+import { RadioGroup } from "@/components/ui/radio-group"
+import { RadioCard } from "@/components/ui/radio-card"
 import { ShieldAlert } from "lucide-react"
 import type { AssessmentData } from "@/lib/types"
 
@@ -94,14 +94,14 @@ function YesNoUnsureField({
                 { value: "no", label: "No" },
                 { value: "unsure", label: "Unsure" },
               ]).map((o) => (
-                <Label
+                <RadioCard
                   key={o.value}
-                  htmlFor={`${name}-${o.value}`}
-                  className="flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                >
-                  <RadioGroupItem value={o.value} id={`${name}-${o.value}`} className="size-3" />
-                  <span className="text-foreground">{o.label}</span>
-                </Label>
+                  value={o.value}
+                  id={`${name}-${o.value}`}
+                  label={o.label}
+                  className="gap-1.5 rounded-md px-3 py-1.5 text-xs"
+                  itemClassName="size-3"
+                />
               ))}
             </RadioGroup>
           </FormControl>

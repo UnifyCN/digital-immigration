@@ -43,6 +43,9 @@ const programLengthOptions = [
   { value: "not-sure", label: "Not sure" },
 ]
 
+const CURRENT_YEAR = new Date().getFullYear()
+const MAX_CREDENTIALS = 5
+
 export function StepEducation() {
   const { control } = useFormContext<AssessmentData>()
   const ecaStatus = useWatch({ control, name: "ecaStatus" })
@@ -51,6 +54,7 @@ export function StepEducation() {
     control,
     name: "additionalCredentials",
   })
+  const isMaxCredentialsReached = fields.length >= MAX_CREDENTIALS
 
   return (
     <div className="flex flex-col gap-8">
@@ -109,7 +113,13 @@ export function StepEducation() {
           <FormItem>
             <FormLabel>Graduation year</FormLabel>
             <FormControl>
-              <Input type="number" placeholder="e.g. 2019" min="1960" max="2026" {...field} />
+              <Input
+                type="number"
+                placeholder="e.g. 2019"
+                min="1960"
+                max={CURRENT_YEAR}
+                {...field}
+              />
             </FormControl>
             <FormMessage />
           </FormItem>
@@ -313,7 +323,7 @@ export function StepEducation() {
                             type="number"
                             placeholder="e.g. 2018"
                             min="1960"
-                            max="2026"
+                            max={CURRENT_YEAR}
                             {...field}
                           />
                         </FormControl>
@@ -353,18 +363,27 @@ export function StepEducation() {
             type="button"
             variant="outline"
             size="sm"
-            onClick={() =>
+            onClick={() => {
+              if (isMaxCredentialsReached) return
               append({
                 educationLevel: "",
                 country: "",
                 graduationYear: "",
                 programLength: "",
               })
-            }
+            }}
+            disabled={isMaxCredentialsReached}
             className="w-fit gap-1.5"
           >
-            + Add credential
+            {isMaxCredentialsReached
+              ? `Credential limit reached (${MAX_CREDENTIALS})`
+              : "+ Add credential"}
           </Button>
+          {isMaxCredentialsReached && (
+            <p className="text-xs text-muted-foreground">
+              You can add up to {MAX_CREDENTIALS} total credentials.
+            </p>
+          )}
         </div>
       )}
 

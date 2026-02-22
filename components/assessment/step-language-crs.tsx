@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import {
   FormField,
@@ -16,9 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
+import { RadioGroup } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
+import { RadioCard } from "@/components/ui/radio-card"
 import type { AssessmentData } from "@/lib/types"
 
 const ageRanges = [
@@ -32,8 +33,24 @@ const ageRanges = [
 ]
 
 export function StepLanguageCRS() {
-  const { control } = useFormContext<AssessmentData>()
+  const { control, resetField, setValue } = useFormContext<AssessmentData>()
   const languageTestStatus = useWatch({ control, name: "languageTestStatus" })
+
+  useEffect(() => {
+    if (languageTestStatus !== "yes") {
+      resetField("languageApproxCLB")
+      resetField("languageTestValid")
+    }
+    if (languageTestStatus !== "planning") {
+      resetField("languagePlannedTiming")
+    }
+  }, [languageTestStatus, resetField])
+
+  useEffect(() => {
+    if (languageTestStatus !== "planning") {
+      setValue("plannedTestDate", "", { shouldValidate: true })
+    }
+  }, [languageTestStatus, setValue])
 
   return (
     <div className="flex flex-col gap-8">
@@ -63,14 +80,12 @@ export function StepLanguageCRS() {
                   { value: "no", label: "Not taken" },
                   { value: "planning", label: "Planning" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`lang-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`lang-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`lang-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -130,14 +145,12 @@ export function StepLanguageCRS() {
                       { value: "no", label: "No" },
                       { value: "not-sure", label: "Not sure" },
                     ].map((o) => (
-                      <Label
+                      <RadioCard
                         key={o.value}
-                        htmlFor={`lang-valid-${o.value}`}
-                        className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                      >
-                        <RadioGroupItem value={o.value} id={`lang-valid-${o.value}`} />
-                        <span className="text-foreground">{o.label}</span>
-                      </Label>
+                        value={o.value}
+                        id={`lang-valid-${o.value}`}
+                        label={o.label}
+                      />
                     ))}
                   </RadioGroup>
                 </FormControl>
@@ -223,16 +236,14 @@ export function StepLanguageCRS() {
                 {[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
-                  { value: "unsure", label: "Not sure" },
+                  { value: "not-sure", label: "Not sure" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`can-edu-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`can-edu-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`can-edu-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -289,14 +300,12 @@ export function StepLanguageCRS() {
                   { value: "no", label: "No" },
                   { value: "not-sure", label: "Not sure" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`second-lang-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`second-lang-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`second-lang-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>

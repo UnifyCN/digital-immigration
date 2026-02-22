@@ -75,6 +75,23 @@ function AdditionalCredentialsList({ assessment }: { assessment: AssessmentData 
   )
 }
 
+function LanguageScoresList({ assessment }: { assessment: AssessmentData }) {
+  if (assessment.languageTestStatus !== "yes") return null
+  const scores = assessment.languageScores
+
+  return (
+    <div className="py-2">
+      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+        Individual language scores
+      </p>
+      <KeyValueRow label="Listening" value={formatAnswer(scores.listening)} />
+      <KeyValueRow label="Reading" value={formatAnswer(scores.reading)} />
+      <KeyValueRow label="Writing" value={formatAnswer(scores.writing)} />
+      <KeyValueRow label="Speaking" value={formatAnswer(scores.speaking)} />
+    </div>
+  )
+}
+
 export function ReviewAnswers({ assessment }: ReviewAnswersProps) {
   return (
     <Card>
@@ -107,6 +124,7 @@ export function ReviewAnswers({ assessment }: ReviewAnswersProps) {
 
                   {section.id === "work" && <WorkRolesList assessment={assessment} />}
                   {section.id === "education" && <AdditionalCredentialsList assessment={assessment} />}
+                  {section.id === "language" && <LanguageScoresList assessment={assessment} />}
                 </div>
               </AccordionContent>
             </AccordionItem>
