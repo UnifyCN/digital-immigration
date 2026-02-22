@@ -1,7 +1,7 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
-import { MessageCircle, ArrowUp, X, RefreshCw } from "lucide-react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
+import { MessageCircle, ArrowUp, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
@@ -79,11 +79,16 @@ export function ChatSupportDrawer({
   const [error, setError] = useState<string | null>(null)
   const [hasUnread, setHasUnread] = useState(false)
   const [lastSentMessages, setLastSentMessages] = useState<Message[]>([])
+  const [queuedQuestion, setQueuedQuestion] = useState<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const isOpenRef = useRef(isOpen)
+  const messagesRef = useRef(messages)
   isOpenRef.current = isOpen
+  messagesRef.current = messages
+
+  const systemContext = useMemo(() => buildResultsContext(results), [results])
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -135,7 +140,7 @@ export function ChatSupportDrawer({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: msgsToSend,
-          systemContext: buildResultsContext(results),
+          systemContext,
         }),
       })
 
@@ -147,11 +152,9 @@ export function ChatSupportDrawer({
       }
 
       const reply: Message = { role: "assistant", content: data.message }
-      setMessages((prev) => {
-        const updated = [...prev, reply]
-        persistMessages(updated)
-        return updated
-      })
+      const updated = [...messagesRef.current, reply]
+      setMessages(updated)
+      persistMessages(updated)
 
       if (!isOpenRef.current) {
         setHasUnread(true)
@@ -161,22 +164,37 @@ export function ChatSupportDrawer({
     } finally {
       setIsLoading(false)
     }
-  }, [results, storageKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [systemContext, storageKey])
 
   // Handle pending question from "Ask AI about this risk"
   useEffect(() => {
-    if (pendingQuestion && !isLoading) {
+    if (!pendingQuestion) return
+    if (isLoading) {
+      setQueuedQuestion(pendingQuestion)
+      return
+    }
+    setIsOpen(true)
+    const userMsg: Message = { role: "user", content: pendingQuestion }
+    const updated = [...messagesRef.current, userMsg]
+    setMessages(updated)
+    persistMessages(updated)
+    sendMessages(updated)
+    onQuestionConsumed?.()
+  }, [pendingQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush queued question when loading completes
+  useEffect(() => {
+    if (!isLoading && queuedQuestion) {
       setIsOpen(true)
-      const userMsg: Message = { role: "user", content: pendingQuestion }
-      setMessages((prev) => {
-        const updated = [...prev, userMsg]
-        persistMessages(updated)
-        sendMessages(updated)
-        return updated
-      })
+      const userMsg: Message = { role: "user", content: queuedQuestion }
+      const updated = [...messagesRef.current, userMsg]
+      setMessages(updated)
+      persistMessages(updated)
+      sendMessages(updated)
+      setQueuedQuestion(null)
       onQuestionConsumed?.()
     }
-  }, [pendingQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, queuedQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSend() {
     const trimmed = input.trim()
@@ -240,7 +258,7 @@ export function ChatSupportDrawer({
           className="flex w-full flex-col p-0 sm:w-[420px] sm:max-w-[420px]"
         >
           {/* Header */}
-          <div className="flex items-start justify-between border-b px-4 py-3">
+          <div className="flex items-start justify-between border-b px-4 py-3 pr-12">
             <div>
               <div className="flex items-center gap-2">
                 <SheetTitle className="text-base font-semibold">AI Support</SheetTitle>
@@ -255,13 +273,6 @@ export function ChatSupportDrawer({
                 Informational only, not legal advice
               </p>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-sm opacity-70 hover:opacity-100"
-              aria-label="Close"
-            >
-              <X className="size-4" />
-            </button>
           </div>
 
           {/* Messages */}
