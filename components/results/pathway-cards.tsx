@@ -40,7 +40,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 sm:items-stretch">
         {pathways.map((pathway) => {
           const href = pathwayHref[pathway.id]
 
@@ -63,7 +63,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
                   {pathway.confidence}
                 </Badge>
               </CardHeader>
-              <CardContent className="flex flex-col gap-3 pt-0">
+              <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-0">
                 <div>
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
                     Why it appears relevant
@@ -95,7 +95,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="mt-1 w-full gap-1.5"
+                  className="mt-auto w-full gap-1.5"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -112,7 +112,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
           const card = (
             <Card
               className={cn(
-                "transition-shadow",
+                "flex h-full flex-col transition-shadow",
                 href ? "cursor-pointer hover:shadow-md" : "",
               )}
             >
@@ -121,7 +121,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
           )
 
           if (!href) {
-            return <div key={pathway.id}>{card}</div>
+            return <div key={pathway.id} className="h-full">{card}</div>
           }
 
           return (
@@ -129,7 +129,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
               key={pathway.id}
               href={href}
               aria-label={`View ${pathway.name} details`}
-              className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              className="block h-full rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             >
               {card}
             </Link>

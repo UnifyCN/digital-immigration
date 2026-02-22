@@ -125,7 +125,7 @@ export function ResultsPage() {
         </Button>
 
         <h1 className="font-heading text-foreground">
-          Your Unify Immigration Snapshot
+          Your Assessment Results
         </h1>
         <p className="mt-2 type-body text-muted-foreground">
           This summary organizes your likely pathways and possible risk points

@@ -75,7 +75,7 @@ export function NextActions({ steps, onAskAI, aiContextResults }: NextActionsPro
             <AccordionItem
               key={step.id}
               value={step.id}
-              className="overflow-hidden rounded-lg border border-border bg-card"
+              className="overflow-hidden rounded-lg border border-border bg-card last:border-b last:border-border shadow-[var(--shadow-soft)]"
             >
               <AccordionTrigger className="px-4 py-4 hover:bg-muted/50 hover:no-underline">
                 <div className="flex flex-1 items-start gap-3">
