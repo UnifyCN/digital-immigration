@@ -1,17 +1,20 @@
 "use client"
 
-import { useEffect, useRef, useState, useCallback } from "react"
-import { MessageCircle, ArrowUp, X, RefreshCw } from "lucide-react"
+import { useEffect, useRef, useState, useCallback, useMemo } from "react"
+import { MessageCircle, ArrowUp, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Sheet,
   SheetContent,
+  SheetTitle,
 } from "@/components/ui/sheet"
 import type { AssessmentResults } from "@/lib/types"
 
 interface ChatSupportDrawerProps {
   results: AssessmentResults
   resultsId: string
+  pendingQuestion?: string | null
+  onQuestionConsumed?: () => void
 }
 
 interface Message {
@@ -19,7 +22,7 @@ interface Message {
   content: string
 }
 
-const GREETING = "I've reviewed your snapshot — what do you want help with? (pathway choice, next steps, risk flags, documents)"
+const GREETING = "I've reviewed your snapshot \u2014 what do you want help with? (pathway choice, next steps, risk flags, documents)"
 
 function buildResultsContext(results: AssessmentResults): string {
   const lines: string[] = []
@@ -60,7 +63,12 @@ function buildResultsContext(results: AssessmentResults): string {
   return lines.join("\n")
 }
 
-export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps) {
+export function ChatSupportDrawer({
+  results,
+  resultsId,
+  pendingQuestion,
+  onQuestionConsumed,
+}: ChatSupportDrawerProps) {
   const storageKey = `unify_results_chat_${resultsId}`
   const initialMessages: Message[] = [{ role: "assistant", content: GREETING }]
 
@@ -71,9 +79,16 @@ export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps
   const [error, setError] = useState<string | null>(null)
   const [hasUnread, setHasUnread] = useState(false)
   const [lastSentMessages, setLastSentMessages] = useState<Message[]>([])
+  const [queuedQuestion, setQueuedQuestion] = useState<string | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const isOpenRef = useRef(isOpen)
+  const messagesRef = useRef(messages)
+  isOpenRef.current = isOpen
+  messagesRef.current = messages
+
+  const systemContext = useMemo(() => buildResultsContext(results), [results])
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -125,7 +140,7 @@ export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: msgsToSend,
-          systemContext: buildResultsContext(results),
+          systemContext,
         }),
       })
 
@@ -137,13 +152,11 @@ export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps
       }
 
       const reply: Message = { role: "assistant", content: data.message }
-      setMessages((prev) => {
-        const updated = [...prev, reply]
-        persistMessages(updated)
-        return updated
-      })
+      const updated = [...messagesRef.current, reply]
+      setMessages(updated)
+      persistMessages(updated)
 
-      if (!isOpen) {
+      if (!isOpenRef.current) {
         setHasUnread(true)
       }
     } catch {
@@ -151,7 +164,37 @@ export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps
     } finally {
       setIsLoading(false)
     }
-  }, [results, isOpen, storageKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [systemContext, storageKey])
+
+  // Handle pending question from "Ask AI about this risk"
+  useEffect(() => {
+    if (!pendingQuestion) return
+    if (isLoading) {
+      setQueuedQuestion(pendingQuestion)
+      return
+    }
+    setIsOpen(true)
+    const userMsg: Message = { role: "user", content: pendingQuestion }
+    const updated = [...messagesRef.current, userMsg]
+    setMessages(updated)
+    persistMessages(updated)
+    sendMessages(updated)
+    onQuestionConsumed?.()
+  }, [pendingQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Flush queued question when loading completes
+  useEffect(() => {
+    if (!isLoading && queuedQuestion) {
+      setIsOpen(true)
+      const userMsg: Message = { role: "user", content: queuedQuestion }
+      const updated = [...messagesRef.current, userMsg]
+      setMessages(updated)
+      persistMessages(updated)
+      sendMessages(updated)
+      setQueuedQuestion(null)
+      onQuestionConsumed?.()
+    }
+  }, [isLoading, queuedQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSend() {
     const trimmed = input.trim()
@@ -215,10 +258,10 @@ export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps
           className="flex w-full flex-col p-0 sm:w-[420px] sm:max-w-[420px]"
         >
           {/* Header */}
-          <div className="flex items-start justify-between border-b px-4 py-3">
+          <div className="flex items-start justify-between border-b px-4 py-3 pr-12">
             <div>
               <div className="flex items-center gap-2">
-                <p className="font-semibold text-foreground">AI Support</p>
+                <SheetTitle className="text-base font-semibold">AI Support</SheetTitle>
                 <button
                   onClick={handleClear}
                   className="text-xs text-muted-foreground underline-offset-2 hover:underline"
@@ -230,13 +273,6 @@ export function ChatSupportDrawer({ results, resultsId }: ChatSupportDrawerProps
                 Informational only, not legal advice
               </p>
             </div>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="rounded-sm opacity-70 hover:opacity-100"
-              aria-label="Close"
-            >
-              <X className="size-4" />
-            </button>
           </div>
 
           {/* Messages */}

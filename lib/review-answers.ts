@@ -14,9 +14,20 @@ export type ReviewSectionConfig = {
 
 export const reviewSections: ReviewSectionConfig[] = [
   {
+    id: "basic-information",
+    title: "Basic Information",
+    editStep: 1,
+    fields: [
+      { key: "firstName", label: "First name" },
+      { key: "middleName", label: "Middle name" },
+      { key: "lastName", label: "Last name" },
+      { key: "citizenshipCountry", label: "Country of citizenship" },
+    ],
+  },
+  {
     id: "goal",
     title: "Goal",
-    editStep: 1,
+    editStep: 2,
     fields: [
       { key: "primaryGoal", label: "Primary goal" },
       { key: "timeUrgency", label: "Timeline urgency" },
@@ -34,7 +45,7 @@ export const reviewSections: ReviewSectionConfig[] = [
   {
     id: "status",
     title: "Status",
-    editStep: 2,
+    editStep: 3,
     fields: [
       { key: "currentStatus", label: "Current status" },
       { key: "statusExpiryDate", label: "Status expiry date" },
@@ -50,7 +61,7 @@ export const reviewSections: ReviewSectionConfig[] = [
   {
     id: "work",
     title: "Work",
-    editStep: 3,
+    editStep: 4,
     fields: [
       { key: "currentJobTitle", label: "Current/most recent job title" },
       { key: "countryOfWork", label: "Country of work" },
@@ -62,7 +73,7 @@ export const reviewSections: ReviewSectionConfig[] = [
   {
     id: "education",
     title: "Education",
-    editStep: 4,
+    editStep: 5,
     fields: [
       { key: "educationLevel", label: "Highest education level" },
       { key: "educationCountry", label: "Education country" },
@@ -77,7 +88,7 @@ export const reviewSections: ReviewSectionConfig[] = [
   {
     id: "language",
     title: "Language",
-    editStep: 5,
+    editStep: 6,
     fields: [
       { key: "languageTestStatus", label: "IELTS/CELPIP/TEF status" },
       { key: "languageApproxCLB", label: "Approximate language level" },
@@ -93,7 +104,7 @@ export const reviewSections: ReviewSectionConfig[] = [
   {
     id: "family",
     title: "Family",
-    editStep: 6,
+    editStep: 7,
     fields: [
       { key: "maritalStatus", label: "Marital status" },
       { key: "dependents", label: "Number of dependents" },
@@ -110,7 +121,7 @@ export const reviewSections: ReviewSectionConfig[] = [
   {
     id: "flags",
     title: "Flags",
-    editStep: 7,
+    editStep: 8,
     fields: [
       { key: "priorRefusals", label: "Prior refusals" },
       { key: "criminalCharges", label: "Criminal charges/convictions" },
@@ -225,6 +236,25 @@ function formatFullDate(value: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(date)
+}
+
+export function deriveAgeFromDateOfBirth(dateOfBirth: string): number | null {
+  const birthDate = new Date(`${dateOfBirth}T00:00:00Z`)
+  if (Number.isNaN(birthDate.getTime())) return null
+
+  const now = new Date()
+  let age = now.getUTCFullYear() - birthDate.getUTCFullYear()
+  const currentMonth = now.getUTCMonth()
+  const birthMonth = birthDate.getUTCMonth()
+  const currentDay = now.getUTCDate()
+  const birthDay = birthDate.getUTCDate()
+
+  if (currentMonth < birthMonth || (currentMonth === birthMonth && currentDay < birthDay)) {
+    age -= 1
+  }
+
+  if (age < 0) return null
+  return age
 }
 
 function humanizeToken(value: string): string {

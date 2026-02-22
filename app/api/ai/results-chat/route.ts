@@ -9,7 +9,35 @@ Ask 1–3 clarifying questions when key details are missing.
 ASSESSMENT CONTEXT (use as ground truth for this user's situation):
 {systemContext}`
 
+// ── Simple in-memory rate limiter ──
+const MAX_REQUESTS_PER_WINDOW = 20
+const WINDOW_MS = 60_000 // 1 minute
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(key: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(key)
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(key, { count: 1, resetAt: now + WINDOW_MS })
+    return true
+  }
+  if (entry.count >= MAX_REQUESTS_PER_WINDOW) return false
+  entry.count++
+  return true
+}
+
+// ── Input limits ──
+const MAX_MESSAGES = 50
+const MAX_SYSTEM_CONTEXT_CHARS = 8_000
+const FETCH_TIMEOUT_MS = 30_000
+
 export async function POST(req: NextRequest) {
+  // Rate limit by IP
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown"
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: "Too many requests. Please wait a moment." }, { status: 429 })
+  }
+
   const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
     return NextResponse.json({ error: "AI support is not configured." }, { status: 503 })
@@ -27,8 +55,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 })
   }
 
+  // Validate message roles — only allow user/assistant, block system injection
+  for (const msg of messages) {
+    if (
+      (msg.role !== "user" && msg.role !== "assistant") ||
+      typeof msg.content !== "string"
+    ) {
+      return NextResponse.json({ error: "Invalid message role or content." }, { status: 400 })
+    }
+  }
+
+  // Cap input sizes
+  const cappedMessages = messages.slice(-MAX_MESSAGES)
+  const cappedContext = systemContext.slice(0, MAX_SYSTEM_CONTEXT_CHARS)
+
   const model = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini"
-  const systemMessage = SYSTEM_PROMPT_TEMPLATE.replace("{systemContext}", systemContext)
+  const systemMessage = SYSTEM_PROMPT_TEMPLATE.replace("{systemContext}", cappedContext)
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -44,9 +86,10 @@ export async function POST(req: NextRequest) {
         temperature: 0.4,
         messages: [
           { role: "system", content: systemMessage },
-          ...messages,
+          ...cappedMessages,
         ],
       }),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     })
 
     if (!response.ok) {
