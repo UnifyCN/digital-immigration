@@ -142,6 +142,8 @@ export const step2Schema = step2BaseSchema
     }
   })
 
+// step3BaseSchema keeps step-3 fields optional so it can be merged into fullAssessmentSchema
+// as a shape-only schema without forcing completion while users move across steps.
 const step3BaseSchema = z.object({
   currentJobTitle: z.string().optional(),
   countryOfWork: z.string().optional(),
@@ -153,8 +155,8 @@ const step3BaseSchema = z.object({
   mostRecentJobPresent: z.boolean().optional(),
   hoursPerWeekRange: z.union([z.enum(["lt15", "15-29", "30plus", "varies-not-sure"]), z.literal("")]).optional(),
   paidWorkStatus: z.union([z.enum(["yes", "no", "mix-not-sure"]), z.literal("")]).optional(),
-  employmentType: z.union([z.enum(["employee", "self-employed-contractor", "mix", "not-sure"]), z.literal("")]).optional(),
-  canObtainEmployerLetter: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  employmentType: z.union([z.enum(["employee", "self-employed-contractor", "mix", "unsure"]), z.literal("")]).optional(),
+  canObtainEmployerLetter: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
   employerLetterChallenge: z.union([
     z.enum([
       "employer-wont-include-duties",
@@ -165,10 +167,12 @@ const step3BaseSchema = z.object({
     ]),
     z.literal(""),
   ]).optional(),
-  hasOverlappingPeriods: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  hasOverlappingPeriods: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
   jobs: z.array(jobEntrySchema).optional(),
 })
 
+// step3Schema applies step-level requiredness in superRefine, while step3BaseSchema remains
+// optional for fullAssessmentSchema composition. Keep required checks in this callback.
 export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
   if (!data.mostRecentJobStart) {
     ctx.addIssue({
@@ -218,7 +222,7 @@ export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
     })
   }
 
-  if (data.canObtainEmployerLetter !== "yes" && !data.employerLetterChallenge) {
+  if (data.canObtainEmployerLetter && data.canObtainEmployerLetter !== "yes" && !data.employerLetterChallenge) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       path: ["employerLetterChallenge"],
@@ -242,7 +246,7 @@ export const step4Schema = z.object({
   ]).optional(),
   educationCountry: z.string().optional(),
   graduationYear: z.string().optional(),
-  ecaStatus: z.enum(["yes", "no", "not-sure"]).optional(),
+  ecaStatus: z.enum(["yes", "no", "unsure"]).optional(),
 })
 
 export const step5Schema = z.object({

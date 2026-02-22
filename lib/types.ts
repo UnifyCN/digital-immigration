@@ -18,8 +18,8 @@ export type ApplicationType = "visitor" | "study" | "work" | "pr" | "sponsorship
 export type WorkExperience = "0-1" | "1-3" | "3-5" | "5+" | "not-sure"
 export type HoursPerWeekRange = "lt15" | "15-29" | "30plus" | "varies-not-sure"
 export type PaidWorkStatus = "yes" | "no" | "mix-not-sure"
-export type EmploymentType = "employee" | "self-employed-contractor" | "mix" | "not-sure"
-export type EmployerLetterFeasibility = "yes" | "no" | "not-sure"
+export type EmploymentType = "employee" | "self-employed-contractor" | "mix" | "unsure"
+export type EmployerLetterFeasibility = "yes" | "no" | "unsure"
 export type EmployerLetterChallenge =
   | "employer-wont-include-duties"
   | "employer-closed-cant-contact"
@@ -86,7 +86,7 @@ export interface AssessmentData {
   employmentType: EmploymentType | ""
   canObtainEmployerLetter: EmployerLetterFeasibility | ""
   employerLetterChallenge: EmployerLetterChallenge | ""
-  hasOverlappingPeriods: "yes" | "no" | "not-sure" | ""
+  hasOverlappingPeriods: YesNoUnsure | ""
   jobs: JobEntry[]
 
   // Step 4: Education

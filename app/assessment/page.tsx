@@ -122,7 +122,16 @@ export default function AssessmentPage() {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    const schema = stepSchemas[currentStep]
+    const values = form.getValues()
+    const result = schema.safeParse(values)
+
+    if (!result.success) {
+      await form.trigger()
+      return
+    }
+
     persistData()
     router.push("/results")
   }

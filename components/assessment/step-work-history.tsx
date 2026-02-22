@@ -62,13 +62,13 @@ const employmentTypeOptions = [
   { value: "employee", label: "Employee" },
   { value: "self-employed-contractor", label: "Self-employed / Contractor" },
   { value: "mix", label: "Mix" },
-  { value: "not-sure", label: "Not sure" },
+  { value: "unsure", label: "Not sure" },
 ]
 
 const yesNoNotSureOptions = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
-  { value: "not-sure", label: "Not sure" },
+  { value: "unsure", label: "Not sure" },
 ]
 
 const letterChallengeOptions = [
@@ -78,6 +78,9 @@ const letterChallengeOptions = [
   { value: "informal-work-no-records", label: "Informal work / no records" },
   { value: "other-not-sure", label: "Other / not sure" },
 ]
+
+const workHistoryRadioLabelClass =
+  "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
 
 export function StepWorkHistory() {
   const { control, setValue } = useFormContext<AssessmentData>()
@@ -224,7 +227,7 @@ export function StepWorkHistory() {
                   <Label
                     key={o.value}
                     htmlFor={`hours-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    className={workHistoryRadioLabelClass}
                   >
                     <RadioGroupItem value={o.value} id={`hours-${o.value}`} />
                     <span className="text-foreground">{o.label}</span>
@@ -254,7 +257,7 @@ export function StepWorkHistory() {
                   <Label
                     key={o.value}
                     htmlFor={`paid-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    className={workHistoryRadioLabelClass}
                   >
                     <RadioGroupItem value={o.value} id={`paid-${o.value}`} />
                     <span className="text-foreground">{o.label}</span>
@@ -284,7 +287,7 @@ export function StepWorkHistory() {
                   <Label
                     key={o.value}
                     htmlFor={`employment-type-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    className={workHistoryRadioLabelClass}
                   >
                     <RadioGroupItem value={o.value} id={`employment-type-${o.value}`} />
                     <span className="text-foreground">{o.label}</span>
@@ -321,7 +324,7 @@ export function StepWorkHistory() {
                   <Label
                     key={o.value}
                     htmlFor={`letter-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    className={workHistoryRadioLabelClass}
                   >
                     <RadioGroupItem value={o.value} id={`letter-${o.value}`} />
                     <span className="text-foreground">{o.label}</span>
@@ -377,7 +380,7 @@ export function StepWorkHistory() {
                   <Label
                     key={o.value}
                     htmlFor={`overlap-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    className={workHistoryRadioLabelClass}
                   >
                     <RadioGroupItem value={o.value} id={`overlap-${o.value}`} />
                     <span className="text-foreground">{o.label}</span>
@@ -435,7 +438,7 @@ export function StepWorkHistory() {
                   <Label
                     key={o.value}
                     htmlFor={`gaps-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    className={workHistoryRadioLabelClass}
                   >
                     <RadioGroupItem value={o.value} id={`gaps-${o.value}`} />
                     <span className="text-foreground">{o.label}</span>
@@ -479,7 +482,12 @@ export function StepWorkHistory() {
                   render={({ field: f }) => (
                     <FormItem>
                       <FormControl>
-                        <Input placeholder="Job title" {...f} value={f.value ?? ""} />
+                        <Input
+                          placeholder="Job title"
+                          aria-label={`Job ${index + 1} title`}
+                          {...f}
+                          value={f.value ?? ""}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -492,7 +500,12 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input placeholder="Country (optional)" {...f} value={f.value ?? ""} />
+                          <Input
+                            placeholder="Country (optional)"
+                            aria-label={`Job ${index + 1} country`}
+                            {...f}
+                            value={f.value ?? ""}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -504,7 +517,12 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input placeholder="e.g. 2-3 yrs" {...f} value={f.value ?? ""} />
+                          <Input
+                            placeholder="e.g. 2-3 yrs"
+                            aria-label={`Job ${index + 1} years range`}
+                            {...f}
+                            value={f.value ?? ""}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -518,7 +536,12 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input type="month" {...f} value={f.value ?? ""} />
+                          <Input
+                            type="month"
+                            aria-label={`Job ${index + 1} start month`}
+                            {...f}
+                            value={f.value ?? ""}
+                          />
                         </FormControl>
                       </FormItem>
                     )}
@@ -532,6 +555,7 @@ export function StepWorkHistory() {
                         <FormControl>
                           <Input
                             type="month"
+                            aria-label={`Job ${index + 1} end month`}
                             {...f}
                             value={f.value ?? ""}
                             disabled={!!jobPresent}
