@@ -275,7 +275,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
     }
   }
 
-  if (data.ecaStatus === "no" || data.ecaStatus === "not-sure") {
+  if (data.ecaStatus === "no" || data.ecaStatus === "unsure") {
     flags.push({
       label: "Education Credential Assessment (ECA) not completed",
       severity: "low",

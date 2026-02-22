@@ -128,8 +128,6 @@ export default function AssessmentPage() {
   }
 
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100
-  const currentStepValid = stepSchemas[currentStep].safeParse(form.watch()).success
-
   if (!isLoaded) {
     return (
       <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
@@ -191,7 +189,7 @@ export default function AssessmentPage() {
             </Button>
 
             {currentStep < TOTAL_STEPS - 1 ? (
-              <Button type="submit" className="gap-2" disabled={!currentStepValid}>
+              <Button type="submit" className="gap-2">
                 Next
                 <ArrowRight className="size-4" />
               </Button>
