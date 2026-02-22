@@ -72,12 +72,22 @@ export interface AdditionalCredential {
 }
 
 export interface AssessmentData {
+  // Step 0: Basic Information
+  firstName: string
+  middleName?: string
+  lastName: string
+  dateOfBirth: string
+  citizenshipCountry: string
+  email?: string
+  consentAcknowledged: boolean
+
   // Step 1: Goal & Timeline
   primaryGoal: PrimaryGoal | ""
   timeUrgency: TimeUrgency | ""
   currentLocation: CurrentLocation | ""
   geographicFlexibility: GeographicFlexibility | ""
   preferredProvince: string
+  pnpTargetProvince: string
   deadlineTrigger: DeadlineTrigger | ""
   deadlineDate: string
   studyPermitHasLOA: YesNoUnsure | ""
@@ -193,7 +203,20 @@ export interface PathwayCard {
   confidence: ConfidenceLevel
 }
 
+export type RiskId =
+  | "employment_gaps"
+  | "language_test_missing"
+  | "prior_refusal"
+  | "missing_documents"
+  | "status_expiring"
+  | "eca_incomplete"
+  | "criminal_charges"
+  | "medical_issues"
+  | "misrepresentation"
+  | "multiple_countries"
+
 export interface RiskFlag {
+  id: RiskId
   label: string
   severity: Severity
   action: string

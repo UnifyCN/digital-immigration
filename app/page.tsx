@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { ArrowRight, Clock, Lock, PenLine, RotateCcw } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ArrowRight, Clock, Lock, PenLine, RotateCcw, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { hasDraft, clearAssessment } from "@/lib/storage"
+import { hasDraft, clearAssessment, saveAssessment, saveStep, demoAssessmentData } from "@/lib/storage"
 
 export default function LandingPage() {
+  const router = useRouter()
   const [draftExists, setDraftExists] = useState(false)
 
   useEffect(() => {
@@ -17,6 +19,12 @@ export default function LandingPage() {
   function handleReset() {
     clearAssessment()
     setDraftExists(false)
+  }
+
+  function handleAutoFill() {
+    saveAssessment(demoAssessmentData)
+    saveStep(7)
+    router.push("/results")
   }
 
   return (
@@ -61,6 +69,16 @@ export default function LandingPage() {
               Start assessment
               <ArrowRight className="ml-2 size-5" />
             </Link>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAutoFill}
+            className="gap-2 text-muted-foreground"
+          >
+            <Zap className="size-3.5" />
+            Skip to demo results
           </Button>
 
           {draftExists && (
