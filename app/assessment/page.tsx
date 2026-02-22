@@ -122,14 +122,21 @@ export default function AssessmentPage() {
     }
   }
 
-  function handleSubmit() {
+  async function handleSubmit() {
+    const schema = stepSchemas[currentStep]
+    const values = form.getValues()
+    const result = schema.safeParse(values)
+
+    if (!result.success) {
+      await form.trigger()
+      return
+    }
+
     persistData()
     router.push("/results")
   }
 
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100
-  const currentStepValid = stepSchemas[currentStep].safeParse(form.watch()).success
-
   if (!isLoaded) {
     return (
       <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
@@ -191,7 +198,7 @@ export default function AssessmentPage() {
             </Button>
 
             {currentStep < TOTAL_STEPS - 1 ? (
-              <Button type="submit" className="gap-2" disabled={!currentStepValid}>
+              <Button type="submit" className="gap-2">
                 Next
                 <ArrowRight className="size-4" />
               </Button>

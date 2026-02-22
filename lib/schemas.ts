@@ -4,6 +4,9 @@ export const jobEntrySchema = z.object({
   title: z.string(),
   country: z.string(),
   yearsRange: z.string(),
+  startMonth: z.string().optional(),
+  endMonth: z.string().optional(),
+  present: z.boolean().optional(),
 })
 
 const step1BaseSchema = z.object({
@@ -139,13 +142,101 @@ export const step2Schema = step2BaseSchema
     }
   })
 
-export const step3Schema = z.object({
+// step3BaseSchema keeps step-3 fields optional so it can be merged into fullAssessmentSchema
+// as a shape-only schema without forcing completion while users move across steps.
+const step3BaseSchema = z.object({
   currentJobTitle: z.string().optional(),
   countryOfWork: z.string().optional(),
-  totalExperience: z.enum(["0-1", "1-3", "3-5", "5+", "not-sure"]).optional(),
+  totalExperience: z.union([z.enum(["0-1", "1-3", "3-5", "5+", "not-sure"]), z.literal("")]).optional(),
   industryCategory: z.string().optional(),
-  employmentGaps: z.enum(["yes", "no", "unsure"]).optional(),
+  employmentGaps: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  mostRecentJobStart: z.string().optional(),
+  mostRecentJobEnd: z.string().optional(),
+  mostRecentJobPresent: z.boolean().optional(),
+  hoursPerWeekRange: z.union([z.enum(["lt15", "15-29", "30plus", "varies-not-sure"]), z.literal("")]).optional(),
+  paidWorkStatus: z.union([z.enum(["yes", "no", "mix-not-sure"]), z.literal("")]).optional(),
+  employmentType: z.union([z.enum(["employee", "self-employed-contractor", "mix", "unsure"]), z.literal("")]).optional(),
+  canObtainEmployerLetter: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  employerLetterChallenge: z.union([
+    z.enum([
+      "employer-wont-include-duties",
+      "employer-closed-cant-contact",
+      "self-employed",
+      "informal-work-no-records",
+      "other-not-sure",
+    ]),
+    z.literal(""),
+  ]).optional(),
+  hasOverlappingPeriods: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
   jobs: z.array(jobEntrySchema).optional(),
+})
+
+// step3Schema applies step-level requiredness in superRefine, while step3BaseSchema remains
+// optional for fullAssessmentSchema composition. Keep required checks in this callback.
+export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
+  if (!data.mostRecentJobStart) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mostRecentJobStart"],
+      message: "Please provide the start date",
+    })
+  }
+
+  if (!data.mostRecentJobPresent && !data.mostRecentJobEnd) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["mostRecentJobEnd"],
+      message: "Please provide the end date or mark Present",
+    })
+  }
+
+  if (!data.hoursPerWeekRange) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["hoursPerWeekRange"],
+      message: "Please select an option",
+    })
+  }
+
+  if (!data.paidWorkStatus) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["paidWorkStatus"],
+      message: "Please select an option",
+    })
+  }
+
+  if (!data.employmentType) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["employmentType"],
+      message: "Please select an option",
+    })
+  }
+
+  if (!data.canObtainEmployerLetter) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["canObtainEmployerLetter"],
+      message: "Please select an option",
+    })
+  }
+
+  if (data.canObtainEmployerLetter && data.canObtainEmployerLetter !== "yes" && !data.employerLetterChallenge) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["employerLetterChallenge"],
+      message: "Please select the main challenge",
+    })
+  }
+
+  if (!data.hasOverlappingPeriods) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["hasOverlappingPeriods"],
+      message: "Please select an option",
+    })
+  }
 })
 
 export const step4Schema = z.object({
@@ -155,7 +246,7 @@ export const step4Schema = z.object({
   ]).optional(),
   educationCountry: z.string().optional(),
   graduationYear: z.string().optional(),
-  ecaStatus: z.enum(["yes", "no", "not-sure"]).optional(),
+  ecaStatus: z.enum(["yes", "no", "unsure"]).optional(),
 })
 
 export const step5Schema = z.object({
@@ -194,7 +285,7 @@ export const step7Schema = z.object({
 export const fullAssessmentSchema = z.object({
   ...step1BaseSchema.shape,
   ...step2BaseSchema.shape,
-  ...step3Schema.shape,
+  ...step3BaseSchema.shape,
   ...step4Schema.shape,
   ...step5Schema.shape,
   ...step6Schema.shape,
