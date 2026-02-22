@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,8 @@ import { PathwayCards } from "@/components/results/pathway-cards"
 import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
+import { ChatSupportDrawer } from "@/components/results/chat-support-drawer"
+import { ExportResults } from "@/components/results/export-results"
 import { loadAssessment, clearAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
@@ -39,6 +41,17 @@ export function ResultsPage() {
       setIsLoaded(true)
     }
   }, [])
+
+  const resultsId = useMemo(() => {
+    if (!assessment) return "default"
+    let hash = 5381
+    const str = JSON.stringify(assessment)
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
+      hash = hash >>> 0
+    }
+    return hash.toString(36)
+  }, [assessment])
 
   function handleReset() {
     clearAssessment()
@@ -74,8 +87,10 @@ export function ResultsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      <div className="mb-8">
+    <>
+      <ChatSupportDrawer results={results} resultsId={resultsId} />
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-8">
         <Button
           variant="ghost"
           size="sm"
@@ -96,7 +111,7 @@ export function ResultsPage() {
         </p>
       </div>
 
-      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8">
         <TierClassification tier={results.tier} />
 
         <Separator />
@@ -116,36 +131,41 @@ export function ResultsPage() {
         <div id="review-answers">
           <ReviewAnswers assessment={assessment} />
         </div>
-      </div>
 
-      <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-6">
-        <p className="text-sm text-muted-foreground text-center">
-          Want to refine your answers or start again?
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button variant="outline" asChild className="gap-1.5">
-            <Link href="/assessment">
-              <PenLine className="size-3.5" />
-              Edit answers
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleReset}
-            className="gap-1.5 text-muted-foreground"
-          >
-            <RotateCcw className="size-3.5" />
-            Reset snapshot
-          </Button>
+          <Separator />
+
+          <ExportResults assessment={assessment} results={results} />
         </div>
-      </div>
 
-      <p className="type-caption mt-8 text-center text-muted-foreground">
-        This Unify Social tool uses public immigration information to help
-        organize your planning. It does not provide legal advice. For
-        case-specific legal guidance, consult a licensed immigration consultant
-        or lawyer.
-      </p>
-    </div>
+        <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground text-center">
+            Want to refine your answers or start again?
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="outline" asChild className="gap-1.5">
+              <Link href="/assessment">
+                <PenLine className="size-3.5" />
+                Edit answers
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleReset}
+              className="gap-1.5 text-muted-foreground"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset snapshot
+            </Button>
+          </div>
+        </div>
+
+        <p className="type-caption mt-8 text-center text-muted-foreground">
+          This Unify Social tool uses public immigration information to help
+          organize your planning. It does not provide legal advice. For
+          case-specific legal guidance, consult a licensed immigration consultant
+          or lawyer.
+        </p>
+      </div>
+    </>
   )
 }
