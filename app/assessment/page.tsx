@@ -119,7 +119,15 @@ export default function AssessmentPage() {
     if (currentStep > 0) {
       setCurrentStep((s) => s - 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
+      return
     }
+
+    // Fall back to home when no browser history exists.
+    if (window.history.length > 1) {
+      router.back()
+      return
+    }
+    router.push("/")
   }
 
   async function handleSubmit() {
@@ -190,7 +198,6 @@ export default function AssessmentPage() {
               type="button"
               variant="ghost"
               onClick={handleBack}
-              disabled={currentStep === 0}
               className="gap-2"
             >
               <ArrowLeft className="size-4" />
