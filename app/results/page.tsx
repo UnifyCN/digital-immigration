@@ -10,35 +10,54 @@ import { TierClassification } from "@/components/results/tier-classification"
 import { PathwayCards } from "@/components/results/pathway-cards"
 import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
+import { ReviewAnswers } from "@/components/results/review-answers"
 import { loadAssessment, clearAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
 
 export default function ResultsPage() {
   const router = useRouter()
+  const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
     const data = loadAssessment()
     if (!data) {
-      router.push("/")
+      setIsLoaded(true)
       return
     }
-    const computed = computeResults(data as AssessmentData)
+    setAssessment(data)
+    const computed = computeResults(data)
     setResults(computed)
     setIsLoaded(true)
-  }, [router])
+  }, [])
 
   function handleReset() {
     clearAssessment()
     router.push("/")
   }
 
-  if (!isLoaded || !results) {
+  if (!isLoaded) {
     return (
       <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
         <div className="size-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+      </div>
+    )
+  }
+
+  if (!assessment || !results) {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="rounded-lg border border-border bg-card p-6 text-center">
+          <h1 className="font-heading text-foreground">No assessment found</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Start a new Clarity Assessment.
+          </p>
+          <Button className="mt-4" asChild>
+            <Link href="/assessment">Start assessment</Link>
+          </Button>
+        </div>
       </div>
     )
   }
@@ -83,6 +102,10 @@ export default function ResultsPage() {
         <Separator />
 
         <NextActions actions={results.nextActions} />
+
+        <Separator />
+
+        <ReviewAnswers assessment={assessment} />
       </div>
 
       {/* Actions footer */}

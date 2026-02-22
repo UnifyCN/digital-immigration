@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { Form } from "@/components/ui/form"
@@ -58,6 +58,7 @@ const stepSchemas = [
 
 export default function AssessmentPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -80,12 +81,18 @@ export default function AssessmentPage() {
         },
       })
     }
-    const savedStep = loadStep()
-    if (savedStep > 0 && savedStep < TOTAL_STEPS) {
-      setCurrentStep(savedStep)
+    const stepFromQuery = searchParams.get("step")
+    const parsedStep = stepFromQuery ? Number.parseInt(stepFromQuery, 10) : NaN
+    if (!Number.isNaN(parsedStep) && parsedStep >= 1 && parsedStep <= TOTAL_STEPS) {
+      setCurrentStep(parsedStep - 1)
+    } else {
+      const savedStep = loadStep()
+      if (savedStep > 0 && savedStep < TOTAL_STEPS) {
+        setCurrentStep(savedStep)
+      }
     }
     setIsLoaded(true)
-  }, [form])
+  }, [form, searchParams])
 
   // Save on each step change
   const persistData = useCallback(() => {

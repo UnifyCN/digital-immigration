@@ -37,17 +37,35 @@ export const defaultAssessmentData: AssessmentData = {
   educationCountry: "",
   graduationYear: "",
   ecaStatus: "",
+  canadaEducationStatus: "",
+  programLength: "",
+  hasMultipleCredentials: "",
+  additionalCredentials: [],
+  ecaValid: "",
   // Step 5
   languageTestStatus: "",
   languageScores: { listening: "", reading: "", writing: "", speaking: "" },
   addScoresLater: false,
   plannedTestDate: "",
+  languageApproxCLB: "",
+  languageTestValid: "",
+  languagePlannedTiming: "",
   ageRange: "",
   canadianEducation: "",
   canadianWorkExperience: "",
+  canadianWorkDuration: "",
+  secondOfficialLanguageIntent: "",
   // Step 6
   maritalStatus: "",
   dependents: 0,
+  spouseAccompanying: "",
+  spouseLocation: "",
+  closeRelativeInCanada: "",
+  closeRelativeRelationship: "",
+  hasDependentsUnder18: "",
+  hasDependents18Plus: "",
+  sponsorshipTarget: "",
+  sponsorStatus: "",
   partnerEducation: false,
   partnerLanguageScores: false,
   partnerWorkExperience: false,
@@ -59,6 +77,11 @@ export const defaultAssessmentData: AssessmentData = {
   multipleCountries: "",
   nonTraditionalEmployment: "",
   missingDocuments: "",
+  statusExpiringSoon: "",
+  overstayHistory: "",
+  removalOrDeportationHistory: "",
+  hasActiveApplication: "",
+  employerLetterUnwilling: "",
 }
 
 export function saveAssessment(data: AssessmentData): void {
@@ -71,7 +94,45 @@ export function loadAssessment(): AssessmentData | null {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as AssessmentData
+    const parsed = JSON.parse(raw) as Partial<AssessmentData>
+
+    const normalizeLegacyUnsure = (
+      value: unknown,
+    ): AssessmentData["ecaStatus"] | AssessmentData["hasMultipleCredentials"] | undefined => {
+      if (value === "unsure") return "not-sure"
+      if (value === "yes" || value === "no" || value === "not-sure" || value === "") return value
+      return undefined
+    }
+    const normalizedEcaStatus = normalizeLegacyUnsure(parsed.ecaStatus)
+    const normalizedEcaValid = normalizeLegacyUnsure(parsed.ecaValid)
+    const normalizedMultipleCredentials = normalizeLegacyUnsure(parsed.hasMultipleCredentials)
+    const normalizedLanguageTestValid = normalizeLegacyUnsure(parsed.languageTestValid)
+    const normalizedSecondLanguageIntent = normalizeLegacyUnsure(parsed.secondOfficialLanguageIntent)
+    const normalizedCloseRelativeInCanada = normalizeLegacyUnsure(parsed.closeRelativeInCanada)
+    const normalizedHasDependentsUnder18 = normalizeLegacyUnsure(parsed.hasDependentsUnder18)
+    const normalizedHasDependents18Plus = normalizeLegacyUnsure(parsed.hasDependents18Plus)
+
+    return {
+      ...defaultAssessmentData,
+      ...parsed,
+      ecaStatus: normalizedEcaStatus ?? "",
+      canadaEducationStatus: parsed.canadaEducationStatus ?? "",
+      programLength: parsed.programLength ?? "",
+      hasMultipleCredentials: normalizedMultipleCredentials ?? "",
+      additionalCredentials: Array.isArray(parsed.additionalCredentials)
+        ? parsed.additionalCredentials
+        : [],
+      ecaValid: normalizedEcaValid ?? "",
+      languageTestValid: normalizedLanguageTestValid ?? "",
+      secondOfficialLanguageIntent: normalizedSecondLanguageIntent ?? "",
+      closeRelativeInCanada: normalizedCloseRelativeInCanada ?? "",
+      hasDependentsUnder18: normalizedHasDependentsUnder18 ?? "",
+      hasDependents18Plus: normalizedHasDependents18Plus ?? "",
+      languageScores: {
+        ...defaultAssessmentData.languageScores,
+        ...parsed.languageScores,
+      },
+    }
   } catch {
     return null
   }
@@ -133,15 +194,33 @@ export const sampleAssessmentData: AssessmentData = {
   educationCountry: "India",
   graduationYear: "2019",
   ecaStatus: "yes",
+  canadaEducationStatus: "no",
+  programLength: "3-plus-years",
+  hasMultipleCredentials: "no",
+  additionalCredentials: [],
+  ecaValid: "yes",
   languageTestStatus: "yes",
   languageScores: { listening: "8", reading: "7.5", writing: "7", speaking: "7.5" },
   addScoresLater: false,
   plannedTestDate: "",
+  languageApproxCLB: "clb-9-plus",
+  languageTestValid: "yes",
+  languagePlannedTiming: "",
   ageRange: "25-29",
   canadianEducation: "no",
   canadianWorkExperience: "no",
+  canadianWorkDuration: "none",
+  secondOfficialLanguageIntent: "no",
   maritalStatus: "single",
   dependents: 0,
+  spouseAccompanying: "",
+  spouseLocation: "",
+  closeRelativeInCanada: "no",
+  closeRelativeRelationship: "",
+  hasDependentsUnder18: "no",
+  hasDependents18Plus: "no",
+  sponsorshipTarget: "",
+  sponsorStatus: "",
   partnerEducation: false,
   partnerLanguageScores: false,
   partnerWorkExperience: false,
@@ -152,4 +231,9 @@ export const sampleAssessmentData: AssessmentData = {
   multipleCountries: "no",
   nonTraditionalEmployment: "no",
   missingDocuments: "no",
+  statusExpiringSoon: "no",
+  overstayHistory: "no",
+  removalOrDeportationHistory: "no",
+  hasActiveApplication: "yes",
+  employerLetterUnwilling: "no",
 }

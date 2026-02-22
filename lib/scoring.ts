@@ -77,8 +77,11 @@ export function computeTier(data: AssessmentData): TierResult {
     data.ecaStatus,
   ]
   const unsureCount = unsureFields.filter((v) => v === "unsure").length
-  if (unsureCount >= 3) {
-    reasons.push(`Multiple uncertain answers (${unsureCount} fields marked "unsure")`)
+  const ecaUnsureCount = data.ecaStatus === "not-sure" ? 1 : 0
+  if (unsureCount + ecaUnsureCount >= 3) {
+    reasons.push(
+      `Multiple uncertain answers (${unsureCount + ecaUnsureCount} fields marked "unsure")`,
+    )
     level = Math.max(level, 2) as 1 | 2 | 3
   }
 

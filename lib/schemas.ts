@@ -148,47 +148,212 @@ export const step3Schema = z.object({
   jobs: z.array(jobEntrySchema).optional(),
 })
 
+const additionalCredentialSchema = z.object({
+  educationLevel: z
+    .union([
+      z.enum([
+        "none",
+        "high-school",
+        "one-year-diploma",
+        "two-year-diploma",
+        "bachelors",
+        "two-or-more-degrees",
+        "masters",
+        "phd",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
+  country: z.string().optional(),
+  graduationYear: z.string().optional(),
+  programLength: z
+    .union([
+      z.enum(["less-than-1-year", "1-year", "2-years", "3-plus-years", "not-sure"]),
+      z.literal(""),
+    ])
+    .optional(),
+})
+
 export const step4Schema = z.object({
-  educationLevel: z.enum([
-    "none", "high-school", "one-year-diploma", "two-year-diploma",
-    "bachelors", "two-or-more-degrees", "masters", "phd",
-  ]).optional(),
+  educationLevel: z
+    .union([
+      z.enum([
+        "none",
+        "high-school",
+        "one-year-diploma",
+        "two-year-diploma",
+        "bachelors",
+        "two-or-more-degrees",
+        "masters",
+        "phd",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
   educationCountry: z.string().optional(),
   graduationYear: z.string().optional(),
-  ecaStatus: z.enum(["yes", "no", "not-sure"]).optional(),
+  ecaStatus: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  canadaEducationStatus: z.enum(["yes", "no", "mix-some-in-canada", "not-sure"], {
+    required_error: "Please select an option",
+  }),
+  programLength: z.enum(["less-than-1-year", "1-year", "2-years", "3-plus-years", "not-sure"], {
+    required_error: "Please select an option",
+  }),
+  hasMultipleCredentials: z.enum(["yes", "no", "not-sure"], {
+    required_error: "Please select an option",
+  }),
+  additionalCredentials: z.array(additionalCredentialSchema).optional(),
+  ecaValid: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
 })
 
-export const step5Schema = z.object({
-  languageTestStatus: z.enum(["yes", "no", "planning"]).optional(),
-  languageScores: z.object({
-    listening: z.string().optional(),
-    reading: z.string().optional(),
-    writing: z.string().optional(),
-    speaking: z.string().optional(),
-  }).optional(),
+const step5BaseSchema = z.object({
+  languageTestStatus: z.enum(["yes", "no", "planning"], {
+    required_error: "Please select an option",
+  }),
+  languageScores: z
+    .object({
+      listening: z.string().optional(),
+      reading: z.string().optional(),
+      writing: z.string().optional(),
+      speaking: z.string().optional(),
+    })
+    .optional(),
   addScoresLater: z.boolean().optional(),
   plannedTestDate: z.string().optional(),
-  ageRange: z.enum(["17-or-less", "18-24", "25-29", "30-34", "35-39", "40-44", "45+"]).optional(),
-  canadianEducation: z.enum(["yes", "no", "unsure"]).optional(),
-  canadianWorkExperience: z.enum(["yes", "no", "unsure"]).optional(),
+  languageApproxCLB: z.union([z.enum(["clb-4-6", "clb-7", "clb-8", "clb-9-plus", "not-sure"]), z.literal("")]).optional(),
+  languageTestValid: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  languagePlannedTiming: z
+    .union([z.enum(["within-1-month", "1-3-months", "3-plus-months", "not-scheduled"]), z.literal("")])
+    .optional(),
+  ageRange: z.enum(["17-or-less", "18-24", "25-29", "30-34", "35-39", "40-44", "45+"], {
+    required_error: "Please select your age range",
+  }),
+  canadianEducation: z.enum(["yes", "no", "unsure"], {
+    required_error: "Please select an option",
+  }),
+  canadianWorkExperience: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  canadianWorkDuration: z.enum(["none", "less-than-1-year", "1-year", "2-plus-years", "not-sure"], {
+    required_error: "Please select an option",
+  }),
+  secondOfficialLanguageIntent: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
 })
 
-export const step6Schema = z.object({
-  maritalStatus: z.enum(["single", "married", "common-law", "separated", "divorced", "widowed"]).optional(),
+export const step5Schema = step5BaseSchema.superRefine((data, ctx) => {
+  if (data.languageTestStatus === "yes") {
+    if (!data.languageApproxCLB) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["languageApproxCLB"],
+        message: "Please select your approximate language level",
+      })
+    }
+    if (!data.languageTestValid) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["languageTestValid"],
+        message: "Please select an option",
+      })
+    }
+  }
+
+  if (data.languageTestStatus === "planning" && !data.languagePlannedTiming) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["languagePlannedTiming"],
+      message: "Please select when you plan to take the test",
+    })
+  }
+})
+
+const step6BaseSchema = z.object({
+  primaryGoal: z
+    .union([z.enum(["pr", "study-permit", "work-permit", "sponsorship", "not-sure"]), z.literal("")])
+    .optional(),
+  maritalStatus: z.enum(["single", "married", "common-law", "separated", "divorced", "widowed"], {
+    required_error: "Please select your marital status",
+  }),
   dependents: z.number().min(0).optional(),
+  spouseAccompanying: z
+    .union([z.enum(["yes-accompanying", "no-non-accompanying", "not-sure"]), z.literal("")])
+    .optional(),
+  spouseLocation: z.union([z.enum(["in-canada", "outside-canada", "not-sure"]), z.literal("")]).optional(),
+  closeRelativeInCanada: z.enum(["yes", "no", "not-sure"], {
+    required_error: "Please select an option",
+  }),
+  closeRelativeRelationship: z
+    .union([z.enum(["parent", "sibling", "child", "other-close-relative", "not-sure"]), z.literal("")])
+    .optional(),
+  hasDependentsUnder18: z.enum(["yes", "no", "not-sure"], {
+    required_error: "Please select an option",
+  }),
+  hasDependents18Plus: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  sponsorshipTarget: z
+    .union([z.enum(["spouse-partner", "child", "parent-grandparent", "other", "not-sure"]), z.literal("")])
+    .optional(),
+  sponsorStatus: z.union([z.enum(["citizen", "permanent-resident", "not-sure"]), z.literal("")]).optional(),
   partnerEducation: z.boolean().optional(),
   partnerLanguageScores: z.boolean().optional(),
   partnerWorkExperience: z.boolean().optional(),
 })
 
+export const step6Schema = step6BaseSchema.superRefine((data, ctx) => {
+  const isPartnerCase = data.maritalStatus === "married" || data.maritalStatus === "common-law"
+  if (isPartnerCase) {
+    if (!data.spouseAccompanying) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["spouseAccompanying"],
+        message: "Please select an option",
+      })
+    }
+    if (!data.spouseLocation) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["spouseLocation"],
+        message: "Please select an option",
+      })
+    }
+  }
+
+  if (data.closeRelativeInCanada === "yes" && !data.closeRelativeRelationship) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["closeRelativeRelationship"],
+      message: "Please select the relationship",
+    })
+  }
+
+  if (data.primaryGoal === "sponsorship") {
+    if (!data.sponsorshipTarget) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sponsorshipTarget"],
+        message: "Please select an option",
+      })
+    }
+    if (!data.sponsorStatus) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["sponsorStatus"],
+        message: "Please select an option",
+      })
+    }
+  }
+})
+
 export const step7Schema = z.object({
-  priorRefusals: z.enum(["yes", "no", "unsure"]).optional(),
-  criminalCharges: z.enum(["yes", "no", "unsure"]).optional(),
-  medicalIssues: z.enum(["yes", "no", "unsure"]).optional(),
-  misrepresentation: z.enum(["yes", "no", "unsure"]).optional(),
-  multipleCountries: z.enum(["yes", "no", "unsure"]).optional(),
-  nonTraditionalEmployment: z.enum(["yes", "no", "unsure"]).optional(),
-  missingDocuments: z.enum(["yes", "no", "unsure"]).optional(),
+  priorRefusals: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  criminalCharges: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  medicalIssues: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  misrepresentation: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  multipleCountries: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  nonTraditionalEmployment: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  missingDocuments: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  statusExpiringSoon: z.union([z.enum(["yes", "no", "na", "unsure"]), z.literal("")]).optional(),
+  overstayHistory: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  removalOrDeportationHistory: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  hasActiveApplication: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  employerLetterUnwilling: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
 })
 
 export const fullAssessmentSchema = z.object({
@@ -196,7 +361,7 @@ export const fullAssessmentSchema = z.object({
   ...step2BaseSchema.shape,
   ...step3Schema.shape,
   ...step4Schema.shape,
-  ...step5Schema.shape,
-  ...step6Schema.shape,
+  ...step5BaseSchema.shape,
+  ...step6BaseSchema.shape,
   ...step7Schema.shape,
 })
