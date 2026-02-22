@@ -1,6 +1,5 @@
-import { ResultsPage } from "@/components/results/results-page"
+"use client"
 
-export default ResultsPage
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -13,17 +12,16 @@ import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
 import { ChatSupportDrawer } from "@/components/results/chat-support-drawer"
-import { loadAssessment, clearAssessment } from "@/lib/storage"
 import { ExportResults } from "@/components/results/export-results"
+import { loadAssessment, clearAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
 
-export default function ResultsPage() {
+export function ResultsPage() {
   const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
-  const [pendingAIQuestion, setPendingAIQuestion] = useState<string | null>(null)
 
   useEffect(() => {
     const data = loadAssessment()
@@ -54,10 +52,6 @@ export default function ResultsPage() {
     }
     return hash.toString(36)
   }, [assessment])
-
-  function handleAskAI(_riskId: string, openerQuestion: string) {
-    setPendingAIQuestion(openerQuestion)
-  }
 
   function handleReset() {
     clearAssessment()
@@ -94,15 +88,9 @@ export default function ResultsPage() {
 
   return (
     <>
-    <ChatSupportDrawer
-      results={results}
-      resultsId={resultsId}
-      pendingQuestion={pendingAIQuestion}
-      onQuestionConsumed={() => setPendingAIQuestion(null)}
-    />
-    <div className="mx-auto max-w-2xl px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
+      <ChatSupportDrawer results={results} resultsId={resultsId} />
+      <div className="mx-auto max-w-2xl px-4 py-8">
+        <div className="mb-8">
         <Button
           variant="ghost"
           size="sm"
@@ -123,8 +111,7 @@ export default function ResultsPage() {
         </p>
       </div>
 
-      {/* Results sections */}
-      <div className="flex flex-col gap-8">
+        <div className="flex flex-col gap-8">
         <TierClassification tier={results.tier} />
 
         <Separator />
@@ -133,7 +120,7 @@ export default function ResultsPage() {
 
         <Separator />
 
-        <RiskFlagsPanel flags={results.riskFlags} onAskAI={handleAskAI} />
+        <RiskFlagsPanel flags={results.riskFlags} />
 
         <Separator />
 
@@ -141,44 +128,44 @@ export default function ResultsPage() {
 
         <Separator />
 
-        <ReviewAnswers assessment={assessment} />
-
-        <Separator />
-
-        <ExportResults assessment={assessment} results={results} />
-      </div>
-
-      {/* Actions footer */}
-      <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-6">
-        <p className="text-sm text-muted-foreground text-center">
-          Want to refine your answers or start again?
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button variant="outline" asChild className="gap-1.5">
-            <Link href="/assessment">
-              <PenLine className="size-3.5" />
-              Edit answers
-            </Link>
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={handleReset}
-            className="gap-1.5 text-muted-foreground"
-          >
-            <RotateCcw className="size-3.5" />
-            Reset snapshot
-          </Button>
+        <div id="review-answers">
+          <ReviewAnswers assessment={assessment} />
         </div>
-      </div>
 
-      {/* Footer disclaimer */}
-      <p className="type-caption mt-8 text-center text-muted-foreground">
-        This Unify Social tool uses public immigration information to help
-        organize your planning. It does not provide legal advice. For
-        case-specific legal guidance, consult a licensed immigration consultant
-        or lawyer.
-      </p>
-    </div>
+          <Separator />
+
+          <ExportResults assessment={assessment} results={results} />
+        </div>
+
+        <div className="mt-10 flex flex-col items-center gap-3 rounded-lg border border-border bg-card p-6">
+          <p className="text-sm text-muted-foreground text-center">
+            Want to refine your answers or start again?
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button variant="outline" asChild className="gap-1.5">
+              <Link href="/assessment">
+                <PenLine className="size-3.5" />
+                Edit answers
+              </Link>
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={handleReset}
+              className="gap-1.5 text-muted-foreground"
+            >
+              <RotateCcw className="size-3.5" />
+              Reset snapshot
+            </Button>
+          </div>
+        </div>
+
+        <p className="type-caption mt-8 text-center text-muted-foreground">
+          This Unify Social tool uses public immigration information to help
+          organize your planning. It does not provide legal advice. For
+          case-specific legal guidance, consult a licensed immigration consultant
+          or lawyer.
+        </p>
+      </div>
     </>
   )
 }

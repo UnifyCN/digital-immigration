@@ -34,6 +34,7 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "currentLocation", label: "Current location" },
       { key: "geographicFlexibility", label: "Geographic flexibility" },
       { key: "preferredProvince", label: "Preferred province/territory" },
+      { key: "pnpTargetProvince", label: "PNP target province/territory" },
       { key: "deadlineTrigger", label: "Main deadline trigger" },
       { key: "deadlineDate", label: "Deadline date" },
       { key: "studyPermitHasLOA", label: "Study permit: LOA available" },
