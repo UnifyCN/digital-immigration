@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { use, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight, Clock, Lock, PenLine, RotateCcw, Zap } from "lucide-react"
@@ -8,7 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { hasDraft, clearAssessment, saveAssessment, saveStep, demoAssessmentData } from "@/lib/storage"
 
-export default function LandingPage() {
+type LandingPageProps = {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+  params?: Promise<{ [key: string]: string | undefined }>
+}
+
+export default function LandingPage(props: LandingPageProps) {
+  use(props.searchParams ?? Promise.resolve({}))
+  use(props.params ?? Promise.resolve({}))
   const router = useRouter()
   const [draftExists, setDraftExists] = useState(false)
 

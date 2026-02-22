@@ -1,10 +1,11 @@
+import { use } from "react"
 import { PathwayDetail } from "@/components/pathways/PathwayDetail"
 
-export default async function PathwayDetailPage({
+export default function PathwayDetailPage({
   params,
 }: {
   params: Promise<{ slug: string }>
 }) {
-  const { slug } = await params
+  const { slug } = use(params)
   return <PathwayDetail slug={slug} />
 }

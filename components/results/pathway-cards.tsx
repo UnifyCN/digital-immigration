@@ -1,10 +1,13 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Compass, ChevronRight } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Compass, ChevronRight, ArrowRight } from "lucide-react"
+import { saveSelectedPathway } from "@/lib/imm5669/storage"
 import type { PathwayCard, ConfidenceLevel } from "@/lib/types"
 
 const confidenceColors: Record<ConfidenceLevel, string> = {
@@ -19,6 +22,13 @@ const pathwayHref: Record<string, string> = {
 }
 
 export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
+  const router = useRouter()
+
+  function handleProceed(pathway: PathwayCard) {
+    saveSelectedPathway({ pathwayId: pathway.id, pathwayName: pathway.name })
+    router.push("/next-steps")
+  }
+
   return (
     <section className="flex flex-col gap-4">
       <div>
@@ -34,13 +44,8 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
         {pathways.map((pathway) => {
           const href = pathwayHref[pathway.id]
 
-          const card = (
-            <Card
-              className={cn(
-                "transition-shadow",
-                href ? "cursor-pointer hover:shadow-md" : "",
-              )}
-            >
+          const cardBody = (
+            <>
               <CardHeader className="flex flex-row items-start justify-between gap-2 pb-3">
                 <div className="flex items-start gap-2.5">
                   <Compass className="mt-0.5 size-4 shrink-0 text-primary" />
@@ -86,7 +91,32 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
                     ))}
                   </ul>
                 </div>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mt-1 w-full gap-1.5"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    handleProceed(pathway)
+                  }}
+                >
+                  Proceed to Next Steps
+                  <ArrowRight className="size-3.5" />
+                </Button>
               </CardContent>
+            </>
+          )
+
+          const card = (
+            <Card
+              className={cn(
+                "transition-shadow",
+                href ? "cursor-pointer hover:shadow-md" : "",
+              )}
+            >
+              {cardBody}
             </Card>
           )
 
