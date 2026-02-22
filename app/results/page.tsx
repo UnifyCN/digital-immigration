@@ -22,6 +22,7 @@ export default function ResultsPage() {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [pendingAIQuestion, setPendingAIQuestion] = useState<string | null>(null)
 
   useEffect(() => {
     const data = loadAssessment()
@@ -48,10 +49,14 @@ export default function ResultsPage() {
     const str = JSON.stringify(assessment)
     for (let i = 0; i < str.length; i++) {
       hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
-      hash = hash >>> 0 // keep unsigned 32-bit
+      hash = hash >>> 0
     }
     return hash.toString(36)
   }, [assessment])
+
+  function handleAskAI(_riskId: string, openerQuestion: string) {
+    setPendingAIQuestion(openerQuestion)
+  }
 
   function handleReset() {
     clearAssessment()
@@ -88,7 +93,12 @@ export default function ResultsPage() {
 
   return (
     <>
-    <ChatSupportDrawer results={results} resultsId={resultsId} />
+    <ChatSupportDrawer
+      results={results}
+      resultsId={resultsId}
+      pendingQuestion={pendingAIQuestion}
+      onQuestionConsumed={() => setPendingAIQuestion(null)}
+    />
     <div className="mx-auto max-w-2xl px-4 py-8">
       {/* Header */}
       <div className="mb-8">
@@ -122,7 +132,7 @@ export default function ResultsPage() {
 
         <Separator />
 
-        <RiskFlagsPanel flags={results.riskFlags} />
+        <RiskFlagsPanel flags={results.riskFlags} onAskAI={handleAskAI} />
 
         <Separator />
 
