@@ -6,6 +6,7 @@ const PAGE_MAX_LINES = 46
 const LINE_WRAP_AT = 96
 
 function wrapText(text: string, width = LINE_WRAP_AT): string[] {
+  if (width <= 0) return [text]
   if (text.length <= width) return [text]
 
   const words = text.split(" ")
@@ -13,6 +14,21 @@ function wrapText(text: string, width = LINE_WRAP_AT): string[] {
   let line = ""
 
   for (const word of words) {
+    if (word.length > width) {
+      if (line) {
+        lines.push(line)
+        line = ""
+      }
+
+      let remaining = word
+      while (remaining.length > width) {
+        lines.push(remaining.slice(0, width))
+        remaining = remaining.slice(width)
+      }
+      line = remaining
+      continue
+    }
+
     const candidate = line ? `${line} ${word}` : word
     if (candidate.length <= width) {
       line = candidate
@@ -26,19 +42,20 @@ function wrapText(text: string, width = LINE_WRAP_AT): string[] {
   return lines
 }
 
-function addLine(lines: string[], text = ""): void {
-  const wrapped = wrapText(text)
+function addLine(lines: string[], text = "", options?: { alreadyWrapped?: boolean }): void {
+  const wrapped = options?.alreadyWrapped ? [text] : wrapText(text)
   lines.push(...wrapped)
 }
 
 function addBullet(lines: string[], text: string): void {
-  const wrapped = wrapText(text)
-  wrapped.forEach((line, index) => addLine(lines, `${index === 0 ? "- " : "  "}${line}`))
+  const wrapped = wrapText(text, Math.max(LINE_WRAP_AT - 2, 1))
+  wrapped.forEach((line, index) =>
+    addLine(lines, `${index === 0 ? "- " : "  "}${line}`, { alreadyWrapped: true }),
+  )
 }
 
 function escapePdfText(text: string): string {
   return text
-    .replace(/[^\x20-\x7E]/g, "?")
     .replace(/\\/g, "\\\\")
     .replace(/\(/g, "\\(")
     .replace(/\)/g, "\\)")
@@ -53,9 +70,23 @@ function paginate(lines: string[]): string[][] {
 }
 
 function buildPdfFromPages(pages: string[][]): Blob {
-  const encoder = new TextEncoder()
-  const byteLength = (value: string) => encoder.encode(value).length
+  // This hand-rolled writer emits a sparse object table where objects[0] stays empty
+  // because xref entry 0 is the required free object.
   const objects: string[] = []
+  objects[0] = ""
+
+  // Keep content in the ASCII/Latin-1 range. escapePdfText only escapes PDF control
+  // characters; any codepoint above 255 is downgraded to "?" during byte encoding.
+  const toPdfBytes = (value: string): Uint8Array => {
+    const bytes = new Uint8Array(value.length)
+    for (let i = 0; i < value.length; i++) {
+      const code = value.charCodeAt(i)
+      bytes[i] = code <= 0xff ? code : 0x3f
+    }
+    return bytes
+  }
+  const byteLength = (value: string) => toPdfBytes(value).length
+
   const pageCount = pages.length
   const pageEntries: string[] = []
 
@@ -102,10 +133,10 @@ function buildPdfFromPages(pages: string[][]): Blob {
   for (let i = 1; i < objects.length; i++) {
     trailer += `${String(offsets[i]).padStart(10, "0")} 00000 n \n`
   }
-  trailer += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`
+  trailer += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF\n`
   pdf += trailer
 
-  return new Blob([pdf], { type: "application/pdf" })
+  return new Blob([toPdfBytes(pdf)], { type: "application/pdf" })
 }
 
 export function generateResultsPdf(

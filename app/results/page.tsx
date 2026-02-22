@@ -12,8 +12,7 @@ import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
 import { ExportResults } from "@/components/results/export-results"
-import { safeGetAssessmentFromLocalStorage } from "@/lib/export-utils"
-import { clearAssessment } from "@/lib/storage"
+import { clearAssessment, loadAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
 
@@ -24,7 +23,7 @@ export default function ResultsPage() {
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
-    const data = safeGetAssessmentFromLocalStorage()
+    const data = loadAssessment()
     if (!data) {
       setIsLoaded(true)
       return

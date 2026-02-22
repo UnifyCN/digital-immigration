@@ -1,6 +1,4 @@
-import { loadAssessment } from "@/lib/storage"
 import { formatAnswer as baseFormatAnswer } from "@/lib/review-answers"
-import type { AssessmentData } from "@/lib/types"
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0")
@@ -27,22 +25,12 @@ export function formatDate(value: string): string {
     }
   }
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value
   return value
 }
 
 export function formatAnswer(value: unknown): string {
   if (typeof value === "string") return baseFormatAnswer(formatDate(value))
   return baseFormatAnswer(value)
-}
-
-export function safeGetAssessmentFromLocalStorage(): AssessmentData | null {
-  if (typeof window === "undefined") return null
-  try {
-    return loadAssessment()
-  } catch {
-    return null
-  }
 }
 
 export function downloadBlob(blob: Blob, filename: string): void {
@@ -53,5 +41,5 @@ export function downloadBlob(blob: Blob, filename: string): void {
   document.body.appendChild(anchor)
   anchor.click()
   anchor.remove()
-  URL.revokeObjectURL(url)
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

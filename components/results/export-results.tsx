@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useState } from "react"
 import { LoaderCircle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -17,15 +17,21 @@ type ExportMode = "pdf" | "json" | null
 
 export function ExportResults({ assessment, results }: ExportResultsProps) {
   const [mode, setMode] = useState<ExportMode>(null)
-  const canExport = useMemo(() => !!assessment && !!results, [assessment, results])
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const canExport = !!assessment && !!results
 
   async function handleDownloadPdf() {
     if (!assessment || !results) return
+    setErrorMessage(null)
     setMode("pdf")
     try {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
       const blob = generateResultsPdf(assessment, results)
       const filename = `clarity-assessment-${getTimestampForFilename()}.pdf`
       downloadBlob(blob, filename)
+    } catch (error) {
+      console.error("Failed to export PDF", error)
+      setErrorMessage("Could not generate the PDF. Please try again.")
     } finally {
       setMode(null)
     }
@@ -33,8 +39,10 @@ export function ExportResults({ assessment, results }: ExportResultsProps) {
 
   async function handleDownloadJson() {
     if (!assessment || !results) return
+    setErrorMessage(null)
     setMode("json")
     try {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
       const payload = {
         generatedAt: new Date().toISOString(),
         assessment,
@@ -45,6 +53,9 @@ export function ExportResults({ assessment, results }: ExportResultsProps) {
       })
       const filename = `clarity-assessment-${getTimestampForFilename()}.json`
       downloadBlob(blob, filename)
+    } catch (error) {
+      console.error("Failed to export JSON", error)
+      setErrorMessage("Could not export JSON. Please try again.")
     } finally {
       setMode(null)
     }
@@ -79,6 +90,8 @@ export function ExportResults({ assessment, results }: ExportResultsProps) {
             Complete an assessment first.
           </p>
         )}
+
+        {errorMessage && <p className="mt-3 text-sm text-destructive">{errorMessage}</p>}
       </CardContent>
     </Card>
   )
