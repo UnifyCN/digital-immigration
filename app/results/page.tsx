@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { PathwayCards } from "@/components/results/pathway-cards"
 import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
+import { ChatSupportDrawer } from "@/components/results/chat-support-drawer"
 import { loadAssessment, clearAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
@@ -39,6 +40,17 @@ export default function ResultsPage() {
       setIsLoaded(true)
     }
   }, [])
+
+  const resultsId = useMemo(() => {
+    if (!assessment) return "default"
+    let hash = 5381
+    const str = JSON.stringify(assessment)
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
+      hash = hash >>> 0 // keep unsigned 32-bit
+    }
+    return hash.toString(36)
+  }, [assessment])
 
   function handleReset() {
     clearAssessment()
@@ -74,6 +86,8 @@ export default function ResultsPage() {
   }
 
   return (
+    <>
+    <ChatSupportDrawer results={results} resultsId={resultsId} />
     <div className="mx-auto max-w-2xl px-4 py-8">
       {/* Header */}
       <div className="mb-8">
@@ -149,5 +163,6 @@ export default function ResultsPage() {
         or lawyer.
       </p>
     </div>
+    </>
   )
 }
