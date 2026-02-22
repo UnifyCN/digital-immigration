@@ -53,10 +53,10 @@ export function RiskFlagsPanel({ flags, onAskAI }: RiskFlagsPanelProps) {
     <section className="flex flex-col gap-4">
       <div>
         <h2 className="font-serif text-lg font-semibold text-foreground">
-          Risks to Review
+          Early Risk Flags
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Click any item to see details and recommended next steps.
+          Click any risk flag to see details and recommended next steps.
         </p>
       </div>
 
@@ -68,7 +68,7 @@ export function RiskFlagsPanel({ flags, onAskAI }: RiskFlagsPanelProps) {
             <AccordionItem
               key={flag.id}
               value={flag.id}
-              className="overflow-hidden rounded-lg border border-border bg-card"
+              className="overflow-hidden rounded-lg border border-border bg-card last:border-b last:border-border shadow-[var(--shadow-soft)]"
             >
               <AccordionTrigger className="px-4 py-4 hover:bg-muted/50 hover:no-underline">
                 <div className="flex flex-1 items-start gap-3">

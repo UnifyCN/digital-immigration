@@ -15,7 +15,11 @@ import { ChatSupportDrawer } from "@/components/results/chat-support-drawer"
 import { ExportResults } from "@/components/results/export-results"
 import { loadAssessment, clearAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
-import type { AssessmentData, AssessmentResults } from "@/lib/types"
+import type {
+  AssessmentData,
+  AssessmentResults,
+  NextStepAiAssistContext,
+} from "@/lib/types"
 
 export function ResultsPage() {
   const router = useRouter()
@@ -23,6 +27,8 @@ export function ResultsPage() {
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
   const [pendingAIQuestion, setPendingAIQuestion] = useState<string | null>(null)
+  const [pendingAIAssistContext, setPendingAIAssistContext] =
+    useState<NextStepAiAssistContext | null>(null)
 
   useEffect(() => {
     const data = loadAssessment()
@@ -54,7 +60,11 @@ export function ResultsPage() {
     return hash.toString(36)
   }, [assessment])
 
-  function handleAskAI(_riskId: string, openerQuestion: string) {
+  function openAiAssist(context: NextStepAiAssistContext) {
+    setPendingAIAssistContext(context)
+  }
+
+  function handleAskRiskAI(_riskId: string, openerQuestion: string) {
     setPendingAIQuestion(openerQuestion)
   }
 
@@ -97,7 +107,9 @@ export function ResultsPage() {
         results={results}
         resultsId={resultsId}
         pendingQuestion={pendingAIQuestion}
+        pendingAssistContext={pendingAIAssistContext}
         onQuestionConsumed={() => setPendingAIQuestion(null)}
+        onAssistContextConsumed={() => setPendingAIAssistContext(null)}
       />
       <div className="mx-auto max-w-2xl px-4 py-8">
         <div className="mb-8">
@@ -113,7 +125,7 @@ export function ResultsPage() {
         </Button>
 
         <h1 className="font-heading text-foreground">
-          Your Unify Immigration Snapshot
+          Your Assessment Results
         </h1>
         <p className="mt-2 type-body text-muted-foreground">
           This summary organizes your likely pathways and possible risk points
@@ -130,11 +142,20 @@ export function ResultsPage() {
 
         <Separator />
 
-        <RiskFlagsPanel flags={results.riskFlags} onAskAI={handleAskAI} />
+        <RiskFlagsPanel flags={results.riskFlags} onAskAI={handleAskRiskAI} />
 
         <Separator />
 
-        <NextActions actions={results.nextActions} />
+        <NextActions
+          steps={results.nextSteps}
+          onAskAI={openAiAssist}
+          aiContextResults={{
+            tier: results.tier,
+            pathways: results.pathways,
+            riskFlags: results.riskFlags,
+            nextSteps: results.nextSteps,
+          }}
+        />
 
         <Separator />
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback, Suspense } from "react"
+import { use, useEffect, useState, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -319,7 +319,14 @@ function AssessmentPageContent() {
   )
 }
 
-export default function AssessmentPage() {
+type AssessmentPageProps = {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+  params?: Promise<{ [key: string]: string | undefined }>
+}
+
+export default function AssessmentPage(props: AssessmentPageProps) {
+  use(props.searchParams ?? Promise.resolve({}))
+  use(props.params ?? Promise.resolve({}))
   return (
     <Suspense
       fallback={

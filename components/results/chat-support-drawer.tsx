@@ -8,13 +8,15 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet"
-import type { AssessmentResults } from "@/lib/types"
+import type { AssessmentResults, NextStepAiAssistContext } from "@/lib/types"
 
 interface ChatSupportDrawerProps {
   results: AssessmentResults
   resultsId: string
   pendingQuestion?: string | null
+  pendingAssistContext?: NextStepAiAssistContext | null
   onQuestionConsumed?: () => void
+  onAssistContextConsumed?: () => void
 }
 
 interface Message {
@@ -56,18 +58,43 @@ function buildResultsContext(results: AssessmentResults): string {
 
   lines.push("")
   lines.push("NEXT ACTIONS:")
-  results.nextActions.forEach((a, i) => {
-    lines.push(`${i + 1}. ${a}`)
+  results.nextSteps.forEach((step, i) => {
+    lines.push(`${i + 1}. [${step.priority.toUpperCase()}] ${step.title}: ${step.summary}`)
   })
 
   return lines.join("\n")
+}
+
+function buildNextStepPrompt(context: NextStepAiAssistContext): string {
+  const profileBits = Object.entries(context.userProfileSummary)
+    .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : value}`)
+    .join("; ")
+
+  const inputs = context.triggeredBy.inputs.length
+    ? context.triggeredBy.inputs.join(", ")
+    : "none listed"
+  const pathways = context.triggeredBy.pathways.length
+    ? context.triggeredBy.pathways.join(", ")
+    : "none listed"
+  const risks = context.triggeredBy.risks.length
+    ? context.triggeredBy.risks.join(", ")
+    : "none listed"
+
+  return `Help me complete this next step: ${context.nextStepTitle}. Based on my profile: ${profileBits || "profile summary unavailable"}. Give me a tailored checklist, timelines, and what to prepare.
+
+Triggered by:
+- Inputs: ${inputs}
+- Pathways: ${pathways}
+- Risks: ${risks}`
 }
 
 export function ChatSupportDrawer({
   results,
   resultsId,
   pendingQuestion,
+  pendingAssistContext,
   onQuestionConsumed,
+  onAssistContextConsumed,
 }: ChatSupportDrawerProps) {
   const storageKey = `unify_results_chat_${resultsId}`
   const initialMessages: Message[] = [{ role: "assistant", content: GREETING }]
@@ -79,7 +106,9 @@ export function ChatSupportDrawer({
   const [error, setError] = useState<string | null>(null)
   const [hasUnread, setHasUnread] = useState(false)
   const [lastSentMessages, setLastSentMessages] = useState<Message[]>([])
+  const [lastSentAssistContext, setLastSentAssistContext] = useState<NextStepAiAssistContext | null>(null)
   const [queuedQuestion, setQueuedQuestion] = useState<string | null>(null)
+  const [queuedAssistContext, setQueuedAssistContext] = useState<NextStepAiAssistContext | null>(null)
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -129,10 +158,14 @@ export function ChatSupportDrawer({
     }
   }
 
-  const sendMessages = useCallback(async (msgsToSend: Message[]) => {
+  const sendMessages = useCallback(async (
+    msgsToSend: Message[],
+    assistContext: NextStepAiAssistContext | null = null,
+  ) => {
     setIsLoading(true)
     setError(null)
     setLastSentMessages(msgsToSend)
+    setLastSentAssistContext(assistContext)
 
     try {
       const res = await fetch("/api/ai/results-chat", {
@@ -141,6 +174,7 @@ export function ChatSupportDrawer({
         body: JSON.stringify({
           messages: msgsToSend,
           systemContext,
+          assistContext,
         }),
       })
 
@@ -152,7 +186,7 @@ export function ChatSupportDrawer({
       }
 
       const reply: Message = { role: "assistant", content: data.message }
-      const updated = [...messagesRef.current, reply]
+      const updated = [...msgsToSend, reply]
       setMessages(updated)
       persistMessages(updated)
 
@@ -182,6 +216,22 @@ export function ChatSupportDrawer({
     onQuestionConsumed?.()
   }, [pendingQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Handle pending assist context from "Ask AI about this next step"
+  useEffect(() => {
+    if (!pendingAssistContext) return
+    if (isLoading) {
+      setQueuedAssistContext(pendingAssistContext)
+      return
+    }
+    setIsOpen(true)
+    const userMsg: Message = { role: "user", content: buildNextStepPrompt(pendingAssistContext) }
+    const updated = [...messagesRef.current, userMsg]
+    setMessages(updated)
+    persistMessages(updated)
+    sendMessages(updated, pendingAssistContext)
+    onAssistContextConsumed?.()
+  }, [pendingAssistContext]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Flush queued question when loading completes
   useEffect(() => {
     if (!isLoading && queuedQuestion) {
@@ -196,6 +246,19 @@ export function ChatSupportDrawer({
     }
   }, [isLoading, queuedQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (!isLoading && queuedAssistContext) {
+      setIsOpen(true)
+      const userMsg: Message = { role: "user", content: buildNextStepPrompt(queuedAssistContext) }
+      const updated = [...messagesRef.current, userMsg]
+      setMessages(updated)
+      persistMessages(updated)
+      sendMessages(updated, queuedAssistContext)
+      setQueuedAssistContext(null)
+      onAssistContextConsumed?.()
+    }
+  }, [isLoading, queuedAssistContext]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleSend() {
     const trimmed = input.trim()
     if (!trimmed || isLoading) return
@@ -209,7 +272,7 @@ export function ChatSupportDrawer({
   }
 
   function handleRetry() {
-    sendMessages(lastSentMessages)
+    sendMessages(lastSentMessages, lastSentAssistContext)
   }
 
   function handleClear() {

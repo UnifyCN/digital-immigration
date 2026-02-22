@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { use, useEffect, useState, useMemo } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowRight, RotateCcw, Zap } from "lucide-react"
@@ -15,6 +15,14 @@ const rotatingMessages = [
 ]
 
 export default function LandingPage() {
+type LandingPageProps = {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+  params?: Promise<{ [key: string]: string | undefined }>
+}
+
+export default function LandingPage(props: LandingPageProps) {
+  use(props.searchParams ?? Promise.resolve({}))
+  use(props.params ?? Promise.resolve({}))
   const router = useRouter()
   const [draftExists, setDraftExists] = useState(false)
   const [currentIndex, setCurrentIndex] = useState(0)

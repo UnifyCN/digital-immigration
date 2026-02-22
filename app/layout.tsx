@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Anek_Latin, Funnel_Sans } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
-import { DisclaimerBanner } from '@/components/disclaimer-banner'
 import { Toaster } from '@/components/ui/toaster'
 import './globals.css'
 
@@ -38,7 +37,6 @@ export default function RootLayout({
       className={`${anekLatin.variable} ${funnelSans.variable}`}
     >
       <body className="min-h-screen bg-background text-foreground">
-        <DisclaimerBanner />
         <main>{children}</main>
         <Toaster />
         <Analytics />

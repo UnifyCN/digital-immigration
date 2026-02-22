@@ -64,11 +64,11 @@ export function ExportResults({ assessment, results }: ExportResultsProps) {
   const isBusy = mode !== null
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
+    <Card className="gap-3">
+      <CardHeader className="pb-0">
         <CardTitle className="text-xl font-semibold text-foreground">Export</CardTitle>
       </CardHeader>
-      <CardContent className="pt-2">
+      <CardContent className="pt-0">
         <div className="flex flex-wrap gap-3">
           <Button onClick={handleDownloadPdf} disabled={!canExport || isBusy} className="gap-2">
             {mode === "pdf" && <LoaderCircle className="size-4 animate-spin" />}
