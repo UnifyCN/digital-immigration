@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,9 @@ import { PathwayCards } from "@/components/results/pathway-cards"
 import { RiskFlagsPanel } from "@/components/results/risk-flags-panel"
 import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
+import { ChatSupportDrawer } from "@/components/results/chat-support-drawer"
 import { loadAssessment, clearAssessment } from "@/lib/storage"
+import { ExportResults } from "@/components/results/export-results"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
 
@@ -20,6 +22,7 @@ export default function ResultsPage() {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [results, setResults] = useState<AssessmentResults | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [pendingAIQuestion, setPendingAIQuestion] = useState<string | null>(null)
 
   useEffect(() => {
     const data = loadAssessment()
@@ -39,6 +42,21 @@ export default function ResultsPage() {
       setIsLoaded(true)
     }
   }, [])
+
+  const resultsId = useMemo(() => {
+    if (!assessment) return "default"
+    let hash = 5381
+    const str = JSON.stringify(assessment)
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) + hash) ^ str.charCodeAt(i)
+      hash = hash >>> 0
+    }
+    return hash.toString(36)
+  }, [assessment])
+
+  function handleAskAI(_riskId: string, openerQuestion: string) {
+    setPendingAIQuestion(openerQuestion)
+  }
 
   function handleReset() {
     clearAssessment()
@@ -74,6 +92,13 @@ export default function ResultsPage() {
   }
 
   return (
+    <>
+    <ChatSupportDrawer
+      results={results}
+      resultsId={resultsId}
+      pendingQuestion={pendingAIQuestion}
+      onQuestionConsumed={() => setPendingAIQuestion(null)}
+    />
     <div className="mx-auto max-w-2xl px-4 py-8">
       {/* Header */}
       <div className="mb-8">
@@ -107,7 +132,7 @@ export default function ResultsPage() {
 
         <Separator />
 
-        <RiskFlagsPanel flags={results.riskFlags} />
+        <RiskFlagsPanel flags={results.riskFlags} onAskAI={handleAskAI} />
 
         <Separator />
 
@@ -116,6 +141,10 @@ export default function ResultsPage() {
         <Separator />
 
         <ReviewAnswers assessment={assessment} />
+
+        <Separator />
+
+        <ExportResults assessment={assessment} results={results} />
       </div>
 
       {/* Actions footer */}
@@ -149,5 +178,6 @@ export default function ResultsPage() {
         or lawyer.
       </p>
     </div>
+    </>
   )
 }

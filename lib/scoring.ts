@@ -234,6 +234,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.employmentGaps === "yes") {
     flags.push({
+      id: "employment_gaps",
       label: "Timeline gaps likely in employment history",
       severity: "medium",
       action: "Prepare explanation letters for gaps",
@@ -242,6 +243,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.languageTestStatus === "no" || data.languageTestStatus === "planning") {
     flags.push({
+      id: "language_test_missing",
       label: "Missing or pending language test scores",
       severity: data.languageTestStatus === "no" ? "high" : "medium",
       action: data.languageTestStatus === "no" ? "Schedule a language test" : "Confirm planned test date",
@@ -250,6 +252,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.priorRefusals === "yes") {
     flags.push({
+      id: "prior_refusal",
       label: "Prior refusal needs explanation in new application",
       severity: "high",
       action: "Professional review suggested",
@@ -258,6 +261,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.missingDocuments === "yes") {
     flags.push({
+      id: "missing_documents",
       label: "Document dependency risk identified",
       severity: "medium",
       action: "Create document checklist and begin gathering",
@@ -270,6 +274,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
     const daysUntilExpiry = Math.floor((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     if (daysUntilExpiry <= 90 && daysUntilExpiry >= 0) {
       flags.push({
+        id: "status_expiring",
         label: `Status expires in ~${daysUntilExpiry} days`,
         severity: daysUntilExpiry <= 30 ? "high" : "medium",
         action: "Resolve status before or alongside main application",
@@ -279,6 +284,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.ecaStatus === "no" || data.ecaStatus === "not-sure") {
     flags.push({
+      id: "eca_incomplete",
       label: "Education Credential Assessment (ECA) not completed",
       severity: "low",
       action: "Apply for ECA if pursuing Express Entry",
@@ -287,6 +293,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.criminalCharges === "yes") {
     flags.push({
+      id: "criminal_charges",
       label: "Criminal inadmissibility concern",
       severity: "high",
       action: "Professional review suggested",
@@ -295,6 +302,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.medicalIssues === "yes") {
     flags.push({
+      id: "medical_issues",
       label: "Medical admissibility concern",
       severity: "high",
       action: "Professional review suggested",
@@ -303,6 +311,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.misrepresentation === "yes") {
     flags.push({
+      id: "misrepresentation",
       label: "Misrepresentation concern flagged",
       severity: "high",
       action: "Professional review suggested",
@@ -311,6 +320,7 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
 
   if (data.multipleCountries === "yes") {
     flags.push({
+      id: "multiple_countries",
       label: "Multiple countries of residence may require additional police certificates",
       severity: "low",
       action: "Begin gathering police clearance certificates",

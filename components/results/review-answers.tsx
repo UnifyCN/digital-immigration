@@ -5,7 +5,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { formatAnswer, reviewSections } from "@/lib/review-answers"
+import { deriveAgeFromDateOfBirth, formatAnswer, reviewSections } from "@/lib/review-answers"
 import type { AssessmentData } from "@/lib/types"
 
 type ReviewAnswersProps = {
@@ -93,6 +93,8 @@ function LanguageScoresList({ assessment }: { assessment: AssessmentData }) {
 }
 
 export function ReviewAnswers({ assessment }: ReviewAnswersProps) {
+  const derivedAge = deriveAgeFromDateOfBirth(assessment.dateOfBirth)
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -121,6 +123,12 @@ export function ReviewAnswers({ assessment }: ReviewAnswersProps) {
                       value={formatAnswer(assessment[field.key])}
                     />
                   ))}
+                  {section.id === "basic-information" && (
+                    <KeyValueRow
+                      label="Age"
+                      value={derivedAge === null ? "Not provided" : `${derivedAge} years`}
+                    />
+                  )}
 
                   {section.id === "work" && <WorkRolesList assessment={assessment} />}
                   {section.id === "education" && <AdditionalCredentialsList assessment={assessment} />}
