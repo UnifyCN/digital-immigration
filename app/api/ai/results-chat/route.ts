@@ -7,7 +7,10 @@ Focus on: explaining risk flags, comparing pathway options, evidence strength, a
 Ask 1–3 clarifying questions when key details are missing.
 
 ASSESSMENT CONTEXT (use as ground truth for this user's situation):
-{systemContext}`
+{systemContext}
+
+ACTIVE ASSIST CONTEXT (if present, prioritize this user intent):
+{assistContext}`
 
 // ── Simple in-memory rate limiter ──
 const MAX_REQUESTS_PER_WINDOW = 20
@@ -29,6 +32,7 @@ function checkRateLimit(key: string): boolean {
 // ── Input limits ──
 const MAX_MESSAGES = 50
 const MAX_SYSTEM_CONTEXT_CHARS = 8_000
+const MAX_ASSIST_CONTEXT_CHARS = 6_000
 const FETCH_TIMEOUT_MS = 30_000
 
 export async function POST(req: NextRequest) {
@@ -43,14 +47,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "AI support is not configured." }, { status: 503 })
   }
 
-  let body: { messages: { role: string; content: string }[]; systemContext: string }
+  let body: {
+    messages: { role: string; content: string }[]
+    systemContext: string
+    assistContext?: unknown
+  }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 })
   }
 
-  const { messages, systemContext } = body
+  const { messages, systemContext, assistContext } = body
   if (!Array.isArray(messages) || typeof systemContext !== "string") {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 })
   }
@@ -68,9 +76,14 @@ export async function POST(req: NextRequest) {
   // Cap input sizes
   const cappedMessages = messages.slice(-MAX_MESSAGES)
   const cappedContext = systemContext.slice(0, MAX_SYSTEM_CONTEXT_CHARS)
+  const assistContextText = assistContext
+    ? JSON.stringify(assistContext, null, 2).slice(0, MAX_ASSIST_CONTEXT_CHARS)
+    : "None"
 
   const model = process.env.OPENROUTER_MODEL ?? "openai/gpt-4o-mini"
-  const systemMessage = SYSTEM_PROMPT_TEMPLATE.replace("{systemContext}", cappedContext)
+  const systemMessage = SYSTEM_PROMPT_TEMPLATE
+    .replace("{systemContext}", cappedContext)
+    .replace("{assistContext}", assistContextText)
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {

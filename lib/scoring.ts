@@ -6,6 +6,7 @@ import type {
   RiskFlag,
   TierResult,
 } from "./types"
+import { recommendNextSteps } from "./next-steps"
 
 // ── Tier Classification ──
 
@@ -357,7 +358,8 @@ export function computeResults(data: AssessmentData): AssessmentResults {
   const tier = computeTier(data)
   const pathways = computePathways(data)
   const riskFlags = computeRiskFlags(data)
-  const nextActions = computeNextActions(tier, riskFlags)
+  const nextSteps = recommendNextSteps(data, pathways, riskFlags)
+  const nextActions = nextSteps.slice(0, 3).map((step) => step.title)
 
-  return { tier, pathways, riskFlags, nextActions }
+  return { tier, pathways, riskFlags, nextSteps, nextActions }
 }

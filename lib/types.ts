@@ -222,9 +222,48 @@ export interface RiskFlag {
   action: string
 }
 
+export type NextStepPriority = "high" | "medium" | "low"
+
+export interface NextStepEvidence {
+  inputs: string[]
+  pathways: string[]
+  risks: string[]
+}
+
+export interface NextStep {
+  id: string
+  title: string
+  priority: NextStepPriority
+  summary: string
+  whatThisStepIs: string
+  whyRecommendedForYou: string[]
+  howToDoIt: string[]
+  documentsNeeded: string[]
+  commonMistakes: string[]
+  conditionalNotes?: string[]
+  checklist: { id: string; text: string }[]
+  evidence: NextStepEvidence
+}
+
+export interface NextStepAiAssistContext {
+  type: "next_step_help"
+  nextStepId: string
+  nextStepTitle: string
+  priority: NextStepPriority
+  userProfileSummary: Record<string, string | string[]>
+  triggeredBy: NextStepEvidence
+  currentRecommendationsShownOnScreen: {
+    tier: TierResult
+    pathways: PathwayCard[]
+    risks: RiskFlag[]
+    nextSteps: NextStep[]
+  }
+}
+
 export interface AssessmentResults {
   tier: TierResult
   pathways: PathwayCard[]
   riskFlags: RiskFlag[]
+  nextSteps: NextStep[]
   nextActions: string[]
 }
