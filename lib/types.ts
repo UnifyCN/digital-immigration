@@ -72,6 +72,15 @@ export interface AdditionalCredential {
 }
 
 export interface AssessmentData {
+  // Step 0: Basic Information
+  firstName: string
+  middleName?: string
+  lastName: string
+  dateOfBirth: string
+  citizenshipCountry: string
+  email?: string
+  consentAcknowledged: boolean
+
   // Step 1: Goal & Timeline
   primaryGoal: PrimaryGoal | ""
   timeUrgency: TimeUrgency | ""

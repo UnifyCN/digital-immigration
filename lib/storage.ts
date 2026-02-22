@@ -51,6 +51,14 @@ function normalizeLegacyUnsure(value: unknown): NormalizedYesNoUnsure {
 }
 
 export const defaultAssessmentData: AssessmentData = {
+  // Step 0
+  firstName: "",
+  middleName: "",
+  lastName: "",
+  dateOfBirth: "",
+  citizenshipCountry: "",
+  email: "",
+  consentAcknowledged: false,
   // Step 1
   primaryGoal: "",
   timeUrgency: "",
@@ -150,7 +158,7 @@ export function loadAssessment(): AssessmentData | null {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return null
   try {
-    const parsed = JSON.parse(raw) as Partial<AssessmentData>
+    const parsed = JSON.parse(raw) as Partial<AssessmentData> & { fullName?: string }
     const normalizedEcaStatus = normalizeLegacyUnsure(parsed.ecaStatus)
     const normalizedEcaValid = normalizeLegacyUnsure(parsed.ecaValid)
     const normalizedMultipleCredentials = normalizeLegacyUnsure(parsed.hasMultipleCredentials)
@@ -161,9 +169,19 @@ export function loadAssessment(): AssessmentData | null {
     const normalizedHasDependents18Plus = normalizeLegacyUnsure(parsed.hasDependents18Plus)
     const normalizedCanadianEducation = normalizeLegacyUnsure(parsed.canadianEducation)
 
+    const legacyFullName = typeof parsed.fullName === "string" ? parsed.fullName.trim() : ""
+    const legacyNameParts = legacyFullName ? legacyFullName.split(/\s+/).filter(Boolean) : []
+    const legacyFirstName = legacyNameParts[0] ?? ""
+    const legacyLastName = legacyNameParts.length > 1 ? legacyNameParts[legacyNameParts.length - 1] : ""
+    const legacyMiddleName =
+      legacyNameParts.length > 2 ? legacyNameParts.slice(1, -1).join(" ") : ""
+
     return {
       ...defaultAssessmentData,
       ...parsed,
+      firstName: parsed.firstName ?? legacyFirstName,
+      middleName: parsed.middleName ?? legacyMiddleName,
+      lastName: parsed.lastName ?? legacyLastName,
       ecaStatus: normalizedEcaStatus ?? "",
       canadaEducationStatus: parsed.canadaEducationStatus ?? "",
       programLength: parsed.programLength ?? "",
