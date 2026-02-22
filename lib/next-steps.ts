@@ -6,6 +6,7 @@ import type {
   RiskFlag,
   RiskId,
 } from "./types"
+import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
 
 const priorityRank: Record<NextStepPriority, number> = {
   high: 0,
@@ -44,23 +45,32 @@ export function recommendNextSteps(
   risks: RiskFlag[],
 ): NextStep[] {
   const steps = new Map<string, NextStep>()
+  const derivedCanadianYearsBand = profile.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(profile)
+  const hasSkilledExperience =
+    (derivedCanadianYearsBand !== "" && derivedCanadianYearsBand !== "0") ||
+    Boolean(profile.foreignSkilledYears && profile.foreignSkilledYears !== "0")
+
+  const needsEnglish = profile.languageTestPlan === "english-only" || profile.languageTestPlan === "both-languages"
+  const needsFrench = profile.languageTestPlan === "french-only" || profile.languageTestPlan === "both-languages"
+  const englishMissing = needsEnglish && profile.englishTestStatus !== "completed"
+  const frenchMissing = needsFrench && profile.frenchTestStatus !== "completed"
 
   const languageTestTriggered =
-    profile.languageTestStatus === "no" ||
-    profile.languageTestStatus === "planning" ||
+    profile.languageTestPlan === "not-sure" ||
+    englishMissing ||
+    frenchMissing ||
     hasRisk(risks, "language_test_missing")
 
   if (languageTestTriggered) {
-    const isMissing = profile.languageTestStatus === "no"
-    const plannedTiming = profile.languagePlannedTiming || "not-scheduled"
-    const timingPhrase =
-      plannedTiming === "within-1-month"
-        ? "within the next month"
-        : plannedTiming === "1-3-months"
-          ? "in the next 1-3 months"
-          : plannedTiming === "3-plus-months"
-            ? "in 3+ months"
-            : "without a scheduled date"
+    const isMissing =
+      profile.languageTestPlan === "not-sure" ||
+      profile.englishTestStatus === "not-taken" ||
+      profile.frenchTestStatus === "not-taken"
+    const bookedDates = [
+      profile.englishTestStatus === "booked" ? profile.englishPlannedTestDate : "",
+      profile.frenchTestStatus === "booked" ? profile.frenchPlannedTestDate : "",
+    ].filter(Boolean)
+    const timingPhrase = bookedDates.length ? `on ${bookedDates.join(" and ")}` : "without a scheduled date"
 
     steps.set("language_test", {
       id: "language_test",
@@ -72,12 +82,8 @@ export function recommendNextSteps(
       whatThisStepIs:
         "This step ensures you have valid language results from an approved exam. Most economic pathways require these scores before key profile or application milestones.",
       whyRecommendedForYou: unique([
-        profile.languageTestStatus === "no"
-          ? "You indicated you do not yet have language test results."
-          : "",
-        profile.languageTestStatus === "planning"
-          ? `You indicated your test is planned ${timingPhrase}.`
-          : "",
+        isMissing ? "You indicated you do not yet have completed language test results." : "",
+        bookedDates.length ? `You indicated your test is booked ${timingPhrase}.` : "",
         hasRisk(risks, "language_test_missing")
           ? "Your risk flags include missing or pending language scores."
           : "",
@@ -109,12 +115,9 @@ export function recommendNextSteps(
       ]),
       evidence: {
         inputs: unique([
-          profile.languageTestStatus
-            ? `languageTestStatus=${profile.languageTestStatus}`
-            : "",
-          profile.languagePlannedTiming
-            ? `languagePlannedTiming=${profile.languagePlannedTiming}`
-            : "",
+          profile.languageTestPlan ? `languageTestPlan=${profile.languageTestPlan}` : "",
+          profile.englishTestStatus ? `englishTestStatus=${profile.englishTestStatus}` : "",
+          profile.frenchTestStatus ? `frenchTestStatus=${profile.frenchTestStatus}` : "",
         ]),
         pathways: hasPathway(pathways, "express-entry") ? ["express-entry"] : [],
         risks: hasRisk(risks, "language_test_missing") ? ["language_test_missing"] : [],
@@ -387,8 +390,8 @@ export function recommendNextSteps(
         "This step prepares the core prerequisites that determine eligibility and competitiveness in the Express Entry pool.",
       whyRecommendedForYou: unique([
         "Express Entry appears relevant in your pathway results.",
-        profile.totalExperience && profile.totalExperience !== "0-1"
-          ? `You indicated skilled work experience (${profile.totalExperience}).`
+        hasSkilledExperience
+          ? `You indicated skilled work experience (Canada: ${derivedCanadianYearsBand || "0"}, outside Canada: ${profile.foreignSkilledYears || "0"}).`
           : "",
         profile.educationLevel && !["none", "high-school"].includes(profile.educationLevel)
           ? `You reported post-secondary education (${profile.educationLevel}).`
@@ -418,11 +421,12 @@ export function recommendNextSteps(
       ]),
       evidence: {
         inputs: unique([
-          profile.totalExperience ? `totalExperience=${profile.totalExperience}` : "",
-          profile.educationLevel ? `educationLevel=${profile.educationLevel}` : "",
-          profile.languageTestStatus
-            ? `languageTestStatus=${profile.languageTestStatus}`
+          profile.derivedCanadianSkilledYearsBand
+            ? `derivedCanadianSkilledYearsBand=${profile.derivedCanadianSkilledYearsBand}`
             : "",
+          profile.foreignSkilledYears ? `foreignSkilledYears=${profile.foreignSkilledYears}` : "",
+          profile.educationLevel ? `educationLevel=${profile.educationLevel}` : "",
+          profile.languageTestPlan ? `languageTestPlan=${profile.languageTestPlan}` : "",
           profile.ecaStatus ? `ecaStatus=${profile.ecaStatus}` : "",
         ]),
         pathways: ["express-entry"],

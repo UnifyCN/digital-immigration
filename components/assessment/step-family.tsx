@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { RadioGroup } from "@/components/ui/radio-group"
 import { Separator } from "@/components/ui/separator"
 import { RadioCard } from "@/components/ui/radio-card"
+import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
 const maritalStatuses = [
@@ -37,6 +38,7 @@ export function StepFamily() {
   const maritalStatus = useWatch({ control, name: "maritalStatus" })
   const primaryGoal = useWatch({ control, name: "primaryGoal" })
   const closeRelativeInCanada = useWatch({ control, name: "closeRelativeInCanada" })
+  const hasCloseRelativeInCanada = useWatch({ control, name: "hasCloseRelativeInCanada" })
   const showPartner = maritalStatus === "married" || maritalStatus === "common-law"
   const isSponsorshipGoal = primaryGoal === "sponsorship"
 
@@ -52,6 +54,12 @@ export function StepFamily() {
       setValue("closeRelativeRelationship", "", { shouldValidate: true })
     }
   }, [closeRelativeInCanada, setValue])
+
+  useEffect(() => {
+    if (hasCloseRelativeInCanada !== "yes") {
+      setValue("relativeProvinceTerritory", "", { shouldValidate: true })
+    }
+  }, [hasCloseRelativeInCanada, setValue])
 
   useEffect(() => {
     if (!isSponsorshipGoal) {
@@ -301,6 +309,63 @@ export function StepFamily() {
                   ].map((o) => (
                     <SelectItem key={o.value} value={o.value}>
                       {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      <FormField
+        control={control}
+        name="hasCloseRelativeInCanada"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Do you have a close relative in Canada?</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="flex gap-4"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ].map((o) => (
+                  <RadioCard
+                    key={o.value}
+                    value={o.value}
+                    id={`has-close-relative-${o.value}`}
+                    label={o.label}
+                  />
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {hasCloseRelativeInCanada === "yes" && (
+        <FormField
+          control={control}
+          name="relativeProvinceTerritory"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Which province or territory does your relative live in?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select province or territory" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {CANADIAN_PROVINCES_AND_TERRITORIES.map((province) => (
+                    <SelectItem key={province} value={province}>
+                      {province}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -3,6 +3,7 @@
 export type PrimaryGoal = "pr" | "study-permit" | "work-permit" | "sponsorship" | "not-sure"
 export type TimeUrgency = "less-than-3" | "3-to-6" | "6-to-12" | "flexible"
 export type CurrentLocation = "inside-canada" | "outside-canada"
+export type YesNo = "yes" | "no"
 export type GeographicFlexibility = "yes-anywhere" | "prefer-specific" | "only-specific"
 export type DeadlineTrigger =
   | "status-expiring"
@@ -11,6 +12,11 @@ export type DeadlineTrigger =
   | "family-situation"
   | "no-hard-deadline"
 export type SponsorshipRelation = "spouse-partner" | "child" | "parent-grandparent" | "other"
+export type TemporaryStatusType =
+  | "study-permit"
+  | "work-permit-open"
+  | "work-permit-employer-specific"
+  | "visitor-record"
 export type CurrentStatus = "citizen" | "pr" | "visitor" | "student" | "worker" | "other"
 // Red-flag flows still store "unsure" and are intentionally normalized separately from "not-sure" fields.
 export type YesNoUnsure = "yes" | "no" | "unsure"
@@ -27,7 +33,24 @@ export type EmployerLetterChallenge =
   | "self-employed"
   | "informal-work-no-records"
   | "other-not-sure"
-export type LanguageTestStatus = "yes" | "no" | "planning"
+export type JobOfferCompensationType = "hourly" | "annual"
+export type JobOfferTenure = "lt-6-months" | "6-12-months" | "1-2-years" | "2-plus-years"
+export type OccupationCategory =
+  | "business-management"
+  | "it-software-data"
+  | "engineering"
+  | "healthcare"
+  | "trades"
+  | "hospitality-tourism"
+  | "sales-marketing"
+  | "education"
+  | "other"
+export type LanguageTestPlan = "english-only" | "french-only" | "both-languages" | "not-sure"
+export type LanguagePerLangStatus = "completed" | "booked" | "not-taken"
+export type EnglishLanguageTestType = "ielts-general-training" | "celpip-general"
+export type FrenchLanguageTestType = "tef-canada" | "tcf-canada"
+export type HasValidLanguageTest = "yes" | "no" | "booked"
+export type HardGateLanguageTestStatus = "valid" | "not_valid" | "booked"
 export type LanguageApproxCLB = "clb-4-6" | "clb-7" | "clb-8" | "clb-9-plus" | "not-sure"
 export type LanguagePlannedTiming = "within-1-month" | "1-3-months" | "3-plus-months" | "not-scheduled"
 export type CanadianWorkDuration = "none" | "less-than-1-year" | "1-year" | "2-plus-years" | "not-sure"
@@ -52,6 +75,14 @@ export type EducationLevel =
   | "two-or-more-degrees"
   | "masters"
   | "phd"
+export type FieldOfStudy =
+  | "business"
+  | "it-computer-science"
+  | "engineering"
+  | "health"
+  | "trades"
+  | "arts-social-sciences"
+  | "other"
 export type MaritalStatus = "single" | "married" | "common-law" | "separated" | "divorced" | "widowed"
 export type AgeRange = "17-or-less" | "18-24" | "25-29" | "30-34" | "35-39" | "40-44" | "45+"
 
@@ -78,6 +109,12 @@ export interface AssessmentData {
   lastName: string
   dateOfBirth: string
   citizenshipCountry: string
+  currentProvinceTerritory: string
+  intendedProvinceTerritory: string
+  hasValidTemporaryStatus: YesNo | ""
+  temporaryStatusType: TemporaryStatusType | ""
+  temporaryStatusExpiryDate: string
+  exactAge: number | null
   email?: string
   consentAcknowledged: boolean
 
@@ -93,6 +130,7 @@ export interface AssessmentData {
   studyPermitHasLOA: YesNoUnsure | ""
   workPermitHasJobOffer: YesNoUnsure | ""
   sponsorshipRelation: SponsorshipRelation | ""
+  openToPNP: YesNoNotSure | ""
 
   // Step 2: Current Status
   currentStatus: CurrentStatus | ""
@@ -101,6 +139,9 @@ export interface AssessmentData {
   refusalHistory: RefusalHistory | ""
   mostRecentRefusalType: ApplicationType | ""
   priorCanadaApplicationType: ApplicationType | ""
+  currentlyWorkingInCanada: YesNo | ""
+  currentJobProvinceTerritory: string
+  sameEmployerForPermanentOffer: YesNoNotSure | ""
   countryOfResidence: string
   nationality: string
   priorApplications: YesNoUnsure | ""
@@ -108,7 +149,6 @@ export interface AssessmentData {
   // Step 3: Work History
   currentJobTitle: string
   countryOfWork: string
-  totalExperience: WorkExperience | ""
   industryCategory: string
   employmentGaps: YesNoUnsure | ""
   mostRecentJobStart: string
@@ -120,21 +160,51 @@ export interface AssessmentData {
   canObtainEmployerLetter: EmployerLetterFeasibility | ""
   employerLetterChallenge: EmployerLetterChallenge | ""
   hasOverlappingPeriods: YesNoUnsure | ""
+  hasCanadianJobOffer: YesNoUnsure | ""
+  jobOfferProvinceTerritory: string
+  jobOfferTitle: string
+  jobOfferEmployerName: string
+  jobOfferCity: string
+  jobOfferFullTime: YesNo | ""
+  jobOfferPermanent: YesNo | ""
+  jobOfferCompensation: string
+  jobOfferCompensationType: JobOfferCompensationType | ""
+  jobOfferTenure: JobOfferTenure | ""
+  employerWillSupportPNP: YesNoUnsure | ""
+  occupationCategory: OccupationCategory | ""
+  occupationCategoryOtherRole: string
+  jobDuties: string
+  foreignSkilledYears: "0" | "1" | "2" | "3" | "4" | "5+" | ""
+  hasContinuous12MonthsSkilled: YesNoUnsure | ""
+  has12MonthsCanadaSkilled: "yes" | "no" | "not_sure" | ""
+  canadianWorkAuthorizedAll: "yes" | "no" | "not_sure" | ""
+  derivedCanadianSkilledYearsBand: "0" | "1" | "2" | "3" | "4" | "5+" | ""
   jobs: JobEntry[]
 
   // Step 4: Education
   educationLevel: EducationLevel | ""
+  fieldOfStudy: FieldOfStudy | ""
   educationCountry: string
   graduationYear: string
   ecaStatus: EcaStatus | ""
   canadaEducationStatus: CanadaEducationStatus | ""
+  educationCompletedInCanada: YesNo | ""
+  canadianEducationProvinceTerritory: string
+  canadianEducationPublicInstitution: YesNoNotSure | ""
   programLength: ProgramLength | ""
   hasMultipleCredentials: YesNoNotSure | ""
   additionalCredentials: AdditionalCredential[]
   ecaValid: EcaStatus | ""
 
   // Step 5: Language & CRS
-  languageTestStatus: LanguageTestStatus | ""
+  languageTestStatus: HardGateLanguageTestStatus | ""
+  languageTestPlan: LanguageTestPlan | ""
+  englishTestStatus: LanguagePerLangStatus | ""
+  englishTestType: EnglishLanguageTestType | ""
+  englishPlannedTestDate: string
+  frenchTestStatus: LanguagePerLangStatus | ""
+  frenchTestType: FrenchLanguageTestType | ""
+  frenchPlannedTestDate: string
   languageScores: {
     listening: string
     reading: string
@@ -142,10 +212,6 @@ export interface AssessmentData {
     speaking: string
   }
   addScoresLater: boolean
-  plannedTestDate: string
-  languageApproxCLB: LanguageApproxCLB | ""
-  languageTestValid: YesNoNotSure | ""
-  languagePlannedTiming: LanguagePlannedTiming | ""
   ageRange: AgeRange | ""
   canadianEducation: YesNoNotSure | ""
   canadianWorkExperience: YesNoUnsure | ""
@@ -158,6 +224,8 @@ export interface AssessmentData {
   spouseAccompanying: SpouseAccompanying | ""
   spouseLocation: SpouseLocation | ""
   closeRelativeInCanada: YesNoNotSure | ""
+  hasCloseRelativeInCanada: YesNo | ""
+  relativeProvinceTerritory: string
   closeRelativeRelationship: CloseRelativeRelationship | ""
   hasDependentsUnder18: YesNoNotSure | ""
   hasDependents18Plus: YesNoNotSure | ""
@@ -180,6 +248,9 @@ export interface AssessmentData {
   removalOrDeportationHistory: YesNoUnsure | ""
   hasActiveApplication: YesNoUnsure | ""
   employerLetterUnwilling: YesNoUnsure | ""
+  workedWithoutAuthorizationInCanada: YesNo | ""
+  refusedProvincialNomination: YesNo | ""
+  isSkilledTrade: YesNoUnsure | ""
 }
 
 // ── Results types ──

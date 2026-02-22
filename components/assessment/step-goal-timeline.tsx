@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { CalendarIcon, CircleHelp } from "lucide-react"
+import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
 const goals = [
@@ -33,13 +34,6 @@ const goals = [
   { value: "work-permit", label: "Work Permit" },
   { value: "sponsorship", label: "Family Sponsorship" },
   { value: "not-sure", label: "Not sure yet" },
-]
-
-const urgencies = [
-  { value: "less-than-3", label: "Less than 3 months" },
-  { value: "3-to-6", label: "3 to 6 months" },
-  { value: "6-to-12", label: "6 to 12 months" },
-  { value: "flexible", label: "Flexible / No rush" },
 ]
 
 const locations = [
@@ -61,26 +55,16 @@ const deadlineOptions = [
   { value: "no-hard-deadline", label: "No hard deadline" },
 ]
 
-const provincesAndTerritories = [
-  "Alberta",
-  "British Columbia",
-  "Manitoba",
-  "New Brunswick",
-  "Newfoundland and Labrador",
-  "Northwest Territories",
-  "Nova Scotia",
-  "Nunavut",
-  "Ontario",
-  "Prince Edward Island",
-  "Quebec",
-  "Saskatchewan",
-  "Yukon",
-]
-
 const yesNoNotSure = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
   { value: "unsure", label: "Not sure" },
+]
+
+const yesNoNotSurePNP = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+  { value: "not-sure", label: "Not sure" },
 ]
 
 const sponsorshipRelations = [
@@ -166,24 +150,26 @@ export function StepGoalTimeline() {
 
       <FormField
         control={control}
-        name="timeUrgency"
+        name="openToPNP"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>How soon do you need a plan?</FormLabel>
+            <FormLabel>
+              Are you open to applying through a Provincial Nominee Program if it is your strongest option?
+            </FormLabel>
             <FormControl>
               <RadioGroup
                 onValueChange={field.onChange}
                 value={field.value}
                 className="flex flex-col gap-2"
               >
-                {urgencies.map((u) => (
+                {yesNoNotSurePNP.map((option) => (
                   <Label
-                    key={u.value}
-                    htmlFor={`urgency-${u.value}`}
+                    key={option.value}
+                    htmlFor={`pnp-open-${option.value}`}
                     className="flex cursor-pointer items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
                   >
-                    <RadioGroupItem value={u.value} id={`urgency-${u.value}`} />
-                    <span className="text-sm text-foreground">{u.label}</span>
+                    <RadioGroupItem value={option.value} id={`pnp-open-${option.value}`} />
+                    <span className="text-sm text-foreground">{option.label}</span>
                   </Label>
                 ))}
               </RadioGroup>
@@ -266,7 +252,7 @@ export function StepGoalTimeline() {
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {provincesAndTerritories.map((province) => (
+                  {CANADIAN_PROVINCES_AND_TERRITORIES.map((province) => (
                     <SelectItem key={province} value={province}>
                       {province}
                     </SelectItem>

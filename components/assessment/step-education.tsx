@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import {
   FormField,
@@ -22,6 +23,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { X } from "lucide-react"
+import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
 const educationLevels = [
@@ -43,18 +45,36 @@ const programLengthOptions = [
   { value: "not-sure", label: "Not sure" },
 ]
 
+const fieldOfStudyOptions = [
+  { value: "business", label: "Business" },
+  { value: "it-computer-science", label: "IT / Computer Science" },
+  { value: "engineering", label: "Engineering" },
+  { value: "health", label: "Health" },
+  { value: "trades", label: "Trades" },
+  { value: "arts-social-sciences", label: "Arts / Social Sciences" },
+  { value: "other", label: "Other" },
+]
+
 const CURRENT_YEAR = new Date().getFullYear()
 const MAX_CREDENTIALS = 5
 
 export function StepEducation() {
-  const { control } = useFormContext<AssessmentData>()
+  const { control, setValue } = useFormContext<AssessmentData>()
   const ecaStatus = useWatch({ control, name: "ecaStatus" })
   const hasMultipleCredentials = useWatch({ control, name: "hasMultipleCredentials" })
+  const educationCompletedInCanada = useWatch({ control, name: "educationCompletedInCanada" })
   const { fields, append, remove } = useFieldArray({
     control,
     name: "additionalCredentials",
   })
   const isMaxCredentialsReached = fields.length >= MAX_CREDENTIALS
+
+  useEffect(() => {
+    if (educationCompletedInCanada !== "yes") {
+      setValue("canadianEducationProvinceTerritory", "", { shouldValidate: true })
+      setValue("canadianEducationPublicInstitution", "", { shouldValidate: true })
+    }
+  }, [educationCompletedInCanada, setValue])
 
   return (
     <div className="flex flex-col gap-8">
@@ -83,6 +103,31 @@ export function StepEducation() {
                 {educationLevels.map((e) => (
                   <SelectItem key={e.value} value={e.value}>
                     {e.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="fieldOfStudy"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Field of study for your highest credential</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select field of study" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {fieldOfStudyOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -193,6 +238,100 @@ export function StepEducation() {
           </FormItem>
         )}
       />
+
+      <FormField
+        control={control}
+        name="educationCompletedInCanada"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Was any of your education completed in Canada?</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="flex gap-4"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ].map((o) => (
+                  <Label
+                    key={o.value}
+                    htmlFor={`education-completed-canada-${o.value}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                  >
+                    <RadioGroupItem value={o.value} id={`education-completed-canada-${o.value}`} />
+                    <span className="text-foreground">{o.label}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {educationCompletedInCanada === "yes" && (
+        <FormField
+          control={control}
+          name="canadianEducationProvinceTerritory"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Which province or territory was it completed in?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select province or territory" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {CANADIAN_PROVINCES_AND_TERRITORIES.map((province) => (
+                    <SelectItem key={province} value={province}>
+                      {province}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {educationCompletedInCanada === "yes" && (
+        <FormField
+          control={control}
+          name="canadianEducationPublicInstitution"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Was it completed at a public institution?</FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  className="flex gap-4"
+                >
+                  {[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                    { value: "not-sure", label: "Not sure" },
+                  ].map((o) => (
+                    <Label
+                      key={o.value}
+                      htmlFor={`canadian-public-institution-${o.value}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    >
+                      <RadioGroupItem value={o.value} id={`canadian-public-institution-${o.value}`} />
+                      <span className="text-foreground">{o.label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
 
       <FormField
         control={control}

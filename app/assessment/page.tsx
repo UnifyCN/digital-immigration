@@ -293,7 +293,6 @@ function AssessmentPageContent() {
                 type="button"
                 variant="ghost"
                 onClick={handleBack}
-                disabled={currentStep === 0}
                 className="gap-2"
               >
                 <ArrowLeft className="size-4" />

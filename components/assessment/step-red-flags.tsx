@@ -12,14 +12,19 @@ import { RadioCard } from "@/components/ui/radio-card"
 import { ShieldAlert } from "lucide-react"
 import type { AssessmentData } from "@/lib/types"
 
+const yesNoOptions = [
+  { value: "yes", label: "Yes" },
+  { value: "no", label: "No" },
+]
+
 const flagFields: {
   name: keyof AssessmentData
   label: string
   helperText?: string
   options?: { value: string; label: string }[]
 }[] = [
-  { name: "priorRefusals", label: "Prior visa or application refusals" },
-  { name: "criminalCharges", label: "Criminal charges or convictions" },
+  { name: "priorRefusals", label: "Prior visa or application refusals", options: yesNoOptions },
+  { name: "criminalCharges", label: "Criminal charges or convictions", options: yesNoOptions },
   { name: "medicalIssues", label: "Medical issues affecting admissibility" },
   { name: "misrepresentation", label: "Misrepresentation concerns" },
   {
@@ -30,20 +35,22 @@ const flagFields: {
       { value: "yes", label: "Yes" },
       { value: "no", label: "No" },
       { value: "na", label: "Not applicable" },
-      { value: "unsure", label: "Unsure" },
     ],
   },
   {
     name: "overstayHistory",
     label: "Ever overstayed or been out of status (in Canada or another country)",
+    options: yesNoOptions,
   },
   {
     name: "removalOrDeportationHistory",
     label: "Ever been refused entry, removed, or deported from any country",
+    options: yesNoOptions,
   },
   {
     name: "hasActiveApplication",
     label: "Do you currently have an immigration application in process?",
+    options: yesNoOptions,
   },
   { name: "multipleCountries", label: "Lived in multiple countries in last 10 years" },
   { name: "nonTraditionalEmployment", label: "Non-traditional or informal employment" },
@@ -51,6 +58,20 @@ const flagFields: {
   {
     name: "employerLetterUnwilling",
     label: "Employer unwilling to provide a detailed reference letter",
+  },
+  {
+    name: "workedWithoutAuthorizationInCanada",
+    label: "Have you ever worked in Canada without authorization?",
+    options: yesNoOptions,
+  },
+  {
+    name: "refusedProvincialNomination",
+    label: "Have you ever been refused a provincial nomination?",
+    options: yesNoOptions,
+  },
+  {
+    name: "isSkilledTrade",
+    label: "Is your occupation in a skilled trade (construction, electrical, industrial, mechanical, maintenance, etc.)?",
   },
 ]
 
@@ -129,7 +150,7 @@ export function StepRedFlags() {
         <p className="text-xs leading-relaxed text-muted-foreground">
           These questions help identify if your case has complexity that may
           need professional guidance. Answering honestly protects you.
-          {"\"Unsure\""} is always an option.
+          {" \"Unsure\""} appears only where it is genuinely needed.
         </p>
       </div>
 

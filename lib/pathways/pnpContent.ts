@@ -1,5 +1,6 @@
 import type { AssessmentData } from "@/lib/types"
 import type { ChecklistRow, ChecklistStatus } from "@/lib/pathways/types"
+import { deriveCanadianSkilledYearsBand } from "@/lib/work-derived"
 
 export interface PnpBrief {
   whyIntro: string
@@ -35,7 +36,11 @@ function hasPostSecondaryEducation(level: AssessmentData["educationLevel"]): boo
 }
 
 function hasSkilledWorkExperience(data: AssessmentData): boolean {
-  if (data.totalExperience === "1-3" || data.totalExperience === "3-5" || data.totalExperience === "5+") {
+  const derivedCanadianBand = data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data)
+  if (derivedCanadianBand !== "0") {
+    return true
+  }
+  if (data.foreignSkilledYears && data.foreignSkilledYears !== "0") {
     return true
   }
 
@@ -57,11 +62,16 @@ function buildWhyRelevantBullets(data: AssessmentData): string[] {
     bullets.push("You reported post-secondary education, which is commonly considered in many provincial selection systems.")
   }
 
-  if (data.canadianWorkExperience === "yes" || data.canadianEducation === "yes") {
+  if (
+    data.canadianWorkExperience === "yes" ||
+    data.educationCompletedInCanada === "yes" ||
+    data.canadaEducationStatus === "yes" ||
+    data.canadaEducationStatus === "mix-some-in-canada"
+  ) {
     bullets.push("You have Canadian work and/or Canadian education signals that may improve fit for certain provincial streams.")
   }
 
-  if (data.languageTestStatus !== "yes") {
+  if (data.englishTestStatus !== "completed" && data.frenchTestStatus !== "completed") {
     bullets.push("PNP may help as a parallel nomination strategy while language/points are uncertain or still in progress.")
   }
 
@@ -72,9 +82,9 @@ function buildWhyRelevantBullets(data: AssessmentData): string[] {
   return bullets
 }
 
-function getLanguageReadinessStatus(status: AssessmentData["languageTestStatus"]): ChecklistStatus {
-  if (status === "yes") return "complete"
-  if (status === "planning") return "warning"
+function getLanguageReadinessStatus(data: AssessmentData): ChecklistStatus {
+  if (data.englishTestStatus === "completed" || data.frenchTestStatus === "completed") return "complete"
+  if (data.englishTestStatus === "booked" || data.frenchTestStatus === "booked") return "warning"
   return "unknown"
 }
 
@@ -103,7 +113,7 @@ export function buildPnpBrief(data: AssessmentData): PnpBrief {
       },
       {
         label: "Language readiness",
-        status: getLanguageReadinessStatus(data.languageTestStatus),
+        status: getLanguageReadinessStatus(data),
       },
       {
         label: "Education info",

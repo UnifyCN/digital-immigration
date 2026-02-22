@@ -8,47 +8,26 @@ import {
   FormLabel,
   FormControl,
   FormMessage,
-  FormDescription,
 } from "@/components/ui/form"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { RadioGroup } from "@/components/ui/radio-group"
-import { Separator } from "@/components/ui/separator"
 import { RadioCard } from "@/components/ui/radio-card"
+import { DatePicker } from "@/components/ui/date-picker"
+import { Input } from "@/components/ui/input"
 import type { AssessmentData } from "@/lib/types"
 
-const ageRanges = [
-  { value: "17-or-less", label: "17 or younger" },
-  { value: "18-24", label: "18-24" },
-  { value: "25-29", label: "25-29" },
-  { value: "30-34", label: "30-34" },
-  { value: "35-39", label: "35-39" },
-  { value: "40-44", label: "40-44" },
-  { value: "45+", label: "45 or older" },
-]
-
 export function StepLanguageCRS() {
-  const { control, resetField, setValue } = useFormContext<AssessmentData>()
+  const { control, setValue } = useFormContext<AssessmentData>()
   const languageTestStatus = useWatch({ control, name: "languageTestStatus" })
 
   useEffect(() => {
-    if (languageTestStatus !== "yes") {
-      resetField("languageApproxCLB")
-      resetField("languageTestValid")
+    if (languageTestStatus !== "valid") {
+      setValue("languageScores.listening", "", { shouldValidate: true })
+      setValue("languageScores.reading", "", { shouldValidate: true })
+      setValue("languageScores.writing", "", { shouldValidate: true })
+      setValue("languageScores.speaking", "", { shouldValidate: true })
     }
-    if (languageTestStatus !== "planning") {
-      resetField("languagePlannedTiming")
-    }
-  }, [languageTestStatus, resetField])
-
-  useEffect(() => {
-    if (languageTestStatus !== "planning") {
-      setValue("plannedTestDate", "", { shouldValidate: true })
+    if (languageTestStatus !== "booked") {
+      setValue("languageTestPlannedDate", "", { shouldValidate: true })
     }
   }, [languageTestStatus, setValue])
 
@@ -68,7 +47,7 @@ export function StepLanguageCRS() {
         name="languageTestStatus"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>IELTS / CELPIP / TEF status</FormLabel>
+            <FormLabel>Do you currently have a valid language test taken within the last 2 years?</FormLabel>
             <FormControl>
               <RadioGroup
                 onValueChange={field.onChange}
@@ -76,14 +55,14 @@ export function StepLanguageCRS() {
                 className="flex gap-4"
               >
                 {[
-                  { value: "yes", label: "Completed" },
-                  { value: "no", label: "Not taken" },
-                  { value: "planning", label: "Planning" },
+                  { value: "valid", label: "Yes" },
+                  { value: "not_valid", label: "No" },
+                  { value: "booked", label: "Booked" },
                 ].map((o) => (
                   <RadioCard
                     key={o.value}
                     value={o.value}
-                    id={`lang-${o.value}`}
+                    id={`language-validity-${o.value}`}
                     label={o.label}
                   />
                 ))}
@@ -94,194 +73,85 @@ export function StepLanguageCRS() {
         )}
       />
 
-      {languageTestStatus === "yes" && (
-        <>
-          <FormField
-            control={control}
-            name="languageApproxCLB"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>What was your overall language level (approx.)?</FormLabel>
-                <Select onValueChange={field.onChange} value={field.value}>
+      {languageTestStatus === "valid" && (
+        <div className="flex flex-col gap-4">
+          <FormLabel>Enter your exact scores</FormLabel>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={control}
+              name="languageScores.listening"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Listening</FormLabel>
                   <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select approximate CLB level" />
-                    </SelectTrigger>
+                    <Input {...field} value={field.value ?? ""} />
                   </FormControl>
-                  <SelectContent>
-                    {[
-                      { value: "clb-4-6", label: "CLB 4–6 (approx.)" },
-                      { value: "clb-7", label: "CLB 7" },
-                      { value: "clb-8", label: "CLB 8" },
-                      { value: "clb-9-plus", label: "CLB 9+" },
-                      { value: "not-sure", label: "Not sure" },
-                    ].map((o) => (
-                      <SelectItem key={o.value} value={o.value}>
-                        {o.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormDescription>Approximate is fine — this helps assess fit.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={control}
-            name="languageTestValid"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Is your language test still valid (taken within the last 2 years)?</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    onValueChange={field.onChange}
-                    value={field.value}
-                    className="flex gap-4"
-                  >
-                    {[
-                      { value: "yes", label: "Yes" },
-                      { value: "no", label: "No" },
-                      { value: "not-sure", label: "Not sure" },
-                    ].map((o) => (
-                      <RadioCard
-                        key={o.value}
-                        value={o.value}
-                        id={`lang-valid-${o.value}`}
-                        label={o.label}
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-                <FormDescription>Language tests can expire.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-        </>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="languageScores.reading"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Reading</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="languageScores.writing"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Writing</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="languageScores.speaking"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Speaking</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+        </div>
       )}
 
-      {languageTestStatus === "planning" && (
+      {languageTestStatus === "booked" && (
         <FormField
           control={control}
-          name="languagePlannedTiming"
+          name="languageTestPlannedDate"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>When do you plan to take the test?</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value}>
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select planned timing" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {[
-                    { value: "within-1-month", label: "Within 1 month" },
-                    { value: "1-3-months", label: "1–3 months" },
-                    { value: "3-plus-months", label: "3+ months" },
-                    { value: "not-scheduled", label: "Not scheduled" },
-                  ].map((o) => (
-                    <SelectItem key={o.value} value={o.value}>
-                      {o.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <FormLabel>Planned test date</FormLabel>
+              <FormControl>
+                <DatePicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Select your test date"
+                />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
       )}
-
-      <Separator />
-
-      <FormField
-        control={control}
-        name="ageRange"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Age range</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select your age range" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {ageRanges.map((a) => (
-                  <SelectItem key={a.value} value={a.value}>
-                    {a.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
-        name="canadianEducation"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Canadian education?</FormLabel>
-            <FormControl>
-              <RadioGroup
-                onValueChange={field.onChange}
-                value={field.value}
-                className="flex gap-4"
-              >
-                {[
-                  { value: "yes", label: "Yes" },
-                  { value: "no", label: "No" },
-                  { value: "not-sure", label: "Not sure" },
-                ].map((o) => (
-                  <RadioCard
-                    key={o.value}
-                    value={o.value}
-                    id={`can-edu-${o.value}`}
-                    label={o.label}
-                  />
-                ))}
-              </RadioGroup>
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-
-      <FormField
-        control={control}
-        name="canadianWorkDuration"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>How much Canadian work experience do you have?</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value}>
-              <FormControl>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select Canadian work duration" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {[
-                  { value: "none", label: "None" },
-                  { value: "less-than-1-year", label: "Less than 1 year" },
-                  { value: "1-year", label: "1 year" },
-                  { value: "2-plus-years", label: "2+ years" },
-                  { value: "not-sure", label: "Not sure" },
-                ].map((o) => (
-                  <SelectItem key={o.value} value={o.value}>
-                    {o.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
 
       <FormField
         control={control}
