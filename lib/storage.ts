@@ -57,6 +57,7 @@ export const defaultAssessmentData: AssessmentData = {
   currentLocation: "",
   geographicFlexibility: "",
   preferredProvince: "",
+  pnpTargetProvince: "",
   deadlineTrigger: "",
   deadlineDate: "",
   studyPermitHasLOA: "",

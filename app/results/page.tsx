@@ -115,7 +115,9 @@ export default function ResultsPage() {
 
         <Separator />
 
-        <ReviewAnswers assessment={assessment} />
+        <div id="review-answers">
+          <ReviewAnswers assessment={assessment} />
+        </div>
       </div>
 
       {/* Actions footer */}

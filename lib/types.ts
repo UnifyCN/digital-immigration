@@ -78,6 +78,7 @@ export interface AssessmentData {
   currentLocation: CurrentLocation | ""
   geographicFlexibility: GeographicFlexibility | ""
   preferredProvince: string
+  pnpTargetProvince?: string
   deadlineTrigger: DeadlineTrigger | ""
   deadlineDate: string
   studyPermitHasLOA: YesNoUnsure | ""
