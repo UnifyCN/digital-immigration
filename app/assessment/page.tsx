@@ -34,6 +34,8 @@ import {
   saveStep,
   loadStep,
   defaultAssessmentData,
+  loadCompletedSteps,
+  saveCompletedSteps,
 } from "@/lib/storage"
 import type { AssessmentData } from "@/lib/types"
 
@@ -86,6 +88,9 @@ function AssessmentPageContent() {
   const [queryStep, setQueryStep] = useState<number | null>(null)
   const [queryResolved, setQueryResolved] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
+  const [completedSteps, setCompletedSteps] = useState<boolean[]>(() =>
+    Array(TOTAL_STEPS).fill(false),
+  )
   const [isLoaded, setIsLoaded] = useState(false)
 
   const form = useForm<AssessmentData>({
@@ -93,6 +98,12 @@ function AssessmentPageContent() {
     defaultValues: defaultAssessmentData,
     mode: "onTouched",
   })
+
+  const validateStepAtIndex = useCallback((stepIndex: number, values: AssessmentData) => {
+    return stepIndex === 6
+      ? validateStep6(values.primaryGoal || "", values)
+      : stepSchemas[stepIndex].safeParse(values)
+  }, [])
 
   useEffect(() => {
     if (!queryResolved) return
@@ -113,31 +124,56 @@ function AssessmentPageContent() {
       setCurrentStep(queryStep)
     } else {
       const savedStep = loadStep()
-      if (savedStep > 0 && savedStep < TOTAL_STEPS) {
+      if (savedStep >= 0 && savedStep < TOTAL_STEPS) {
         setCurrentStep(savedStep)
       }
     }
+
+    setCompletedSteps(loadCompletedSteps(TOTAL_STEPS))
     setIsLoaded(true)
   }, [form, queryResolved, queryStep])
+
+  useEffect(() => {
+    if (!isLoaded) return
+    saveStep(currentStep)
+    saveCompletedSteps(completedSteps)
+  }, [completedSteps, currentStep, isLoaded])
 
   const persistData = useCallback(() => {
     const values = form.getValues()
     saveAssessment(values)
-    saveStep(currentStep)
-  }, [form, currentStep])
+  }, [form])
+
+  const goToStep = useCallback(
+    (stepIndex: number) => {
+      if (stepIndex >= currentStep) return
+      const values = form.getValues()
+      const canJump =
+        completedSteps[stepIndex] || validateStepAtIndex(stepIndex, values).success
+
+      if (!canJump) return
+
+      persistData()
+      setCurrentStep(stepIndex)
+      window.scrollTo({ top: 0, behavior: "smooth" })
+    },
+    [completedSteps, currentStep, form, persistData, validateStepAtIndex],
+  )
 
   async function handleNext() {
     const values = form.getValues()
-
-    const result =
-      currentStep === 6
-        ? validateStep6(values.primaryGoal || "", values)
-        : stepSchemas[currentStep].safeParse(values)
+    const result = validateStepAtIndex(currentStep, values)
 
     if (!result.success) {
       await form.trigger()
       return
     }
+
+    setCompletedSteps((prev) => {
+      const next = [...prev]
+      next[currentStep] = true
+      return next
+    })
 
     persistData()
 
@@ -160,26 +196,31 @@ function AssessmentPageContent() {
 
   async function handleSubmit() {
     const values = form.getValues()
-    const result =
-      currentStep === 6
-        ? validateStep6(values.primaryGoal || "", values)
-        : stepSchemas[currentStep].safeParse(values)
+    const result = validateStepAtIndex(currentStep, values)
 
     if (!result.success) {
       await form.trigger()
       return
     }
 
+    setCompletedSteps((prev) => {
+      const next = [...prev]
+      next[currentStep] = true
+      return next
+    })
+
     persistData()
     router.push("/results")
   }
 
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100
-  const currentStepValues = form.watch()
-  const currentStepValid =
-    currentStep === 6
-      ? validateStep6(currentStepValues.primaryGoal || "", currentStepValues).success
-      : stepSchemas[currentStep].safeParse(currentStepValues).success
+  const allValues = form.watch()
+  const currentStepValid = validateStepAtIndex(currentStep, allValues).success
+
+  const stepperCompleted = STEP_LABELS.map((_, index) => {
+    if (completedSteps[index]) return true
+    return validateStepAtIndex(index, allValues).success
+  })
 
   const searchParamsResolver = (
     <Suspense fallback={null}>
@@ -216,7 +257,12 @@ function AssessmentPageContent() {
         </div>
 
         <div className="mb-8">
-          <WizardStepper steps={STEP_LABELS} currentStep={currentStep} />
+          <WizardStepper
+            steps={STEP_LABELS}
+            currentStep={currentStep}
+            completedSteps={stepperCompleted}
+            onStepClick={goToStep}
+          />
         </div>
 
         <Form {...form}>

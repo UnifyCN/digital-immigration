@@ -2,6 +2,7 @@ import type { AssessmentData } from "./types"
 
 const STORAGE_KEY = "clarity-assessment-draft"
 const STEP_KEY = "clarity-assessment-step"
+const COMPLETED_STEPS_KEY = "clarity-assessment-completed-steps"
 
 type NormalizedYesNoUnsure = "yes" | "no" | "not-sure" | "" | undefined
 
@@ -326,6 +327,7 @@ export function clearAssessment(): void {
   if (typeof window === "undefined") return
   localStorage.removeItem(STORAGE_KEY)
   localStorage.removeItem(STEP_KEY)
+  localStorage.removeItem(COMPLETED_STEPS_KEY)
 }
 
 export function hasDraft(): boolean {
@@ -341,5 +343,26 @@ export function saveStep(step: number): void {
 export function loadStep(): number {
   if (typeof window === "undefined") return 0
   const raw = localStorage.getItem(STEP_KEY)
-  return raw ? parseInt(raw, 10) : 0
+  const parsed = raw ? parseInt(raw, 10) : 0
+  return Number.isNaN(parsed) ? 0 : parsed
+}
+
+export function saveCompletedSteps(completedSteps: boolean[]): void {
+  if (typeof window === "undefined") return
+  localStorage.setItem(COMPLETED_STEPS_KEY, JSON.stringify(completedSteps))
+}
+
+export function loadCompletedSteps(totalSteps: number): boolean[] {
+  if (typeof window === "undefined") return Array(totalSteps).fill(false)
+  const raw = localStorage.getItem(COMPLETED_STEPS_KEY)
+  if (!raw) return Array(totalSteps).fill(false)
+
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return Array(totalSteps).fill(false)
+
+    return Array.from({ length: totalSteps }, (_, index) => parsed[index] === true)
+  } catch {
+    return Array(totalSteps).fill(false)
+  }
 }
