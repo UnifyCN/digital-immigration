@@ -35,6 +35,10 @@ export default function ResultsPage() {
     router.push("/")
   }
 
+  function handleBackToHome() {
+    router.push("/")
+  }
+
   if (!isLoaded || !results) {
     return (
       <div className="flex min-h-[calc(100vh-2.5rem)] items-center justify-center">
@@ -50,13 +54,12 @@ export default function ResultsPage() {
         <Button
           variant="ghost"
           size="sm"
-          asChild
+          type="button"
+          onClick={handleBackToHome}
           className="mb-4 gap-1.5 text-muted-foreground"
         >
-          <Link href="/">
-            <ArrowLeft className="size-3.5" />
-            Back to home
-          </Link>
+          <ArrowLeft className="size-3.5" />
+          Back to home
         </Button>
 
         <h1 className="font-heading text-foreground">

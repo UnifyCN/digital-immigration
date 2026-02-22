@@ -119,7 +119,11 @@ export default function AssessmentPage() {
     if (currentStep > 0) {
       setCurrentStep((s) => s - 1)
       window.scrollTo({ top: 0, behavior: "smooth" })
+      return
     }
+
+    // At the first step, return to the landing page.
+    router.push("/")
   }
 
   async function handleSubmit() {
@@ -190,7 +194,6 @@ export default function AssessmentPage() {
               type="button"
               variant="ghost"
               onClick={handleBack}
-              disabled={currentStep === 0}
               className="gap-2"
             >
               <ArrowLeft className="size-4" />
