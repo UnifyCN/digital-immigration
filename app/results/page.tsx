@@ -13,6 +13,7 @@ import { NextActions } from "@/components/results/next-actions"
 import { ReviewAnswers } from "@/components/results/review-answers"
 import { ChatSupportDrawer } from "@/components/results/chat-support-drawer"
 import { loadAssessment, clearAssessment } from "@/lib/storage"
+import { ExportResults } from "@/components/results/export-results"
 import { computeResults } from "@/lib/scoring"
 import type { AssessmentData, AssessmentResults } from "@/lib/types"
 
@@ -140,6 +141,10 @@ export default function ResultsPage() {
         <Separator />
 
         <ReviewAnswers assessment={assessment} />
+
+        <Separator />
+
+        <ExportResults assessment={assessment} results={results} />
       </div>
 
       {/* Actions footer */}

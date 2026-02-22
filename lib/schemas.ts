@@ -9,6 +9,20 @@ export const jobEntrySchema = z.object({
   present: z.boolean().optional(),
 })
 
+export const step0Schema = z.object({
+  firstName: z.string().trim().min(2, "Please enter your first name"),
+  middleName: z.string().optional(),
+  lastName: z.string().trim().min(2, "Please enter your last name"),
+  dateOfBirth: z.string().min(1, "Please select your date of birth"),
+  citizenshipCountry: z.string().trim().min(1, "Please enter your country of citizenship"),
+  email: z
+    .union([z.literal(""), z.string().email("Please enter a valid email address")])
+    .optional(),
+  consentAcknowledged: z.literal(true, {
+    errorMap: () => ({ message: "Please confirm before continuing" }),
+  }),
+})
+
 const step1BaseSchema = z.object({
   primaryGoal: z.enum(["pr", "study-permit", "work-permit", "sponsorship", "not-sure"], {
     required_error: "Please select a goal",

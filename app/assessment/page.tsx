@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { ArrowLeft, ArrowRight, Send } from "lucide-react"
 import { WizardStepper } from "@/components/assessment/wizard-stepper"
+import { StepBasicInformation } from "@/components/assessment/step-basic-information"
 import { StepGoalTimeline } from "@/components/assessment/step-goal-timeline"
 import { StepCurrentStatus } from "@/components/assessment/step-current-status"
 import { StepWorkHistory } from "@/components/assessment/step-work-history"
@@ -17,6 +18,7 @@ import { StepLanguageCRS } from "@/components/assessment/step-language-crs"
 import { StepFamily } from "@/components/assessment/step-family"
 import { StepRedFlags } from "@/components/assessment/step-red-flags"
 import {
+  step0Schema,
   step1Schema,
   step2Schema,
   step3Schema,
@@ -36,6 +38,7 @@ import {
 import type { AssessmentData } from "@/lib/types"
 
 const STEP_LABELS = [
+  "Basic Information",
   "Goal",
   "Status",
   "Work",
@@ -45,9 +48,10 @@ const STEP_LABELS = [
   "Flags",
 ]
 
-const TOTAL_STEPS = 7
+const TOTAL_STEPS = 8
 
 const stepSchemas = [
+  step0Schema,
   step1Schema,
   step2Schema,
   step3Schema,
@@ -126,7 +130,7 @@ function AssessmentPageContent() {
     const values = form.getValues()
 
     const result =
-      currentStep === 5
+      currentStep === 6
         ? validateStep6(values.primaryGoal || "", values)
         : stepSchemas[currentStep].safeParse(values)
 
@@ -157,7 +161,7 @@ function AssessmentPageContent() {
   async function handleSubmit() {
     const values = form.getValues()
     const result =
-      currentStep === 5
+      currentStep === 6
         ? validateStep6(values.primaryGoal || "", values)
         : stepSchemas[currentStep].safeParse(values)
 
@@ -173,7 +177,7 @@ function AssessmentPageContent() {
   const progressPercent = ((currentStep + 1) / TOTAL_STEPS) * 100
   const currentStepValues = form.watch()
   const currentStepValid =
-    currentStep === 5
+    currentStep === 6
       ? validateStep6(currentStepValues.primaryGoal || "", currentStepValues).success
       : stepSchemas[currentStep].safeParse(currentStepValues).success
 
@@ -228,13 +232,14 @@ function AssessmentPageContent() {
             className="flex flex-col gap-8"
           >
             <div className="min-h-[400px]">
-              {currentStep === 0 && <StepGoalTimeline />}
-              {currentStep === 1 && <StepCurrentStatus />}
-              {currentStep === 2 && <StepWorkHistory />}
-              {currentStep === 3 && <StepEducation />}
-              {currentStep === 4 && <StepLanguageCRS />}
-              {currentStep === 5 && <StepFamily />}
-              {currentStep === 6 && <StepRedFlags />}
+              {currentStep === 0 && <StepBasicInformation />}
+              {currentStep === 1 && <StepGoalTimeline />}
+              {currentStep === 2 && <StepCurrentStatus />}
+              {currentStep === 3 && <StepWorkHistory />}
+              {currentStep === 4 && <StepEducation />}
+              {currentStep === 5 && <StepLanguageCRS />}
+              {currentStep === 6 && <StepFamily />}
+              {currentStep === 7 && <StepRedFlags />}
             </div>
 
             <div className="flex items-center justify-between border-t border-border pt-6">
