@@ -25,6 +25,7 @@ const tierConfig = {
 export function TierClassification({ tier }: { tier: TierResult }) {
   const config = tierConfig[tier.level]
   const Icon = config.icon
+  const tierLabel = tier.level === 2 ? "Additional Preparation Needed" : tier.label
 
   return (
     <section className="flex flex-col gap-4">
@@ -39,11 +40,11 @@ export function TierClassification({ tier }: { tier: TierResult }) {
           </div>
           <div>
             <p className="text-sm font-semibold">
-              Tier {tier.level}: {tier.label}
+              Tier {tier.level}: {tierLabel}
             </p>
             <p className="text-xs opacity-80">
               {tier.level === 1 && "No major complexities detected"}
-              {tier.level === 2 && "Some elements need attention"}
+              {tier.level === 2 && "Additional preparation needed"}
               {tier.level === 3 && "Professional guidance recommended"}
             </p>
           </div>
