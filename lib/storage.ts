@@ -165,6 +165,7 @@ export const demoAssessmentData: AssessmentData = {
   currentLocation: "inside-canada",
   geographicFlexibility: "yes-anywhere",
   preferredProvince: "",
+  pnpTargetProvince: "",
   deadlineTrigger: "no-hard-deadline",
   deadlineDate: "",
   studyPermitHasLOA: "",
