@@ -3,6 +3,53 @@ import type { AssessmentData } from "./types"
 const STORAGE_KEY = "clarity-assessment-draft"
 const STEP_KEY = "clarity-assessment-step"
 
+type NormalizedYesNoUnsure = "yes" | "no" | "not-sure" | "" | undefined
+
+const UNSURE_NORMALIZATION_FIELDS = [
+  "ecaStatus",
+  "ecaValid",
+  "hasMultipleCredentials",
+  "languageTestValid",
+  "secondOfficialLanguageIntent",
+  "closeRelativeInCanada",
+  "hasDependentsUnder18",
+  "hasDependents18Plus",
+  "canadianEducation",
+] as const
+
+const RED_FLAG_UNSURE_FIELDS = [
+  "statusExpiringSoon",
+  "overstayHistory",
+  "removalOrDeportationHistory",
+  "hasActiveApplication",
+  "multipleCountries",
+  "nonTraditionalEmployment",
+  "missingDocuments",
+  "employerLetterUnwilling",
+] as const
+
+if (process.env.NODE_ENV !== "production") {
+  const overlap = UNSURE_NORMALIZATION_FIELDS.filter((field) =>
+    RED_FLAG_UNSURE_FIELDS.includes(field as (typeof RED_FLAG_UNSURE_FIELDS)[number]),
+  )
+  if (overlap.length > 0) {
+    console.error(
+      `[storage] Invalid unsure normalization mapping. Red-flag fields must keep "unsure": ${overlap.join(", ")}`,
+    )
+  }
+}
+
+/**
+ * Legacy migration note:
+ * This normalizes historical "unsure" values to "not-sure" for fields whose schemas use "not-sure".
+ * Do not add red-flag fields here because Step 7 intentionally uses "unsure".
+ */
+function normalizeLegacyUnsure(value: unknown): NormalizedYesNoUnsure {
+  if (value === "unsure") return "not-sure"
+  if (value === "yes" || value === "no" || value === "not-sure" || value === "") return value
+  return undefined
+}
+
 export const defaultAssessmentData: AssessmentData = {
   // Step 1
   primaryGoal: "",
@@ -46,17 +93,35 @@ export const defaultAssessmentData: AssessmentData = {
   educationCountry: "",
   graduationYear: "",
   ecaStatus: "",
+  canadaEducationStatus: "",
+  programLength: "",
+  hasMultipleCredentials: "",
+  additionalCredentials: [],
+  ecaValid: "",
   // Step 5
   languageTestStatus: "",
   languageScores: { listening: "", reading: "", writing: "", speaking: "" },
   addScoresLater: false,
   plannedTestDate: "",
+  languageApproxCLB: "",
+  languageTestValid: "",
+  languagePlannedTiming: "",
   ageRange: "",
   canadianEducation: "",
   canadianWorkExperience: "",
+  canadianWorkDuration: "",
+  secondOfficialLanguageIntent: "",
   // Step 6
   maritalStatus: "",
   dependents: 0,
+  spouseAccompanying: "",
+  spouseLocation: "",
+  closeRelativeInCanada: "",
+  closeRelativeRelationship: "",
+  hasDependentsUnder18: "",
+  hasDependents18Plus: "",
+  sponsorshipTarget: "",
+  sponsorStatus: "",
   partnerEducation: false,
   partnerLanguageScores: false,
   partnerWorkExperience: false,
@@ -68,6 +133,11 @@ export const defaultAssessmentData: AssessmentData = {
   multipleCountries: "",
   nonTraditionalEmployment: "",
   missingDocuments: "",
+  statusExpiringSoon: "",
+  overstayHistory: "",
+  removalOrDeportationHistory: "",
+  hasActiveApplication: "",
+  employerLetterUnwilling: "",
 }
 
 export function saveAssessment(data: AssessmentData): void {
@@ -80,7 +150,40 @@ export function loadAssessment(): AssessmentData | null {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as AssessmentData
+    const parsed = JSON.parse(raw) as Partial<AssessmentData>
+    const normalizedEcaStatus = normalizeLegacyUnsure(parsed.ecaStatus)
+    const normalizedEcaValid = normalizeLegacyUnsure(parsed.ecaValid)
+    const normalizedMultipleCredentials = normalizeLegacyUnsure(parsed.hasMultipleCredentials)
+    const normalizedLanguageTestValid = normalizeLegacyUnsure(parsed.languageTestValid)
+    const normalizedSecondLanguageIntent = normalizeLegacyUnsure(parsed.secondOfficialLanguageIntent)
+    const normalizedCloseRelativeInCanada = normalizeLegacyUnsure(parsed.closeRelativeInCanada)
+    const normalizedHasDependentsUnder18 = normalizeLegacyUnsure(parsed.hasDependentsUnder18)
+    const normalizedHasDependents18Plus = normalizeLegacyUnsure(parsed.hasDependents18Plus)
+    const normalizedCanadianEducation = normalizeLegacyUnsure(parsed.canadianEducation)
+
+    return {
+      ...defaultAssessmentData,
+      ...parsed,
+      ecaStatus: normalizedEcaStatus ?? "",
+      canadaEducationStatus: parsed.canadaEducationStatus ?? "",
+      programLength: parsed.programLength ?? "",
+      hasMultipleCredentials: normalizedMultipleCredentials ?? "",
+      additionalCredentials: Array.isArray(parsed.additionalCredentials)
+        ? parsed.additionalCredentials
+        : [],
+      jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
+      ecaValid: normalizedEcaValid ?? "",
+      languageTestValid: normalizedLanguageTestValid ?? "",
+      canadianEducation: normalizedCanadianEducation ?? "",
+      secondOfficialLanguageIntent: normalizedSecondLanguageIntent ?? "",
+      closeRelativeInCanada: normalizedCloseRelativeInCanada ?? "",
+      hasDependentsUnder18: normalizedHasDependentsUnder18 ?? "",
+      hasDependents18Plus: normalizedHasDependents18Plus ?? "",
+      languageScores: {
+        ...defaultAssessmentData.languageScores,
+        ...parsed.languageScores,
+      },
+    }
   } catch {
     return null
   }

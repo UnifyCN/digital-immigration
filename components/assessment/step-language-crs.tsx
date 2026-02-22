@@ -1,5 +1,6 @@
 "use client"
 
+import { useEffect } from "react"
 import { useFormContext, useWatch } from "react-hook-form"
 import {
   FormField,
@@ -16,10 +17,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
-import { Checkbox } from "@/components/ui/checkbox"
+import { RadioGroup } from "@/components/ui/radio-group"
+import { Separator } from "@/components/ui/separator"
+import { RadioCard } from "@/components/ui/radio-card"
 import type { AssessmentData } from "@/lib/types"
 
 const ageRanges = [
@@ -33,9 +33,24 @@ const ageRanges = [
 ]
 
 export function StepLanguageCRS() {
-  const { control, setValue } = useFormContext<AssessmentData>()
+  const { control, resetField, setValue } = useFormContext<AssessmentData>()
   const languageTestStatus = useWatch({ control, name: "languageTestStatus" })
-  const addScoresLater = useWatch({ control, name: "addScoresLater" })
+
+  useEffect(() => {
+    if (languageTestStatus !== "yes") {
+      resetField("languageApproxCLB")
+      resetField("languageTestValid")
+    }
+    if (languageTestStatus !== "planning") {
+      resetField("languagePlannedTiming")
+    }
+  }, [languageTestStatus, resetField])
+
+  useEffect(() => {
+    if (languageTestStatus !== "planning") {
+      setValue("plannedTestDate", "", { shouldValidate: true })
+    }
+  }, [languageTestStatus, setValue])
 
   return (
     <div className="flex flex-col gap-8">
@@ -65,14 +80,12 @@ export function StepLanguageCRS() {
                   { value: "no", label: "Not taken" },
                   { value: "planning", label: "Planning" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`lang-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`lang-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`lang-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -81,65 +94,107 @@ export function StepLanguageCRS() {
         )}
       />
 
-      {languageTestStatus === "yes" && !addScoresLater && (
-        <div className="flex flex-col gap-4 rounded-lg border border-border bg-card p-4">
-          <p className="text-sm font-medium text-foreground">Component scores</p>
-          <div className="grid grid-cols-2 gap-4">
-            {(["listening", "reading", "writing", "speaking"] as const).map((component) => (
-              <FormField
-                key={component}
-                control={control}
-                name={`languageScores.${component}`}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel className="capitalize text-xs">{component}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        step="0.5"
-                        min="0"
-                        max="9"
-                        placeholder="0.0"
-                        {...field}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
       {languageTestStatus === "yes" && (
-        <div className="flex items-center gap-2">
-          <Checkbox
-            id="add-later"
-            checked={addScoresLater}
-            onCheckedChange={(checked) => setValue("addScoresLater", !!checked)}
+        <>
+          <FormField
+            control={control}
+            name="languageApproxCLB"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>What was your overall language level (approx.)?</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select approximate CLB level" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {[
+                      { value: "clb-4-6", label: "CLB 4–6 (approx.)" },
+                      { value: "clb-7", label: "CLB 7" },
+                      { value: "clb-8", label: "CLB 8" },
+                      { value: "clb-9-plus", label: "CLB 9+" },
+                      { value: "not-sure", label: "Not sure" },
+                    ].map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>Approximate is fine — this helps assess fit.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          <Label htmlFor="add-later" className="text-sm text-muted-foreground cursor-pointer">
-            {"I'll add scores later"}
-          </Label>
-        </div>
+
+          <FormField
+            control={control}
+            name="languageTestValid"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Is your language test still valid (taken within the last 2 years)?</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    className="flex gap-4"
+                  >
+                    {[
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                      { value: "not-sure", label: "Not sure" },
+                    ].map((o) => (
+                      <RadioCard
+                        key={o.value}
+                        value={o.value}
+                        id={`lang-valid-${o.value}`}
+                        label={o.label}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormDescription>Language tests can expire.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </>
       )}
 
       {languageTestStatus === "planning" && (
         <FormField
           control={control}
-          name="plannedTestDate"
+          name="languagePlannedTiming"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Planned test date (approximate)</FormLabel>
-              <FormDescription>Month/year or leave blank if not planned.</FormDescription>
-              <FormControl>
-                <Input type="month" {...field} />
-              </FormControl>
+              <FormLabel>When do you plan to take the test?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select planned timing" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {[
+                    { value: "within-1-month", label: "Within 1 month" },
+                    { value: "1-3-months", label: "1–3 months" },
+                    { value: "3-plus-months", label: "3+ months" },
+                    { value: "not-scheduled", label: "Not scheduled" },
+                  ].map((o) => (
+                    <SelectItem key={o.value} value={o.value}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}
         />
       )}
+
+      <Separator />
 
       <FormField
         control={control}
@@ -181,16 +236,14 @@ export function StepLanguageCRS() {
                 {[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
-                  { value: "unsure", label: "Not sure" },
+                  { value: "not-sure", label: "Not sure" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`can-edu-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`can-edu-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`can-edu-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
@@ -201,10 +254,41 @@ export function StepLanguageCRS() {
 
       <FormField
         control={control}
-        name="canadianWorkExperience"
+        name="canadianWorkDuration"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Canadian work experience?</FormLabel>
+            <FormLabel>How much Canadian work experience do you have?</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select Canadian work duration" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {[
+                  { value: "none", label: "None" },
+                  { value: "less-than-1-year", label: "Less than 1 year" },
+                  { value: "1-year", label: "1 year" },
+                  { value: "2-plus-years", label: "2+ years" },
+                  { value: "not-sure", label: "Not sure" },
+                ].map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="secondOfficialLanguageIntent"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Have you taken or do you plan to take a second official language test?</FormLabel>
             <FormControl>
               <RadioGroup
                 onValueChange={field.onChange}
@@ -214,16 +298,14 @@ export function StepLanguageCRS() {
                 {[
                   { value: "yes", label: "Yes" },
                   { value: "no", label: "No" },
-                  { value: "unsure", label: "Not sure" },
+                  { value: "not-sure", label: "Not sure" },
                 ].map((o) => (
-                  <Label
+                  <RadioCard
                     key={o.value}
-                    htmlFor={`can-work-${o.value}`}
-                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-                  >
-                    <RadioGroupItem value={o.value} id={`can-work-${o.value}`} />
-                    <span className="text-foreground">{o.label}</span>
-                  </Label>
+                    value={o.value}
+                    id={`second-lang-${o.value}`}
+                    label={o.label}
+                  />
                 ))}
               </RadioGroup>
             </FormControl>
