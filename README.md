@@ -1,4 +1,4 @@
-# Digital Immigration — Immigration Snapshot
+# Digital Immigration Agent 
 
 A **Next.js (App Router)** web app that helps Canadian immigration applicants understand their situation: complete a short assessment, get personalized pathway recommendations, risk flags, and next steps. Optional flows include filling **Schedule A (IMM 5669)** with prefill from your assessment and generating a PDF.
 
