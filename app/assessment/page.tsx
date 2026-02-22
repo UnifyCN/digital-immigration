@@ -122,11 +122,7 @@ export default function AssessmentPage() {
       return
     }
 
-    // Fall back to home when no browser history exists.
-    if (window.history.length > 1) {
-      router.back()
-      return
-    }
+    // At the first step, return to the landing page.
     router.push("/")
   }
 

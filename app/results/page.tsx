@@ -36,10 +36,6 @@ export default function ResultsPage() {
   }
 
   function handleBackToHome() {
-    if (window.history.length > 1) {
-      router.back()
-      return
-    }
     router.push("/")
   }
 
@@ -62,10 +58,8 @@ export default function ResultsPage() {
           onClick={handleBackToHome}
           className="mb-4 gap-1.5 text-muted-foreground"
         >
-          <>
-            <ArrowLeft className="size-3.5" />
-            Back to home
-          </>
+          <ArrowLeft className="size-3.5" />
+          Back to home
         </Button>
 
         <h1 className="font-heading text-foreground">
