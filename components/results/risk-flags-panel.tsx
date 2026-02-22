@@ -53,10 +53,10 @@ export function RiskFlagsPanel({ flags, onAskAI }: RiskFlagsPanelProps) {
     <section className="flex flex-col gap-4">
       <div>
         <h2 className="font-serif text-lg font-semibold text-foreground">
-          Risks to Review
+          Early Risk Flags
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Click any item to see details and recommended next steps.
+          Click any risk flag to see details and recommended next steps.
         </p>
       </div>
 
