@@ -307,7 +307,7 @@ function AssessmentPageContent() {
                 </Button>
               ) : (
                 <Button type="submit" className="gap-2">
-                  View Snapshot
+                  View Results
                   <Send className="size-4" />
                 </Button>
               )}
