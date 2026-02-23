@@ -38,6 +38,11 @@ import {
   saveCompletedSteps,
 } from "@/lib/storage"
 import type { AssessmentData } from "@/lib/types"
+import {
+  EXPRESS_ENTRY_DEMO_PROFILES,
+  cloneDemoProfileData,
+  type DemoProfileId,
+} from "@/lib/demo-profiles"
 
 const STEP_LABELS = [
   "Basic Information",
@@ -221,6 +226,19 @@ function AssessmentPageContent() {
     if (completedSteps[index]) return true
     return validateStepAtIndex(index, allValues).success
   })
+  const showDemoProfiles =
+    process.env.NEXT_PUBLIC_ENABLE_DEMO_PROFILES === "true" ||
+    process.env.NODE_ENV !== "production"
+
+  function handleLoadDemoProfile(profileId: DemoProfileId) {
+    const profileData = cloneDemoProfileData(profileId)
+    form.reset(profileData)
+    saveAssessment(profileData)
+    saveStep(0)
+    setCurrentStep(0)
+    setCompletedSteps(STEP_LABELS.map((_, index) => validateStepAtIndex(index, profileData).success))
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }
 
   const searchParamsResolver = (
     <Suspense fallback={null}>
@@ -264,6 +282,31 @@ function AssessmentPageContent() {
             onStepClick={goToStep}
           />
         </div>
+
+        {showDemoProfiles && currentStep === 0 && (
+          <div className="mb-8 rounded-lg border border-border bg-card p-4">
+            <h3 className="text-sm font-semibold text-foreground">Load Demo Profile (Development)</h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Use these presets to auto-fill all questionnaire steps using the same form state and validation flow.
+            </p>
+            <div className="mt-3 flex flex-col gap-2">
+              {EXPRESS_ENTRY_DEMO_PROFILES.map((profile) => (
+                <Button
+                  key={profile.id}
+                  type="button"
+                  variant="outline"
+                  className="h-auto justify-start py-3 text-left"
+                  onClick={() => handleLoadDemoProfile(profile.id)}
+                >
+                  <div>
+                    <p className="text-sm font-medium">{profile.label}</p>
+                    <p className="text-xs text-muted-foreground">{profile.description}</p>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Form {...form}>
           <form
