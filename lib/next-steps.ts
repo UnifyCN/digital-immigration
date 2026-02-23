@@ -7,6 +7,7 @@ import type {
   RiskId,
 } from "./types"
 import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
+import { isCanadaCountry } from "./canada-helpers.ts"
 
 const priorityRank: Record<NextStepPriority, number> = {
   high: 0,
@@ -36,7 +37,7 @@ function checklist(items: string[]): { id: string; text: string }[] {
 function isEducationMostlyOutsideCanada(profile: AssessmentData): boolean {
   if (profile.canadaEducationStatus === "no") return true
   if (profile.canadaEducationStatus === "mix-some-in-canada") return true
-  return profile.educationCountry.trim().length > 0 && profile.educationCountry.toLowerCase() !== "canada"
+  return profile.educationCountry.trim().length > 0 && !isCanadaCountry(profile.educationCountry)
 }
 
 export function recommendNextSteps(

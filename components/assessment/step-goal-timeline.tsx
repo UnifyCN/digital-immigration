@@ -55,7 +55,7 @@ const deadlineOptions = [
   { value: "no-hard-deadline", label: "No hard deadline" },
 ]
 
-const yesNoNotSure = [
+const yesNoUnsureOptions = [
   { value: "yes", label: "Yes" },
   { value: "no", label: "No" },
   { value: "unsure", label: "Not sure" },
@@ -357,7 +357,7 @@ export function StepGoalTimeline() {
                   value={field.value}
                   className="flex flex-col gap-2"
                 >
-                  {yesNoNotSure.map((option) => (
+                  {yesNoUnsureOptions.map((option) => (
                     <Label
                       key={option.value}
                       htmlFor={`loa-${option.value}`}
@@ -388,7 +388,7 @@ export function StepGoalTimeline() {
                   value={field.value}
                   className="flex flex-col gap-2"
                 >
-                  {yesNoNotSure.map((option) => (
+                  {yesNoUnsureOptions.map((option) => (
                     <Label
                       key={option.value}
                       htmlFor={`job-offer-${option.value}`}

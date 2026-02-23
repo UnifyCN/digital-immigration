@@ -1,6 +1,7 @@
 import type { AssessmentData } from "@/lib/types"
 import type { ChecklistRow, ChecklistStatus } from "@/lib/pathways/types"
 import { deriveCanadianSkilledYearsBand } from "@/lib/work-derived"
+import { isCanadaCountry } from "@/lib/canada-helpers"
 
 export interface ExpressEntryBrief {
   whyIntro: string
@@ -53,24 +54,6 @@ function hasSkilledWorkExperience(data: AssessmentData): boolean {
 function hasCanadianWorkOneYearPlus(data: AssessmentData): boolean {
   const derivedCanadianBand = data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data)
   return ["1", "2", "3", "4", "5+"].includes(derivedCanadianBand)
-}
-
-function isCanadaCountry(value: string): boolean {
-  const normalized = value.trim().toLowerCase()
-  if (!normalized) return false
-
-  const canadaAliases = new Set([
-    "ca",
-    "can",
-    "canada",
-    "canadian",
-    "canada (ca)",
-  ])
-
-  if (canadaAliases.has(normalized)) return true
-
-  const compact = normalized.replace(/[\s.,()-]/g, "")
-  return compact === "ca" || compact === "can" || compact === "canada"
 }
 
 function getLanguageReadinessStatus(data: AssessmentData): ChecklistStatus {
