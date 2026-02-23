@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Download, Pencil, AlertTriangle, CheckCircle2, Loader2, ArrowRight } from "lucide-react"
 import { imm5669FullSchema } from "@/lib/imm5669/schemas"
 import { BACKGROUND_QUESTION_LABELS } from "@/lib/imm5669/types"
-import { saveImm5669Status } from "@/lib/imm5669/storage"
+import { saveImm5669Status, loadImm5669Status } from "@/lib/imm5669/storage"
 import type { Imm5669Data, BackgroundQuestions } from "@/lib/imm5669/types"
 
 interface SectionReviewProps {
@@ -23,10 +23,19 @@ interface SectionReviewProps {
 export function SectionReview({ data, onEdit, onUpdateDeclarationDate }: SectionReviewProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [pdfGenerated, setPdfGenerated] = useState(false)
+  const [pdfGenerated, setPdfGenerated] = useState(() => {
+    if (typeof window === "undefined") return false
+    return loadImm5669Status() === "generated"
+  })
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
   const [pdfFilename, setPdfFilename] = useState("")
   const router = useRouter()
+
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl)
+    }
+  }, [pdfBlobUrl])
   const [declDate, setDeclDate] = useState(
     data.declarationDate || new Date().toISOString().slice(0, 10),
   )
@@ -233,14 +242,16 @@ export function SectionReview({ data, onEdit, onUpdateDeclarationDate }: Section
               </div>
             </div>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                className="gap-2"
-                onClick={handleRedownload}
-              >
-                <Download className="size-4" />
-                Download PDF
-              </Button>
+              {pdfBlobUrl && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleRedownload}
+                >
+                  <Download className="size-4" />
+                  Download PDF
+                </Button>
+              )}
               <Button
                 className="gap-2"
                 onClick={() => router.push("/documents/imm5669/next-steps")}
