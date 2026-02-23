@@ -1,5 +1,42 @@
 export type ProvinceCode = "BC" | "AB" | "ON" | "SK" | "MB"
 
+export type ProvinceFinderNocKnown = "yes" | "no_not_sure"
+export type ProvinceFinderTeerLevelGuess =
+  | "teer_0_management"
+  | "teer_1_professional_roles"
+  | "teer_2_technical_skilled_trades"
+  | "teer_3_intermediate_skilled"
+  | "teer_4_support_roles"
+  | "teer_5_labour_roles"
+  | "not_sure"
+export type ProvinceFinderEeProfileActive = "yes" | "no" | "not_sure"
+export type ProvinceFinderEeCrsKnown = "yes" | "no"
+export type ProvinceFinderEeCrsRange =
+  | "under_400"
+  | "400_449"
+  | "450_499"
+  | "500_plus"
+  | "not_sure"
+export type ProvinceFinderEmployerOperationYearsInProvince =
+  | "lt_1_year"
+  | "1_2_years"
+  | "3_5_years"
+  | "5_plus_years"
+  | "not_sure"
+export type ProvinceFinderEmployerAnnualRevenueRange =
+  | "under_500k"
+  | "500k_1m"
+  | "1m_5m"
+  | "5m_plus"
+  | "not_sure"
+export type ProvinceFinderSettlementFundsAmountRange =
+  | "under_5000"
+  | "5000_9999"
+  | "10000_14999"
+  | "15000_24999"
+  | "25000_plus"
+  | "not_sure"
+
 export type ProvinceFinderAnswers = {
   employerSupport: "yes" | "no" | "not_sure"
   employerEmployeesInProvince: "lt5" | "5to50" | "50plus" | "not_sure"
@@ -23,10 +60,23 @@ export type ProvinceFinderAnswers = {
 
   frenchIntermediatePlus: "yes" | "no"
   prioritySectorEmployer: "yes" | "no" | "not_sure"
+
+  noc_known?: ProvinceFinderNocKnown
+  noc_code?: string
+  teer_level_guess?: ProvinceFinderTeerLevelGuess
+  ee_profile_active?: ProvinceFinderEeProfileActive
+  ee_crs_known?: ProvinceFinderEeCrsKnown
+  ee_crs_score?: number | null
+  ee_crs_range?: ProvinceFinderEeCrsRange
+  employer_operation_years_in_province?: ProvinceFinderEmployerOperationYearsInProvince
+  employer_annual_revenue_range?: ProvinceFinderEmployerAnnualRevenueRange
+  job_location_postal_code?: string
+  settlement_funds_amount_range?: ProvinceFinderSettlementFundsAmountRange
 }
 
 export type ProvinceFinderDraftAnswers = Partial<Omit<ProvinceFinderAnswers, "hourlyWage">> & {
   hourlyWage: number | null
+  ee_crs_score: number | null
 }
 
 export type ProvinceRecommendation = {
@@ -204,6 +254,7 @@ const REQUIRED_RADIO_KEYS: Array<keyof Omit<ProvinceFinderAnswers, "hourlyWage">
 export function getProvinceFinderInitialDraft(): ProvinceFinderDraftAnswers {
   return {
     hourlyWage: null,
+    ee_crs_score: null,
   }
 }
 
@@ -215,6 +266,73 @@ export function isCompleteProvinceFinderAnswers(
   draft: ProvinceFinderDraftAnswers,
 ): draft is ProvinceFinderAnswers {
   return REQUIRED_RADIO_KEYS.every((key) => Boolean(draft[key]))
+}
+
+const NOC_CODE_REGEX = /^\d{4,5}$/
+const CANADIAN_POSTAL_CODE_REGEX = /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/
+
+export type ProvinceFinderValidationContext = {
+  hasJobOffer: boolean
+  currentlyWorkingInCanada: boolean
+  outsideCanada: boolean
+}
+
+export function validateProvinceFinderSupplementalAnswers(params: {
+  draft: ProvinceFinderDraftAnswers
+  context: ProvinceFinderValidationContext
+}): string[] {
+  const { draft, context } = params
+  const errors: string[] = []
+
+  if (!draft.noc_known) {
+    errors.push("Please answer: Do you know your NOC code?")
+  } else if (draft.noc_known === "yes") {
+    const noc = (draft.noc_code ?? "").trim()
+    if (!noc) {
+      errors.push("Please enter your NOC code.")
+    } else if (!NOC_CODE_REGEX.test(noc)) {
+      errors.push("NOC code must be 4-5 digits.")
+    }
+  } else if (draft.noc_known === "no_not_sure" && !draft.teer_level_guess) {
+    errors.push("Please choose your TEER level (best guess).")
+  }
+
+  if (!draft.ee_profile_active) {
+    errors.push("Please answer: Do you currently have an active Express Entry profile?")
+  } else if (draft.ee_profile_active === "yes") {
+    if (!draft.ee_crs_known) {
+      errors.push("Please answer: Do you know your CRS score?")
+    } else if (draft.ee_crs_known === "yes") {
+      if (draft.ee_crs_score == null || Number.isNaN(draft.ee_crs_score)) {
+        errors.push("Please enter your CRS score.")
+      } else if (draft.ee_crs_score < 0 || draft.ee_crs_score > 1200) {
+        errors.push("CRS score must be between 0 and 1200.")
+      }
+    } else if (draft.ee_crs_known === "no" && !draft.ee_crs_range) {
+      errors.push("Please select your estimated CRS range.")
+    }
+  }
+
+  const needsEmployerEligibility =
+    context.hasJobOffer || context.currentlyWorkingInCanada
+  if (needsEmployerEligibility && !draft.employer_operation_years_in_province) {
+    errors.push(
+      "Please answer: How long has your employer operated in the province where the job is located?",
+    )
+  }
+
+  const postalCode = (draft.job_location_postal_code ?? "").trim()
+  if (postalCode && !CANADIAN_POSTAL_CODE_REGEX.test(postalCode)) {
+    errors.push("Please enter a valid Canadian postal code (e.g., A1A 1A1).")
+  }
+
+  const needsSettlementFundsAmount =
+    context.outsideCanada || !context.hasJobOffer
+  if (needsSettlementFundsAmount) {
+    // Intentionally optional for now; captured for future narrowing.
+  }
+
+  return errors
 }
 
 function roundPoints(value: number): number {

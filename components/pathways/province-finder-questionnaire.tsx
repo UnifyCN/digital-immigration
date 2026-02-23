@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,6 +9,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,6 +28,7 @@ import {
   computeProvinceRecommendations,
   getProvinceFinderRequiredRadioKeys,
   isCompleteProvinceFinderAnswers,
+  validateProvinceFinderSupplementalAnswers,
   type ProvinceFinderAnswers,
   type ProvinceFinderDraftAnswers,
 } from "@/lib/pathways/provinceFinder"
@@ -29,6 +37,7 @@ import {
   saveProvinceFinderDraft,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
+import { loadAssessment } from "@/lib/storage"
 
 type RadioQuestionKey = Exclude<keyof ProvinceFinderAnswers, "hourlyWage">
 
@@ -41,6 +50,9 @@ type RadioQuestion = {
 
 const PNP_OVERVIEW_PATH = "/assessment/results/pathways/pnp"
 const FINDER_RESULTS_PATH = "/assessment/results/pathways/pnp/province-finder/results"
+const CHOICE_CHIP_CLASS =
+  "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+const NOC_CODE_REGEX = /^\d{4,5}$/
 
 const RADIO_QUESTIONS: RadioQuestion[] = [
   {
@@ -203,6 +215,49 @@ const RADIO_QUESTIONS: RadioQuestion[] = [
   },
 ]
 
+const TEER_LEVEL_OPTIONS = [
+  { value: "teer_0_management", label: "TEER 0 (management)" },
+  { value: "teer_1_professional_roles", label: "TEER 1 (professional roles)" },
+  { value: "teer_2_technical_skilled_trades", label: "TEER 2 (technical / skilled trades)" },
+  { value: "teer_3_intermediate_skilled", label: "TEER 3 (intermediate skilled)" },
+  { value: "teer_4_support_roles", label: "TEER 4 (support roles)" },
+  { value: "teer_5_labour_roles", label: "TEER 5 (labour roles)" },
+  { value: "not_sure", label: "Not sure" },
+] as const
+
+const CRS_RANGE_OPTIONS = [
+  { value: "under_400", label: "Under 400" },
+  { value: "400_449", label: "400–449" },
+  { value: "450_499", label: "450–499" },
+  { value: "500_plus", label: "500+" },
+  { value: "not_sure", label: "Not sure" },
+] as const
+
+const EMPLOYER_OPERATION_OPTIONS = [
+  { value: "lt_1_year", label: "Less than 1 year" },
+  { value: "1_2_years", label: "1–2 years" },
+  { value: "3_5_years", label: "3–5 years" },
+  { value: "5_plus_years", label: "5+ years" },
+  { value: "not_sure", label: "Not sure" },
+] as const
+
+const EMPLOYER_REVENUE_OPTIONS = [
+  { value: "under_500k", label: "Under $500k" },
+  { value: "500k_1m", label: "$500k–$1M" },
+  { value: "1m_5m", label: "$1M–$5M" },
+  { value: "5m_plus", label: "$5M+" },
+  { value: "not_sure", label: "Not sure" },
+] as const
+
+const SETTLEMENT_FUNDS_AMOUNT_OPTIONS = [
+  { value: "under_5000", label: "Under $5,000 CAD" },
+  { value: "5000_9999", label: "$5,000–$9,999" },
+  { value: "10000_14999", label: "$10,000–$14,999" },
+  { value: "15000_24999", label: "$15,000–$24,999" },
+  { value: "25000_plus", label: "$25,000+" },
+  { value: "not_sure", label: "Not sure" },
+] as const
+
 function asDraftValue(
   key: RadioQuestionKey,
   value: string,
@@ -218,14 +273,93 @@ export function ProvinceFinderQuestionnaire() {
   const router = useRouter()
   const [answers, setAnswers] = useState<ProvinceFinderDraftAnswers>(() => loadProvinceFinderDraft())
   const [errors, setErrors] = useState<string[]>([])
+  const assessment = useMemo(() => loadAssessment(), [])
+  const hasJobOffer = assessment?.hasCanadianJobOffer === "yes"
+  const currentlyWorkingInCanada = assessment?.currentlyWorkingInCanada === "yes"
+  const outsideCanada = assessment?.currentLocation === "outside-canada"
+  const showEmployerEligibilityDetails = hasJobOffer || currentlyWorkingInCanada
+  const showSettlementFundsAmount = outsideCanada || !hasJobOffer
 
   const requiredKeys = getProvinceFinderRequiredRadioKeys()
   const completedRequiredCount = useMemo(
     () => requiredKeys.filter((key) => Boolean(answers[key])).length,
     [answers, requiredKeys],
   )
-  const totalQuestions = requiredKeys.length + 1
-  const progressText = `${Math.min(totalQuestions, completedRequiredCount + 1)}/${totalQuestions}`
+  const supplementalRequiredCount =
+    2 +
+    (answers.noc_known === "yes" || answers.noc_known === "no_not_sure" ? 1 : 0) +
+    (answers.ee_profile_active === "yes" && answers.ee_crs_known ? 1 : 0) +
+    (showEmployerEligibilityDetails ? 1 : 0)
+  const supplementalCompletedCount =
+    (answers.noc_known ? 1 : 0) +
+    (answers.noc_known === "yes"
+      ? answers.noc_code?.trim() && NOC_CODE_REGEX.test(answers.noc_code.trim())
+        ? 1
+        : 0
+      : answers.noc_known === "no_not_sure"
+        ? answers.teer_level_guess
+          ? 1
+          : 0
+        : 0) +
+    (answers.ee_profile_active ? 1 : 0) +
+    (answers.ee_profile_active === "yes"
+      ? answers.ee_crs_known === "yes"
+        ? answers.ee_crs_score != null
+          ? 1
+          : 0
+        : answers.ee_crs_known === "no"
+          ? answers.ee_crs_range
+            ? 1
+            : 0
+          : 0
+      : 0) +
+    (showEmployerEligibilityDetails && answers.employer_operation_years_in_province ? 1 : 0)
+  const totalQuestions = requiredKeys.length + 1 + supplementalRequiredCount
+  const progressText = `${Math.min(totalQuestions, completedRequiredCount + 1 + supplementalCompletedCount)}/${totalQuestions}`
+
+  useEffect(() => {
+    if (answers.noc_known !== "yes" && answers.noc_code) {
+      updateAnswer("noc_code", undefined)
+    }
+    if (answers.noc_known !== "no_not_sure" && answers.teer_level_guess) {
+      updateAnswer("teer_level_guess", undefined)
+    }
+    if (answers.ee_profile_active !== "yes") {
+      if (answers.ee_crs_known) updateAnswer("ee_crs_known", undefined)
+      if (answers.ee_crs_score !== null) updateAnswer("ee_crs_score", null)
+      if (answers.ee_crs_range) updateAnswer("ee_crs_range", undefined)
+    } else if (answers.ee_crs_known === "yes") {
+      if (answers.ee_crs_range) updateAnswer("ee_crs_range", undefined)
+    } else if (answers.ee_crs_known === "no") {
+      if (answers.ee_crs_score !== null) updateAnswer("ee_crs_score", null)
+    }
+    if (!showEmployerEligibilityDetails) {
+      if (answers.employer_operation_years_in_province) updateAnswer("employer_operation_years_in_province", undefined)
+      if (answers.employer_annual_revenue_range) updateAnswer("employer_annual_revenue_range", undefined)
+    }
+    if (!hasJobOffer && answers.job_location_postal_code) {
+      updateAnswer("job_location_postal_code", undefined)
+    }
+    if (!showSettlementFundsAmount && answers.settlement_funds_amount_range) {
+      updateAnswer("settlement_funds_amount_range", undefined)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    answers.noc_known,
+    answers.noc_code,
+    answers.teer_level_guess,
+    answers.ee_profile_active,
+    answers.ee_crs_known,
+    answers.ee_crs_score,
+    answers.ee_crs_range,
+    answers.employer_operation_years_in_province,
+    answers.employer_annual_revenue_range,
+    answers.job_location_postal_code,
+    answers.settlement_funds_amount_range,
+    showEmployerEligibilityDetails,
+    hasJobOffer,
+    showSettlementFundsAmount,
+  ])
 
   function updateAnswer<K extends keyof ProvinceFinderDraftAnswers>(
     key: K,
@@ -249,6 +383,17 @@ export function ProvinceFinderQuestionnaire() {
     if (answers.hourlyWage !== null && answers.hourlyWage < 0) {
       newErrors.push("Hourly wage must be zero or greater.")
     }
+
+    newErrors.push(
+      ...validateProvinceFinderSupplementalAnswers({
+        draft: answers,
+        context: {
+          hasJobOffer,
+          currentlyWorkingInCanada,
+          outsideCanada,
+        },
+      }),
+    )
 
     setErrors(newErrors)
     if (newErrors.length > 0) return
@@ -414,6 +559,318 @@ export function ProvinceFinderQuestionnaire() {
             </div>
           )
         })}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">18) Do you know your NOC code?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <fieldset>
+              <legend className="sr-only">Do you know your NOC code?</legend>
+              <RadioGroup
+                value={answers.noc_known ?? ""}
+                onValueChange={(value) => {
+                  if (value === "yes" || value === "no_not_sure") {
+                    updateAnswer("noc_known", value)
+                  }
+                }}
+                className="flex flex-wrap gap-3"
+                aria-label="Do you know your NOC code?"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no_not_sure", label: "No / Not sure" },
+                ].map((option) => {
+                  const id = `noc-known-${option.value}`
+                  return (
+                    <Label key={option.value} htmlFor={id} className={CHOICE_CHIP_CLASS}>
+                      <RadioGroupItem value={option.value} id={id} />
+                      <span className="text-foreground">{option.label}</span>
+                    </Label>
+                  )
+                })}
+              </RadioGroup>
+            </fieldset>
+
+            {answers.noc_known === "yes" ? (
+              <div className="space-y-2">
+                <Label htmlFor="noc_code" className="text-sm">
+                  Enter your NOC (e.g., 21231)
+                </Label>
+                <Input
+                  id="noc_code"
+                  name="noc_code"
+                  inputMode="numeric"
+                  placeholder="e.g., 21231"
+                  maxLength={5}
+                  value={answers.noc_code ?? ""}
+                  onChange={(event) => updateAnswer("noc_code", event.target.value)}
+                />
+              </div>
+            ) : null}
+
+            {answers.noc_known === "no_not_sure" ? (
+              <div className="space-y-2">
+                <Label htmlFor="teer_level_guess" className="text-sm">
+                  Choose your TEER level (best guess)
+                </Label>
+                <Select
+                  value={answers.teer_level_guess ?? ""}
+                  onValueChange={(value) => updateAnswer("teer_level_guess", value as ProvinceFinderDraftAnswers["teer_level_guess"])}
+                >
+                  <SelectTrigger id="teer_level_guess" className="w-full">
+                    <SelectValue placeholder="Select TEER level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TEER_LEVEL_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : null}
+
+            <p className="text-xs text-muted-foreground">
+              This helps match you to PNP streams that require specific skill levels.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">19) Do you currently have an active Express Entry profile?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <fieldset>
+              <legend className="sr-only">Do you currently have an active Express Entry profile?</legend>
+              <RadioGroup
+                value={answers.ee_profile_active ?? ""}
+                onValueChange={(value) => {
+                  if (value === "yes" || value === "no" || value === "not_sure") {
+                    updateAnswer("ee_profile_active", value)
+                  }
+                }}
+                className="flex flex-wrap gap-3"
+                aria-label="Do you currently have an active Express Entry profile?"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                  { value: "not_sure", label: "Not sure" },
+                ].map((option) => {
+                  const id = `ee-profile-active-${option.value}`
+                  return (
+                    <Label key={option.value} htmlFor={id} className={CHOICE_CHIP_CLASS}>
+                      <RadioGroupItem value={option.value} id={id} />
+                      <span className="text-foreground">{option.label}</span>
+                    </Label>
+                  )
+                })}
+              </RadioGroup>
+            </fieldset>
+
+            {answers.ee_profile_active === "yes" ? (
+              <>
+                <fieldset>
+                  <legend className="sr-only">Do you know your CRS score?</legend>
+                  <Label className="mb-2 block text-sm">Do you know your CRS score?</Label>
+                  <RadioGroup
+                    value={answers.ee_crs_known ?? ""}
+                    onValueChange={(value) => {
+                      if (value === "yes" || value === "no") {
+                        updateAnswer("ee_crs_known", value)
+                      }
+                    }}
+                    className="flex flex-wrap gap-3"
+                    aria-label="Do you know your CRS score?"
+                  >
+                    {[
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                    ].map((option) => {
+                      const id = `ee-crs-known-${option.value}`
+                      return (
+                        <Label key={option.value} htmlFor={id} className={CHOICE_CHIP_CLASS}>
+                          <RadioGroupItem value={option.value} id={id} />
+                          <span className="text-foreground">{option.label}</span>
+                        </Label>
+                      )
+                    })}
+                  </RadioGroup>
+                </fieldset>
+
+                {answers.ee_crs_known === "yes" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="ee_crs_score" className="text-sm">
+                      Enter your CRS score
+                    </Label>
+                    <Input
+                      id="ee_crs_score"
+                      name="ee_crs_score"
+                      type="number"
+                      min={0}
+                      max={1200}
+                      value={answers.ee_crs_score ?? ""}
+                      onChange={(event) => {
+                        const raw = event.target.value
+                        if (raw === "") {
+                          updateAnswer("ee_crs_score", null)
+                          return
+                        }
+                        const value = Number(raw)
+                        updateAnswer("ee_crs_score", Number.isNaN(value) ? null : value)
+                      }}
+                    />
+                  </div>
+                ) : null}
+
+                {answers.ee_crs_known === "no" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="ee_crs_range" className="text-sm">
+                      Estimate your CRS range
+                    </Label>
+                    <Select
+                      value={answers.ee_crs_range ?? ""}
+                      onValueChange={(value) => updateAnswer("ee_crs_range", value as ProvinceFinderDraftAnswers["ee_crs_range"])}
+                    >
+                      <SelectTrigger id="ee_crs_range" className="w-full">
+                        <SelectValue placeholder="Select CRS range" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {CRS_RANGE_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            <p className="text-xs text-muted-foreground">
+              Some provincial streams are aligned to Express Entry.
+            </p>
+          </CardContent>
+        </Card>
+
+        {showEmployerEligibilityDetails ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                20) How long has your employer operated in the province where the job is located?
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Select
+                value={answers.employer_operation_years_in_province ?? ""}
+                onValueChange={(value) =>
+                  updateAnswer(
+                    "employer_operation_years_in_province",
+                    value as ProvinceFinderDraftAnswers["employer_operation_years_in_province"],
+                  )
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  {EMPLOYER_OPERATION_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
+              <div className="space-y-2">
+                <Label htmlFor="employer_annual_revenue_range" className="text-sm">
+                  Approximate employer annual revenue (optional)
+                </Label>
+                <Select
+                  value={answers.employer_annual_revenue_range ?? ""}
+                  onValueChange={(value) =>
+                    updateAnswer(
+                      "employer_annual_revenue_range",
+                      value as ProvinceFinderDraftAnswers["employer_annual_revenue_range"],
+                    )
+                  }
+                >
+                  <SelectTrigger id="employer_annual_revenue_range" className="w-full">
+                    <SelectValue placeholder="Select range" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EMPLOYER_REVENUE_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Some employer-driven PNP streams have employer eligibility requirements.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {hasJobOffer ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">21) Enter the job location postal code (optional)</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Input
+                value={answers.job_location_postal_code ?? ""}
+                onChange={(event) => updateAnswer("job_location_postal_code", event.target.value)}
+                placeholder="e.g. A1A 1A1"
+              />
+              <p className="text-xs text-muted-foreground">
+                This helps identify regional or rural pathways when applicable.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {showSettlementFundsAmount ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">
+                22) If required, approximately how much settlement funds do you have available? (optional)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Select
+                value={answers.settlement_funds_amount_range ?? ""}
+                onValueChange={(value) =>
+                  updateAnswer(
+                    "settlement_funds_amount_range",
+                    value as ProvinceFinderDraftAnswers["settlement_funds_amount_range"],
+                  )
+                }
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select amount range" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SETTLEMENT_FUNDS_AMOUNT_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Some pathways may require proof of funds depending on your situation.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
       </div>
 
       {errors.length > 0 ? (

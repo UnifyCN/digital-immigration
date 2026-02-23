@@ -8,6 +8,19 @@ import type {
 } from "./types"
 import { recommendNextSteps } from "./next-steps"
 import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
+import { isPNPInScope } from "./pnp-scope"
+import { buildPNPSignals } from "./pathways/pnpSignals"
+import { scorePNPRelevance } from "./pathways/pnpRelevanceScore"
+import { derivePNPConfidence } from "./pathways/pnpConfidence"
+import { derivePNPVisibility } from "./pathways/pnpVisibility"
+import { generatePNPWhyBullets } from "./pathways/pnpWhyBullets"
+import {
+  buildPNPReadinessChecklistAll,
+  selectPNPReadinessChecklistForDisplay,
+} from "./pathways/pnpReadinessChecklist"
+import { generatePNPOpenQuestions } from "./pathways/pnpOpenQuestions"
+import { buildPNPDocumentRoadmap } from "./pathways/pnpDocumentRoadmap"
+import { generatePNPLowConfidenceMessaging } from "./pathways/pnpLowConfidenceMessaging"
 
 // ── Tier Classification ──
 
@@ -128,6 +141,13 @@ function getConfidence(data: AssessmentData): ConfidenceLevel {
   return "Low"
 }
 
+function mapPNPConfidenceToCardConfidence(level: "high" | "medium" | "low"): ConfidenceLevel {
+  return level === "high" ? "High" : level === "medium" ? "Medium" : "Low"
+}
+
+const LOW_CONFIDENCE_WHY_MINIMAL_BULLET =
+  "PNP may be worth exploring, but more details are needed to assess alignment."
+
 export function computePathways(data: AssessmentData): PathwayCard[] {
   const pathways: PathwayCard[] = []
   const confidence = getConfidence(data)
@@ -164,20 +184,99 @@ export function computePathways(data: AssessmentData): PathwayCard[] {
   }
 
   // PNP
-  if (goal === "pr" || goal === "work-permit" || goal === "not-sure") {
-    pathways.push({
-      id: "pnp",
-      name: "Provincial Nominee Program (PNP)",
-      whyRelevant: [
-        "May complement Express Entry profile",
-        isInsideCanada ? "Currently inside Canada" : "Programs available for overseas applicants",
-      ],
-      whatNext: [
-        "Identify target province based on work/family ties",
-        "Review province-specific eligibility criteria",
-      ],
-      confidence,
+  const pnpInScope = isPNPInScope(data)
+  if (pnpInScope) {
+    const { signals, meta } = buildPNPSignals(data)
+    const scoring = scorePNPRelevance(signals, { unknownRate: meta.unknownRate })
+    const pnpConfidence = derivePNPConfidence({
+      score: scoring.score,
+      unknownRate: meta.unknownRate,
+      dampenersApplied: scoring.dampenersApplied,
     })
+    const pnpVisibility = derivePNPVisibility({
+      inScope: pnpInScope,
+      confidenceLevel: pnpConfidence.confidenceLevel,
+    })
+    const pnpWhy = generatePNPWhyBullets({
+      signals,
+      meta: { unknownRate: meta.unknownRate },
+      dampenersApplied: scoring.dampenersApplied,
+      confidenceLevel: pnpConfidence.confidenceLevel,
+    })
+    const pnpChecklistAll = buildPNPReadinessChecklistAll({
+      signals,
+      meta: { unknownRate: meta.unknownRate },
+    })
+    const pnpChecklistDisplay = selectPNPReadinessChecklistForDisplay(pnpChecklistAll, signals)
+    const pnpOpenQuestions = generatePNPOpenQuestions({
+      signals,
+      meta: { unknownRate: meta.unknownRate },
+      dampenersApplied: scoring.dampenersApplied,
+      confidenceLevel: pnpConfidence.confidenceLevel,
+      readinessChecklistAll: pnpChecklistAll,
+    })
+    const lowConfidenceMessaging =
+      pnpConfidence.confidenceLevel === "low"
+        ? generatePNPLowConfidenceMessaging({
+            signals,
+            meta: { unknownRate: meta.unknownRate },
+            dampenersApplied: scoring.dampenersApplied,
+            readinessChecklistAll: pnpChecklistAll,
+            openQuestions: pnpOpenQuestions.openQuestions,
+          })
+        : null
+    const pnpDocumentRoadmap = buildPNPDocumentRoadmap({
+      signals,
+      readinessChecklistAll: pnpChecklistAll,
+      openQuestions: pnpOpenQuestions.openQuestions,
+    })
+
+    if (pnpVisibility.shouldShowPNP) {
+      pathways.push({
+        id: "pnp",
+        name: "Provincial Nominee Program (PNP)",
+        whyRelevant: [
+          "May complement Express Entry profile",
+          isInsideCanada ? "Currently inside Canada" : "Programs available for overseas applicants",
+        ],
+        whatNext: [
+          "Identify target province based on work/family ties",
+          "Review province-specific eligibility criteria",
+        ],
+        confidence: mapPNPConfidenceToCardConfidence(pnpConfidence.confidenceLevel),
+        pnpScore: scoring.score,
+        pnpScoreBreakdown: scoring.breakdown,
+        confidenceLevel: pnpConfidence.confidenceLevel,
+        confidenceLabel: pnpConfidence.confidenceLabel,
+        confidenceReasonCodes: pnpConfidence.confidenceReasonCodes,
+        recommendationMode: pnpConfidence.recommendationMode,
+        displayPriority: pnpConfidence.displayPriority,
+        shouldShowPNP: pnpVisibility.shouldShowPNP,
+        visibilityMode: pnpVisibility.visibilityMode,
+        visibilityReasonCode: pnpVisibility.visibilityReasonCode,
+        displayRank: pnpVisibility.displayRank,
+        whyBullets:
+          pnpConfidence.confidenceLevel === "low"
+            ? [LOW_CONFIDENCE_WHY_MINIMAL_BULLET]
+            : pnpWhy.whyBullets,
+        whyBulletIds:
+          pnpConfidence.confidenceLevel === "low" ? ["LOW_confidence_minimal"] : pnpWhy.whyBulletIds,
+        whyLimitedBullets: lowConfidenceMessaging?.whyLimitedBullets,
+        whyLimitedBulletIds: lowConfidenceMessaging?.whyLimitedBulletIds,
+        howToImproveBullets: lowConfidenceMessaging?.howToImproveBullets,
+        howToImproveBulletIds: lowConfidenceMessaging?.howToImproveBulletIds,
+        readinessChecklist: pnpChecklistDisplay,
+        readinessChecklistAll: pnpChecklistAll,
+        openQuestions: pnpOpenQuestions.openQuestions,
+        openQuestionIds: pnpOpenQuestions.openQuestionIds,
+        documentRoadmap: pnpDocumentRoadmap,
+        documentRoadmapAll: [
+          ...pnpDocumentRoadmap.typical,
+          ...pnpDocumentRoadmap.sometimes,
+          ...pnpDocumentRoadmap.later,
+        ],
+      })
+    }
   }
 
   // Study Permit
