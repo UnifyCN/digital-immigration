@@ -272,6 +272,85 @@ export interface PathwayCard {
   whyRelevant: string[]
   whatNext: string[]
   confidence: ConfidenceLevel
+  pnpScore?: number
+  pnpScoreBreakdown?: Record<string, number>
+  confidenceLevel?: "high" | "medium" | "low"
+  confidenceLabel?: string
+  confidenceReasonCodes?: string[]
+  recommendationMode?: "recommended" | "explore" | "later"
+  displayPriority?: number
+  shouldShowPNP?: boolean
+  visibilityMode?: "visible" | "hidden"
+  visibilityReasonCode?: string
+  displayRank?: number
+  whyBullets?: string[]
+  whyBulletIds?: string[]
+  whyLimitedBullets?: string[]
+  whyLimitedBulletIds?: string[]
+  howToImproveBullets?: string[]
+  howToImproveBulletIds?: string[]
+  readinessChecklist?: {
+    id: string
+    label: string
+    status: "complete" | "attention" | "unknown" | "na"
+    shortText: string
+    reasonCodes?: string[]
+  }[]
+  readinessChecklistAll?: {
+    id: string
+    label: string
+    status: "complete" | "attention" | "unknown" | "na"
+    shortText: string
+    reasonCodes?: string[]
+  }[]
+  openQuestions?: {
+    id: string
+    prompt: string
+    reason: string
+    priority: number
+    category: "province" | "job" | "work" | "language" | "docs" | "status" | "education" | "risk"
+    signalKeys: string[]
+    reasonCodes?: string[]
+  }[]
+  openQuestionIds?: string[]
+  documentRoadmap?: {
+    typical: {
+      id: string
+      label: string
+      category: "typical" | "sometimes" | "later"
+      status: "ready" | "needs_action" | "conditional" | "later_stage"
+      note?: string
+      signalKeys?: string[]
+      reasonCodes?: string[]
+    }[]
+    sometimes: {
+      id: string
+      label: string
+      category: "typical" | "sometimes" | "later"
+      status: "ready" | "needs_action" | "conditional" | "later_stage"
+      note?: string
+      signalKeys?: string[]
+      reasonCodes?: string[]
+    }[]
+    later: {
+      id: string
+      label: string
+      category: "typical" | "sometimes" | "later"
+      status: "ready" | "needs_action" | "conditional" | "later_stage"
+      note?: string
+      signalKeys?: string[]
+      reasonCodes?: string[]
+    }[]
+  }
+  documentRoadmapAll?: {
+    id: string
+    label: string
+    category: "typical" | "sometimes" | "later"
+    status: "ready" | "needs_action" | "conditional" | "later_stage"
+    note?: string
+    signalKeys?: string[]
+    reasonCodes?: string[]
+  }[]
 }
 
 export type RiskId =

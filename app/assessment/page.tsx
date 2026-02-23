@@ -38,6 +38,8 @@ import {
   saveCompletedSteps,
 } from "@/lib/storage"
 import type { AssessmentData } from "@/lib/types"
+import { demoApplicants, type DemoApplicant } from "@/lib/demo/demoApplicants"
+import { applyDemoApplicant } from "@/lib/demo/applyDemoApplicant"
 
 const STEP_LABELS = [
   "Basic Information",
@@ -51,6 +53,8 @@ const STEP_LABELS = [
 ]
 
 const TOTAL_STEPS = 8
+const DEMOS_ENABLED =
+  process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_ENABLE_DEMOS === "true"
 
 const stepSchemas = [
   step0Schema,
@@ -233,6 +237,14 @@ function AssessmentPageContent() {
     </Suspense>
   )
 
+  function handleApplyDemo(demo: DemoApplicant) {
+    applyDemoApplicant(demo, TOTAL_STEPS)
+    form.reset(demo.answers)
+    setCurrentStep(0)
+    setCompletedSteps(Array(TOTAL_STEPS).fill(false))
+    router.push("/results")
+  }
+
   if (!isLoaded) {
     return (
       <>
@@ -264,6 +276,29 @@ function AssessmentPageContent() {
             onStepClick={goToStep}
           />
         </div>
+
+        {DEMOS_ENABLED && (
+          <div className="mb-6 rounded-lg border border-border bg-card p-4">
+            <p className="text-sm font-medium text-foreground">Use Demo</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Dev-only prefills for PNP recommendation testing.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {demoApplicants.map((demo) => (
+                <Button
+                  key={demo.id}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleApplyDemo(demo)}
+                  title={demo.notes}
+                >
+                  {demo.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <Form {...form}>
           <form

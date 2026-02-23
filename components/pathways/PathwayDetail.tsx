@@ -12,18 +12,19 @@ import { computeResults } from "@/lib/scoring"
 import { buildPnpBrief } from "@/lib/pathways/pnpContent"
 import { buildExpressEntryBrief } from "@/lib/pathways/expressEntryContent"
 import {
-  computeProvinceRecommendations,
   demoProvinceFinderAnswers,
   formatProvinceShortlistSummary,
+  recommendationForProvince,
   type ProvinceRecommendation,
 } from "@/lib/pathways/provinceFinder"
 import {
   loadProvinceFinderRecommendations,
-  saveProvinceFinderDraft,
+  savePNPProvinceFinderAnswers,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
+import { PNP_MVP_DEFAULT_PROVINCE } from "@/lib/config/pnpScope"
 import type { ChecklistStatus } from "@/lib/pathways/types"
-import type { AssessmentData, ConfidenceLevel } from "@/lib/types"
+import type { AssessmentData, ConfidenceLevel, PathwayCard } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 
 type PathwayDetailProps = {
@@ -56,6 +57,11 @@ type PathwayBriefLayoutProps = {
   description: string
   confidence: ConfidenceLevel
   brief: PathwayBriefCommon
+  documentRoadmap?: PathwayCard["documentRoadmap"]
+  lowConfidenceMessaging?: {
+    whyLimitedBullets: string[]
+    howToImproveBullets: string[]
+  }
   onBack: () => void
   openQuestionsHref: string
   refinePlanLabel: string
@@ -67,6 +73,16 @@ const statusMeta: Record<ChecklistStatus, { label: string; className: string }> 
   complete: { label: "✅", className: "text-tier-clean" },
   warning: { label: "⚠️", className: "text-tier-moderate" },
   unknown: { label: "?", className: "text-muted-foreground" },
+}
+
+const documentStatusMeta: Record<
+  "ready" | "needs_action" | "conditional" | "later_stage",
+  { label: string; className: string }
+> = {
+  ready: { label: "ready", className: "text-tier-clean" },
+  needs_action: { label: "needs action", className: "text-tier-moderate" },
+  conditional: { label: "conditional", className: "text-muted-foreground" },
+  later_stage: { label: "later stage", className: "text-muted-foreground" },
 }
 
 function formatConfidence(confidence?: ConfidenceLevel): ConfidenceLevel {
@@ -91,6 +107,8 @@ function PathwayBriefLayout({
   description,
   confidence,
   brief,
+  documentRoadmap,
+  lowConfidenceMessaging,
   onBack,
   openQuestionsHref,
   refinePlanLabel,
@@ -125,7 +143,24 @@ function PathwayBriefLayout({
             <p className="text-sm text-muted-foreground">{brief.whyIntro}</p>
           </CardHeader>
           <CardContent>
-            <SectionList items={brief.whyBullets} />
+            {lowConfidenceMessaging ? (
+              <div className="space-y-4">
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">
+                    Why PNP appears limited right now
+                  </p>
+                  <SectionList items={lowConfidenceMessaging.whyLimitedBullets} />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">
+                    What would strengthen your PNP options
+                  </p>
+                  <SectionList items={lowConfidenceMessaging.howToImproveBullets} />
+                </div>
+              </div>
+            ) : (
+              <SectionList items={brief.whyBullets} />
+            )}
           </CardContent>
         </Card>
 
@@ -170,18 +205,73 @@ function PathwayBriefLayout({
             <CardTitle className="text-base">4) Document checklist (typical vs sometimes)</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <p className="mb-2 text-sm font-medium text-foreground">Typical:</p>
-              <SectionList items={brief.documentChecklist.typical} />
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium text-foreground">Sometimes:</p>
-              <SectionList items={brief.documentChecklist.sometimes} />
-            </div>
-            <div>
-              <p className="mb-2 text-sm font-medium text-foreground">Later-stage:</p>
-              <SectionList items={brief.documentChecklist.laterStage} />
-            </div>
+            {documentRoadmap ? (
+              <>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Typical:</p>
+                  <div className="space-y-2">
+                    {documentRoadmap.typical.map((item) => (
+                      <div key={item.id} className="rounded-md border border-border px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm text-foreground">{item.label}</p>
+                          <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
+                            {documentStatusMeta[item.status].label}
+                          </span>
+                        </div>
+                        {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Sometimes:</p>
+                  <div className="space-y-2">
+                    {documentRoadmap.sometimes.map((item) => (
+                      <div key={item.id} className="rounded-md border border-border px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm text-foreground">{item.label}</p>
+                          <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
+                            {documentStatusMeta[item.status].label}
+                          </span>
+                        </div>
+                        {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Later-stage:</p>
+                  <div className="space-y-2">
+                    {documentRoadmap.later.map((item) => (
+                      <div key={item.id} className="rounded-md border border-border px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-sm text-foreground">{item.label}</p>
+                          <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
+                            {documentStatusMeta[item.status].label}
+                          </span>
+                        </div>
+                        {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Typical:</p>
+                  <SectionList items={brief.documentChecklist.typical} />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Sometimes:</p>
+                  <SectionList items={brief.documentChecklist.sometimes} />
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-medium text-foreground">Later-stage:</p>
+                  <SectionList items={brief.documentChecklist.laterStage} />
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
@@ -274,7 +364,12 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [confidence, setConfidence] = useState<ConfidenceLevel>("High")
+  const [pnpConfidenceLevel, setPnpConfidenceLevel] = useState<PathwayCard["confidenceLevel"]>()
+  const [pnpWhyBullets, setPnpWhyBullets] = useState<string[]>([])
+  const [pnpWhyLimitedBullets, setPnpWhyLimitedBullets] = useState<string[]>([])
+  const [pnpHowToImproveBullets, setPnpHowToImproveBullets] = useState<string[]>([])
   const [provinceShortlist, setProvinceShortlist] = useState<ProvinceRecommendation[]>([])
+  const [pnpDocumentRoadmap, setPnpDocumentRoadmap] = useState<PathwayCard["documentRoadmap"]>()
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
@@ -288,10 +383,30 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
     setProvinceShortlist(loadProvinceFinderRecommendations().slice(0, 3))
 
     try {
-      const pathwayConfidence = computeResults(data).pathways.find((pathway) => pathway.id === slug)?.confidence
+      const computed = computeResults(data)
+      const selectedPathway = computed.pathways.find((pathway) => pathway.id === slug)
+      const pathwayConfidence = selectedPathway?.confidence
       setConfidence(formatConfidence(pathwayConfidence))
+      if (slug === "pnp") {
+        setPnpConfidenceLevel(selectedPathway?.confidenceLevel)
+        setPnpWhyBullets(selectedPathway?.whyBullets ?? [])
+        setPnpWhyLimitedBullets(selectedPathway?.whyLimitedBullets ?? [])
+        setPnpHowToImproveBullets(selectedPathway?.howToImproveBullets ?? [])
+        setPnpDocumentRoadmap(selectedPathway?.documentRoadmap)
+      } else {
+        setPnpConfidenceLevel(undefined)
+        setPnpWhyBullets([])
+        setPnpWhyLimitedBullets([])
+        setPnpHowToImproveBullets([])
+        setPnpDocumentRoadmap(undefined)
+      }
     } catch {
       setConfidence("High")
+      setPnpConfidenceLevel(undefined)
+      setPnpWhyBullets([])
+      setPnpWhyLimitedBullets([])
+      setPnpHowToImproveBullets([])
+      setPnpDocumentRoadmap(undefined)
     } finally {
       setIsLoaded(true)
     }
@@ -302,8 +417,14 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
 
   const pnpBrief = useMemo(() => {
     if (!assessment || !isPnp) return null
-    return buildPnpBrief(assessment)
-  }, [assessment, isPnp])
+    const baseBrief = buildPnpBrief(assessment)
+    return pnpWhyBullets.length > 0
+      ? {
+          ...baseBrief,
+          whyBullets: pnpWhyBullets,
+        }
+      : baseBrief
+  }, [assessment, isPnp, pnpWhyBullets])
 
   const expressEntryBrief = useMemo(() => {
     if (!assessment || !isExpressEntry) return null
@@ -407,6 +528,15 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
       description="A set of province-specific immigration programs that can nominate candidates for Permanent Residence based on local labour needs and connections to a province."
       confidence={confidence}
       brief={pnpBrief}
+      documentRoadmap={pnpDocumentRoadmap}
+      lowConfidenceMessaging={
+        pnpConfidenceLevel === "low"
+          ? {
+              whyLimitedBullets: pnpWhyLimitedBullets,
+              howToImproveBullets: pnpHowToImproveBullets,
+            }
+          : undefined
+      }
       onBack={() => router.push("/assessment/results")}
       openQuestionsHref="/assessment"
       refinePlanLabel="Refine my PNP plan"
@@ -426,9 +556,18 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
             size="sm"
             className="h-5 w-fit px-0 text-[11px] text-muted-foreground"
             onClick={() => {
-              const demoRecommendations = computeProvinceRecommendations(demoProvinceFinderAnswers)
-              saveProvinceFinderDraft(demoProvinceFinderAnswers)
-              saveProvinceFinderRecommendations(demoRecommendations, demoProvinceFinderAnswers)
+              const bcRecommendation = recommendationForProvince(
+                demoProvinceFinderAnswers,
+                PNP_MVP_DEFAULT_PROVINCE,
+              )
+              const demoRecommendations = bcRecommendation ? [bcRecommendation] : []
+              savePNPProvinceFinderAnswers(demoProvinceFinderAnswers)
+              saveProvinceFinderRecommendations(demoRecommendations, demoProvinceFinderAnswers, {
+                provinceCode: PNP_MVP_DEFAULT_PROVINCE,
+                mvpProvinceNotice: false,
+                requestedProvinceCode: "BC",
+                requestedProvinceInput: "British Columbia",
+              })
               setProvinceShortlist(demoRecommendations.slice(0, 3))
               router.push("/assessment/results/pathways/pnp/province-finder/results")
             }}

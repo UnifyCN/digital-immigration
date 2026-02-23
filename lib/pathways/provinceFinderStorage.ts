@@ -3,12 +3,17 @@ import {
   type ProvinceFinderDraftAnswers,
   type ProvinceRecommendation,
 } from "@/lib/pathways/provinceFinder"
+import { PNP_MVP_DEFAULT_PROVINCE } from "@/lib/config/pnpScope"
+import type { MVPProvinceResolution } from "@/lib/pathways/pnpProvinceScope"
+import type { ProvinceFinderResult } from "@/lib/rules/pnp/bcFamilies"
 
 const PROVINCE_FINDER_STORAGE_KEY = "clarity-province-finder"
 
 type ProvinceFinderStorageState = {
-  draft: ProvinceFinderDraftAnswers
+  pnpProvinceFinderAnswers: ProvinceFinderDraftAnswers
   recommendations: ProvinceRecommendation[]
+  pnpProvinceFinderResult: ProvinceFinderResult | null
+  mvpResolution: MVPProvinceResolution | null
   updatedAt: string
 }
 
@@ -52,10 +57,96 @@ function normalizeRecommendations(input: unknown): ProvinceRecommendation[] {
   })
 }
 
+function normalizeMVPResolution(input: unknown): MVPProvinceResolution | null {
+  if (!input || typeof input !== "object") return null
+  const raw = input as Partial<MVPProvinceResolution>
+  if (raw.provinceCode !== PNP_MVP_DEFAULT_PROVINCE) return null
+  if (typeof raw.mvpProvinceNotice !== "boolean") return null
+
+  const requestedProvinceCode =
+    typeof raw.requestedProvinceCode === "string" && raw.requestedProvinceCode.trim().length > 0
+      ? raw.requestedProvinceCode
+      : null
+  const requestedProvinceInput =
+    typeof raw.requestedProvinceInput === "string" && raw.requestedProvinceInput.trim().length > 0
+      ? raw.requestedProvinceInput
+      : null
+
+  return {
+    provinceCode: PNP_MVP_DEFAULT_PROVINCE,
+    mvpProvinceNotice: raw.mvpProvinceNotice,
+    requestedProvinceCode,
+    requestedProvinceInput,
+  }
+}
+
+function normalizePNPProvinceFinderResult(input: unknown): ProvinceFinderResult | null {
+  if (!input || typeof input !== "object") return null
+  const raw = input as Partial<ProvinceFinderResult>
+  if (raw.provinceCode !== "BC") return null
+  if (!Array.isArray(raw.recommendations)) return null
+  if (typeof raw.generatedAt !== "string") return null
+
+  const recommendations = raw.recommendations.flatMap((item) => {
+    if (!item || typeof item !== "object") return []
+    const rec = item as ProvinceFinderResult["recommendations"][number]
+    if (rec.familyId !== "BC_EMPLOYER_SKILLED" && rec.familyId !== "BC_INTL_GRAD") return []
+    if (typeof rec.title !== "string") return []
+    if (typeof rec.shortDescription !== "string") return []
+    if (typeof rec.fitScore !== "number" || Number.isNaN(rec.fitScore)) return []
+    if (rec.confidence !== "high" && rec.confidence !== "medium" && rec.confidence !== "low") return []
+    if (rec.baselineBadge !== "pass" && rec.baselineBadge !== "unclear" && rec.baselineBadge !== "fail") return []
+    return [
+      {
+        familyId: rec.familyId,
+        title: rec.title,
+        shortDescription: rec.shortDescription,
+        fitScore: rec.fitScore,
+        confidence: rec.confidence,
+        baselineBadge: rec.baselineBadge,
+        hardBlockers: Array.isArray(rec.hardBlockers) ? rec.hardBlockers.filter((v) => typeof v === "string") : [],
+        missingRequired: Array.isArray(rec.missingRequired)
+          ? rec.missingRequired
+              .filter((q) => q && typeof q === "object" && typeof q.id === "string" && typeof q.prompt === "string")
+              .map((q) => ({
+                id: q.id,
+                prompt: q.prompt,
+                signalKeys: Array.isArray(q.signalKeys)
+                  ? q.signalKeys.filter((k) => typeof k === "string")
+                  : undefined,
+              }))
+          : [],
+        whyBullets: Array.isArray(rec.whyBullets) ? rec.whyBullets.filter((v) => typeof v === "string") : [],
+        whyBulletIds: Array.isArray(rec.whyBulletIds) ? rec.whyBulletIds.filter((v) => typeof v === "string") : [],
+        openQuestions: Array.isArray(rec.openQuestions)
+          ? rec.openQuestions
+              .filter((q) => q && typeof q === "object" && typeof q.id === "string" && typeof q.prompt === "string")
+              .map((q) => ({
+                id: q.id,
+                prompt: q.prompt,
+                reason: typeof q.reason === "string" ? q.reason : undefined,
+                signalKeys: Array.isArray(q.signalKeys)
+                  ? q.signalKeys.filter((k) => typeof k === "string")
+                  : undefined,
+              }))
+          : [],
+      },
+    ]
+  })
+
+  return {
+    provinceCode: "BC",
+    generatedAt: raw.generatedAt,
+    recommendations,
+  }
+}
+
 function getDefaultState(): ProvinceFinderStorageState {
   return {
-    draft: getProvinceFinderInitialDraft(),
+    pnpProvinceFinderAnswers: getProvinceFinderInitialDraft(),
     recommendations: [],
+    pnpProvinceFinderResult: null,
+    mvpResolution: null,
     updatedAt: new Date(0).toISOString(),
   }
 }
@@ -65,15 +156,19 @@ function parseState(raw: string | null): ProvinceFinderStorageState {
 
   try {
     const parsed = JSON.parse(raw) as Partial<ProvinceFinderStorageState>
-    const draft = {
+    const pnpProvinceFinderAnswers = {
       ...getProvinceFinderInitialDraft(),
-      ...(parsed.draft ?? {}),
+      ...((parsed.pnpProvinceFinderAnswers ?? (parsed as { draft?: ProvinceFinderDraftAnswers }).draft) ?? {}),
     } satisfies ProvinceFinderDraftAnswers
     const recommendations = normalizeRecommendations(parsed.recommendations)
+    const pnpProvinceFinderResult = normalizePNPProvinceFinderResult(parsed.pnpProvinceFinderResult)
+    const mvpResolution = normalizeMVPResolution(parsed.mvpResolution)
 
     return {
-      draft,
+      pnpProvinceFinderAnswers,
       recommendations,
+      pnpProvinceFinderResult,
+      mvpResolution,
       updatedAt: typeof parsed.updatedAt === "string" ? parsed.updatedAt : new Date().toISOString(),
     }
   } catch {
@@ -96,14 +191,22 @@ function saveState(state: ProvinceFinderStorageState): void {
 }
 
 export function loadProvinceFinderDraft(): ProvinceFinderDraftAnswers {
-  return loadState().draft
+  return loadState().pnpProvinceFinderAnswers
 }
 
 export function saveProvinceFinderDraft(draft: ProvinceFinderDraftAnswers): void {
+  savePNPProvinceFinderAnswers(draft)
+}
+
+export function loadPNPProvinceFinderAnswers(): ProvinceFinderDraftAnswers {
+  return loadState().pnpProvinceFinderAnswers
+}
+
+export function savePNPProvinceFinderAnswers(pnpProvinceFinderAnswers: ProvinceFinderDraftAnswers): void {
   const current = loadState()
   saveState({
     ...current,
-    draft,
+    pnpProvinceFinderAnswers,
     updatedAt: new Date().toISOString(),
   })
 }
@@ -115,11 +218,31 @@ export function loadProvinceFinderRecommendations(): ProvinceRecommendation[] {
 export function saveProvinceFinderRecommendations(
   recommendations: ProvinceRecommendation[],
   draft?: ProvinceFinderDraftAnswers,
+  mvpResolution?: MVPProvinceResolution | null,
 ): void {
   const current = loadState()
   saveState({
-    draft: draft ?? current.draft,
+    pnpProvinceFinderAnswers: draft ?? current.pnpProvinceFinderAnswers,
     recommendations,
+    pnpProvinceFinderResult: current.pnpProvinceFinderResult,
+    mvpResolution: mvpResolution ?? current.mvpResolution,
     updatedAt: new Date().toISOString(),
   })
+}
+
+export function loadProvinceFinderMVPResolution(): MVPProvinceResolution | null {
+  return loadState().mvpResolution
+}
+
+export function savePNPProvinceFinderResult(result: ProvinceFinderResult | null): void {
+  const current = loadState()
+  saveState({
+    ...current,
+    pnpProvinceFinderResult: result,
+    updatedAt: new Date().toISOString(),
+  })
+}
+
+export function loadPNPProvinceFinderResult(): ProvinceFinderResult | null {
+  return loadState().pnpProvinceFinderResult
 }
