@@ -4,6 +4,7 @@ import { DEFAULT_IMM5669 } from "./types"
 const DRAFT_KEY = "unify-imm5669-draft"
 const SECTION_KEY = "unify-imm5669-section"
 const PATHWAY_KEY = "unify-selected-pathway"
+const STATUS_KEY = "unify-imm5669-status"
 
 export interface SelectedPathway {
   pathwayId: string
@@ -64,6 +65,7 @@ export function clearImm5669Draft(): void {
   if (typeof window === "undefined") return
   localStorage.removeItem(DRAFT_KEY)
   localStorage.removeItem(SECTION_KEY)
+  localStorage.removeItem(STATUS_KEY)
 }
 
 export function hasImm5669Draft(): boolean {
@@ -101,4 +103,21 @@ export function loadSelectedPathway(): SelectedPathway | null {
   } catch {
     return null
   }
+}
+
+// ── Document status ──
+
+export function saveImm5669Status(status: string): void {
+  if (typeof window === "undefined") return
+  localStorage.setItem(STATUS_KEY, status)
+}
+
+export function loadImm5669Status(): string | null {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(STATUS_KEY)
+}
+
+export function clearImm5669Status(): void {
+  if (typeof window === "undefined") return
+  localStorage.removeItem(STATUS_KEY)
 }

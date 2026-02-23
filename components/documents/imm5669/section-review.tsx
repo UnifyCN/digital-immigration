@@ -1,15 +1,17 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Download, Pencil, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react"
+import { Download, Pencil, AlertTriangle, CheckCircle2, Loader2, ArrowRight } from "lucide-react"
 import { imm5669FullSchema } from "@/lib/imm5669/schemas"
 import { BACKGROUND_QUESTION_LABELS } from "@/lib/imm5669/types"
+import { saveImm5669Status, loadImm5669Status } from "@/lib/imm5669/storage"
 import type { Imm5669Data, BackgroundQuestions } from "@/lib/imm5669/types"
 
 interface SectionReviewProps {
@@ -21,6 +23,19 @@ interface SectionReviewProps {
 export function SectionReview({ data, onEdit, onUpdateDeclarationDate }: SectionReviewProps) {
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pdfGenerated, setPdfGenerated] = useState(() => {
+    if (typeof window === "undefined") return false
+    return loadImm5669Status() === "generated"
+  })
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null)
+  const [pdfFilename, setPdfFilename] = useState("")
+  const router = useRouter()
+
+  useEffect(() => {
+    return () => {
+      if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl)
+    }
+  }, [pdfBlobUrl])
   const [declDate, setDeclDate] = useState(
     data.declarationDate || new Date().toISOString().slice(0, 10),
   )
@@ -71,12 +86,26 @@ export function SectionReview({ data, onEdit, onUpdateDeclarationDate }: Section
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+
+      setPdfBlobUrl(url)
+      setPdfFilename(filename)
+      saveImm5669Status("generated")
+      setPdfGenerated(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to generate PDF")
     } finally {
       setIsGenerating(false)
     }
+  }
+
+  function handleRedownload() {
+    if (!pdfBlobUrl) return
+    const a = document.createElement("a")
+    a.href = pdfBlobUrl
+    a.download = pdfFilename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
   }
 
   return (
@@ -198,24 +227,61 @@ export function SectionReview({ data, onEdit, onUpdateDeclarationDate }: Section
         </Alert>
       )}
 
-      <Button
-        size="lg"
-        className="w-full gap-2"
-        disabled={!isValid || isGenerating}
-        onClick={handleGenerate}
-      >
-        {isGenerating ? (
-          <>
-            <Loader2 className="size-4 animate-spin" />
-            Generating PDF...
-          </>
-        ) : (
-          <>
-            <Download className="size-4" />
-            Generate PDF
-          </>
-        )}
-      </Button>
+      {pdfGenerated ? (
+        <Card className="border-tier-clean/30 bg-tier-clean/5">
+          <CardContent className="flex flex-col gap-4 p-5">
+            <div className="flex items-start gap-3">
+              <CheckCircle2 className="size-5 text-tier-clean shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  Your IMM 5669 has been generated successfully
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  The PDF has been downloaded to your device. You can download it again or view next steps for uploading.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              {pdfBlobUrl && (
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={handleRedownload}
+                >
+                  <Download className="size-4" />
+                  Download PDF
+                </Button>
+              )}
+              <Button
+                className="gap-2"
+                onClick={() => router.push("/documents/imm5669/next-steps")}
+              >
+                View Next Steps
+                <ArrowRight className="size-4" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Button
+          size="lg"
+          className="w-full gap-2"
+          disabled={!isValid || isGenerating}
+          onClick={handleGenerate}
+        >
+          {isGenerating ? (
+            <>
+              <Loader2 className="size-4 animate-spin" />
+              Generating PDF...
+            </>
+          ) : (
+            <>
+              <Download className="size-4" />
+              Generate PDF
+            </>
+          )}
+        </Button>
+      )}
 
       <p className="type-caption text-center text-muted-foreground">
         The generated PDF is for your records only. You may still need to sign it
