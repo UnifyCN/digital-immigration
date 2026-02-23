@@ -131,6 +131,7 @@ const PROVINCE_PROFILES: ProvinceProfile[] = [
 
 type ReasonCode =
   | "employer_support_yes"
+  | "employer_support_no"
   | "employer_support_not_sure"
   | "employer_size_50plus"
   | "employer_size_5to50"
@@ -149,12 +150,14 @@ type ReasonCode =
   | "licensure_ready"
   | "first_nomination"
   | "no_prior_refusal"
+  | "prior_refusal_penalty"
   | "settlement_funds_ready"
   | "french_boost"
   | "priority_sector"
 
 const REASON_BULLETS: Record<ReasonCode, string> = {
   employer_support_yes: "You reported clear employer support for a provincial nomination pathway.",
+  employer_support_no: "Employer support is currently not confirmed for nomination-focused options.",
   employer_support_not_sure: "Employer support may be possible but still needs confirmation.",
   employer_size_50plus: "A larger provincial employer footprint can align with several employer-driven streams.",
   employer_size_5to50: "Employer size appears within ranges often seen in provincial employer-driven pathways.",
@@ -173,6 +176,7 @@ const REASON_BULLETS: Record<ReasonCode, string> = {
   licensure_ready: "Licensure status appears supportive where regulated occupations apply.",
   first_nomination: "No prior nomination can simplify pathway history review.",
   no_prior_refusal: "No prior provincial refusal is a positive procedural signal.",
+  prior_refusal_penalty: "A prior provincial refusal may reduce alignment until refusal issues are addressed.",
   settlement_funds_ready: "Settlement funds readiness can support streams that require financial proof.",
   french_boost: "French ability can open additional provincial and bilingual-friendly options.",
   priority_sector: "Employer activity in a priority sector can improve alignment in targeted streams.",
@@ -231,7 +235,7 @@ function shortLabel(label: ProvinceRecommendation["alignmentLabel"]): string {
 
 function wagePoints(hourlyWage: number | null): number {
   if (hourlyWage === null || Number.isNaN(hourlyWage)) return 0
-  return hourlyWage >= 0 ? 5 : 0
+  return hourlyWage > 0 ? 5 : 0
 }
 
 function addReason(reasonCodes: Set<ReasonCode>, reason: ReasonCode, points: number): void {
@@ -314,7 +318,13 @@ export function computeProvinceRecommendations(
 
     const employerSupportPoints = { yes: 15, not_sure: 8, no: 0 }[answers.employerSupport]
     rawScore += employerSupportPoints
-    addReason(reasonCodes, answers.employerSupport === "yes" ? "employer_support_yes" : "employer_support_not_sure", employerSupportPoints)
+    const employerSupportReasonCode =
+      answers.employerSupport === "yes"
+        ? "employer_support_yes"
+        : answers.employerSupport === "not_sure"
+          ? "employer_support_not_sure"
+          : "employer_support_no"
+    addReason(reasonCodes, employerSupportReasonCode, employerSupportPoints)
 
     const employerSizePoints = { "50plus": 10, "5to50": 6, lt5: 2, not_sure: 3 }[answers.employerEmployeesInProvince]
     rawScore += employerSizePoints
@@ -389,9 +399,13 @@ export function computeProvinceRecommendations(
     rawScore += priorNominationPoints
     addReason(reasonCodes, "first_nomination", priorNominationPoints)
 
-    const priorRefusalPoints = answers.priorPNPRefusal === "yes" ? -5 : 3
-    rawScore += priorRefusalPoints
-    addReason(reasonCodes, "no_prior_refusal", priorRefusalPoints)
+    if (answers.priorPNPRefusal === "yes") {
+      rawScore += -5
+      reasonCodes.add("prior_refusal_penalty")
+    } else {
+      rawScore += 3
+      addReason(reasonCodes, "no_prior_refusal", 3)
+    }
 
     const settlementBasePoints =
       answers.settlementFunds === "yes" ? 6 : answers.settlementFunds === "not_sure" ? 3 : 0
@@ -418,14 +432,22 @@ export function computeProvinceRecommendations(
       0,
       Math.min(100, Math.round((rawScore / NORMALIZATION_DENOMINATOR) * 100)),
     )
-    const sortedReasons = Array.from(reasonCodes).map((reason) => REASON_BULLETS[reason]).slice(0, 6)
+    const topReasons = Array.from(reasonCodes)
+      .map((reason) => REASON_BULLETS[reason])
+      .slice(0, 6)
+    if (
+      reasonCodes.has("prior_refusal_penalty") &&
+      !topReasons.includes(REASON_BULLETS.prior_refusal_penalty)
+    ) {
+      topReasons[topReasons.length >= 6 ? 5 : topReasons.length] = REASON_BULLETS.prior_refusal_penalty
+    }
 
     return {
       provinceCode: profile.code,
       provinceName: profile.name,
       alignmentScore: normalizedScore,
       alignmentLabel: scoreLabel(normalizedScore),
-      whyBullets: sortedReasons,
+      whyBullets: topReasons,
       whatToConfirmNext: buildWhatToConfirmNext(answers, profile),
       riskFlags: buildRiskFlags(answers),
     } satisfies ProvinceRecommendation

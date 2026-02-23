@@ -203,7 +203,14 @@ const RADIO_QUESTIONS: RadioQuestion[] = [
   },
 ]
 
-function asDraftValue(value: string): ProvinceFinderDraftAnswers[RadioQuestionKey] {
+function asDraftValue(
+  key: RadioQuestionKey,
+  value: string,
+): ProvinceFinderDraftAnswers[RadioQuestionKey] | undefined {
+  const question = RADIO_QUESTIONS.find((item) => item.key === key)
+  if (!question) return undefined
+  const isAllowedValue = question.options.some((option) => option.value === value)
+  if (!isAllowedValue) return undefined
   return value as ProvinceFinderDraftAnswers[RadioQuestionKey]
 }
 
@@ -217,7 +224,8 @@ export function ProvinceFinderQuestionnaire() {
     () => requiredKeys.filter((key) => Boolean(answers[key])).length,
     [answers, requiredKeys],
   )
-  const progressText = `${Math.min(17, completedRequiredCount + 1)}/17`
+  const totalQuestions = requiredKeys.length + 1
+  const progressText = `${Math.min(totalQuestions, completedRequiredCount + 1)}/${totalQuestions}`
 
   function updateAnswer<K extends keyof ProvinceFinderDraftAnswers>(
     key: K,
@@ -291,41 +299,11 @@ export function ProvinceFinderQuestionnaire() {
       </Card>
 
       <div className="space-y-4">
-        {RADIO_QUESTIONS.map((question) => {
+        {RADIO_QUESTIONS.filter((question) => question.id < 5).map((question) => {
           const currentValue = answers[question.key]
 
           return (
-            <div key={question.id} className="space-y-4">
-              {question.id === 5 ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">4) What is your current hourly wage?</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Label htmlFor="hourlyWage" className="mb-2 block text-sm text-muted-foreground">
-                      Numeric input (CAD). Optional.
-                    </Label>
-                    <Input
-                      id="hourlyWage"
-                      name="hourlyWage"
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={answers.hourlyWage ?? ""}
-                      onChange={(event) => {
-                        const raw = event.target.value
-                        if (raw === "") {
-                          updateAnswer("hourlyWage", null)
-                          return
-                        }
-                        const next = Number(raw)
-                        updateAnswer("hourlyWage", Number.isNaN(next) ? null : next)
-                      }}
-                    />
-                  </CardContent>
-                </Card>
-              ) : null}
-
+            <div key={question.id}>
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
@@ -337,7 +315,82 @@ export function ProvinceFinderQuestionnaire() {
                     <legend className="sr-only">{question.title}</legend>
                     <RadioGroup
                       value={typeof currentValue === "string" ? currentValue : ""}
-                      onValueChange={(value) => updateAnswer(question.key, asDraftValue(value))}
+                      onValueChange={(value) => {
+                        const nextValue = asDraftValue(question.key, value)
+                        if (nextValue !== undefined) updateAnswer(question.key, nextValue)
+                      }}
+                      className="flex flex-wrap gap-3"
+                      aria-label={question.title}
+                    >
+                      {question.options.map((option) => {
+                        const id = `${question.key}-${option.value}`
+                        return (
+                          <Label
+                            key={option.value}
+                            htmlFor={id}
+                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                          >
+                            <RadioGroupItem value={option.value} id={id} />
+                            <span className="text-foreground">{option.label}</span>
+                          </Label>
+                        )
+                      })}
+                    </RadioGroup>
+                  </fieldset>
+                </CardContent>
+              </Card>
+            </div>
+          )
+        })}
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">4) What is your current hourly wage?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Label htmlFor="hourlyWage" className="mb-2 block text-sm text-muted-foreground">
+              Numeric input (CAD). Optional.
+            </Label>
+            <Input
+              id="hourlyWage"
+              name="hourlyWage"
+              type="number"
+              min={0}
+              step="0.01"
+              value={answers.hourlyWage ?? ""}
+              onChange={(event) => {
+                const raw = event.target.value
+                if (raw === "") {
+                  updateAnswer("hourlyWage", null)
+                  return
+                }
+                const next = Number(raw)
+                updateAnswer("hourlyWage", Number.isNaN(next) ? null : next)
+              }}
+            />
+          </CardContent>
+        </Card>
+
+        {RADIO_QUESTIONS.filter((question) => question.id >= 5).map((question) => {
+          const currentValue = answers[question.key]
+
+          return (
+            <div key={question.id}>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    {question.id}) {question.title}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <fieldset>
+                    <legend className="sr-only">{question.title}</legend>
+                    <RadioGroup
+                      value={typeof currentValue === "string" ? currentValue : ""}
+                      onValueChange={(value) => {
+                        const nextValue = asDraftValue(question.key, value)
+                        if (nextValue !== undefined) updateAnswer(question.key, nextValue)
+                      }}
                       className="flex flex-wrap gap-3"
                       aria-label={question.title}
                     >

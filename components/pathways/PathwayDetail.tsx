@@ -60,7 +60,6 @@ type PathwayBriefLayoutProps = {
   openQuestionsHref: string
   refinePlanLabel: string
   pathwaySpecificSection: ReactNode
-  additionalContextSection?: ReactNode
   nextActionsPrimary?: ReactNode
 }
 
@@ -96,7 +95,6 @@ function PathwayBriefLayout({
   openQuestionsHref,
   refinePlanLabel,
   pathwaySpecificSection,
-  additionalContextSection,
   nextActionsPrimary,
 }: PathwayBriefLayoutProps) {
   return (
@@ -199,8 +197,6 @@ function PathwayBriefLayout({
             </div>
           </CardContent>
         </Card>
-
-        {additionalContextSection}
 
         {pathwaySpecificSection}
 

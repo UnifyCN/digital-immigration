@@ -20,13 +20,15 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { topProvinceRecommendations } from "@/lib/pathways/provinceFinder"
+import {
+  isCompleteProvinceFinderAnswers,
+  topProvinceRecommendations,
+} from "@/lib/pathways/provinceFinder"
 import {
   loadProvinceFinderDraft,
   loadProvinceFinderRecommendations,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
-import { isCompleteProvinceFinderAnswers } from "@/lib/pathways/provinceFinder"
 
 const PNP_OVERVIEW_PATH = "/assessment/results/pathways/pnp"
 const FINDER_PATH = "/assessment/results/pathways/pnp/province-finder"
