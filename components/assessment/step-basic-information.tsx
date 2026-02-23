@@ -1,6 +1,7 @@
 "use client"
 
-import { useFormContext } from "react-hook-form"
+import { useEffect } from "react"
+import { useFormContext, useWatch } from "react-hook-form"
 import {
   FormControl,
   FormDescription,
@@ -13,10 +14,37 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DatePicker } from "@/components/ui/date-picker"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import {
+  CANADIAN_PROVINCES_AND_TERRITORIES,
+  CURRENT_PROVINCE_TERRITORY_OPTIONS,
+} from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
+const temporaryStatusTypes = [
+  { value: "study-permit", label: "Study permit" },
+  { value: "work-permit-open", label: "Work permit - open" },
+  { value: "work-permit-employer-specific", label: "Work permit - employer-specific" },
+  { value: "visitor-record", label: "Visitor record" },
+] as const
+
 export function StepBasicInformation() {
-  const { control } = useFormContext<AssessmentData>()
+  const { control, setValue } = useFormContext<AssessmentData>()
+  const hasValidTemporaryStatus = useWatch({ control, name: "hasValidTemporaryStatus" })
+
+  useEffect(() => {
+    if (hasValidTemporaryStatus !== "yes") {
+      setValue("temporaryStatusType", "", { shouldValidate: true })
+      setValue("temporaryStatusExpiryDate", "", { shouldValidate: true })
+    }
+  }, [hasValidTemporaryStatus, setValue])
 
   return (
     <div className="flex flex-col gap-8">
@@ -124,6 +152,138 @@ export function StepBasicInformation() {
 
       <FormField
         control={control}
+        name="currentProvinceTerritory"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Which province or territory do you currently live in?</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select your current province or territory" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {CURRENT_PROVINCE_TERRITORY_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="intendedProvinceTerritory"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Which province or territory do you intend to live in?</FormLabel>
+            <Select onValueChange={field.onChange} value={field.value}>
+              <FormControl>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select your intended province or territory" />
+                </SelectTrigger>
+              </FormControl>
+              <SelectContent>
+                {CANADIAN_PROVINCES_AND_TERRITORIES.map((province) => (
+                  <SelectItem key={province} value={province}>
+                    {province}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      <FormField
+        control={control}
+        name="hasValidTemporaryStatus"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Do you currently hold valid temporary status in Canada?</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="flex gap-4"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ].map((option) => (
+                  <Label
+                    key={option.value}
+                    htmlFor={`temp-status-${option.value}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                  >
+                    <RadioGroupItem value={option.value} id={`temp-status-${option.value}`} />
+                    <span className="text-foreground">{option.label}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {hasValidTemporaryStatus === "yes" && (
+        <FormField
+          control={control}
+          name="temporaryStatusType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>What type of status do you hold?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select your temporary status type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {temporaryStatusTypes.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {hasValidTemporaryStatus === "yes" && (
+        <FormField
+          control={control}
+          name="temporaryStatusExpiryDate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>What is the expiry date of your current status?</FormLabel>
+              <FormControl>
+                <DatePicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Select status expiry date"
+                />
+              </FormControl>
+              <FormDescription>
+                This helps us understand timeline urgency.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      <FormField
+        control={control}
         name="email"
         render={({ field }) => (
           <FormItem>
@@ -160,7 +320,7 @@ export function StepBasicInformation() {
               </FormControl>
               <div className="space-y-1">
                 <Label className="text-sm font-medium leading-none">
-                  I understand this is not legal advice.
+                  I understand this assessment provides informational guidance only and is not legal advice.
                 </Label>
                 <FormMessage />
               </div>

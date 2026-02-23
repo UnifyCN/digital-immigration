@@ -7,6 +7,7 @@ import type {
   TierResult,
 } from "./types"
 import { recommendNextSteps } from "./next-steps"
+import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
 
 // ── Tier Classification ──
 
@@ -105,10 +106,10 @@ function getInputCompleteness(data: AssessmentData): number {
     data.currentStatus,
     data.countryOfResidence,
     data.nationality,
-    data.totalExperience,
+    data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data),
+    data.foreignSkilledYears,
     data.educationLevel,
-    data.languageTestStatus,
-    data.ageRange,
+    data.languageTestPlan,
     data.maritalStatus,
   ]
 
@@ -133,12 +134,17 @@ export function computePathways(data: AssessmentData): PathwayCard[] {
   const isInsideCanada = data.currentLocation === "inside-canada"
   const goal = data.primaryGoal
 
+  const derivedCanadianYearsBand = data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data)
+  const hasSkilledWorkExperience =
+    (derivedCanadianYearsBand !== "" && derivedCanadianYearsBand !== "0") ||
+    Boolean(data.foreignSkilledYears && data.foreignSkilledYears !== "0")
+
   // Express Entry (Federal Skilled Worker / CEC / FST)
   if (goal === "pr" || goal === "not-sure") {
     const whyRelevant: string[] = []
     const whatNext: string[] = []
 
-    if (data.totalExperience && data.totalExperience !== "0-1") {
+    if (hasSkilledWorkExperience) {
       whyRelevant.push("Skilled work experience indicated")
     }
     if (data.educationLevel && !["none", "high-school"].includes(data.educationLevel)) {
@@ -233,6 +239,15 @@ export function computePathways(data: AssessmentData): PathwayCard[] {
 export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
   const flags: RiskFlag[] = []
 
+  const englishMissingOrBooked =
+    (data.languageTestPlan === "english-only" || data.languageTestPlan === "both-languages") &&
+    data.englishTestStatus !== "completed"
+  const frenchMissingOrBooked =
+    (data.languageTestPlan === "french-only" || data.languageTestPlan === "both-languages") &&
+    data.frenchTestStatus !== "completed"
+  const languageNeedsAction =
+    data.languageTestPlan === "not-sure" || englishMissingOrBooked || frenchMissingOrBooked
+
   if (data.employmentGaps === "yes") {
     flags.push({
       id: "employment_gaps",
@@ -242,12 +257,14 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
     })
   }
 
-  if (data.languageTestStatus === "no" || data.languageTestStatus === "planning") {
+  if (languageNeedsAction) {
+    const hasNotTaken =
+      data.englishTestStatus === "not-taken" || data.frenchTestStatus === "not-taken" || data.languageTestPlan === "not-sure"
     flags.push({
       id: "language_test_missing",
       label: "Missing or pending language test scores",
-      severity: data.languageTestStatus === "no" ? "high" : "medium",
-      action: data.languageTestStatus === "no" ? "Schedule a language test" : "Confirm planned test date",
+      severity: hasNotTaken ? "high" : "medium",
+      action: hasNotTaken ? "Schedule a language test" : "Confirm planned test date",
     })
   }
 

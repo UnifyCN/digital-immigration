@@ -1,5 +1,7 @@
 import type { AssessmentData } from "@/lib/types"
 import type { ChecklistRow, ChecklistStatus } from "@/lib/pathways/types"
+import { deriveCanadianSkilledYearsBand } from "@/lib/work-derived"
+import { isCanadaCountry } from "@/lib/canada-helpers"
 
 export interface ExpressEntryBrief {
   whyIntro: string
@@ -43,36 +45,27 @@ function hasPostSecondaryEducation(level: AssessmentData["educationLevel"]): boo
 }
 
 function hasSkilledWorkExperience(data: AssessmentData): boolean {
-  if (data.totalExperience && data.totalExperience !== "not-sure") return true
+  const derivedCanadianBand = data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data)
+  if (derivedCanadianBand !== "0") return true
+  if (data.foreignSkilledYears && data.foreignSkilledYears !== "0") return true
   return Boolean(data.currentJobTitle || (data.jobs ?? []).length > 0)
 }
 
 function hasCanadianWorkOneYearPlus(data: AssessmentData): boolean {
-  return ["1-year", "2-plus-years"].includes(data.canadianWorkDuration)
-}
-
-function isCanadaCountry(value: string): boolean {
-  const normalized = value.trim().toLowerCase()
-  if (!normalized) return false
-
-  const canadaAliases = new Set([
-    "ca",
-    "can",
-    "canada",
-    "canadian",
-    "canada (ca)",
-  ])
-
-  if (canadaAliases.has(normalized)) return true
-
-  const compact = normalized.replace(/[\s.,()-]/g, "")
-  return compact === "ca" || compact === "can" || compact === "canada"
+  const derivedCanadianBand = data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data)
+  return ["1", "2", "3", "4", "5+"].includes(derivedCanadianBand)
 }
 
 function getLanguageReadinessStatus(data: AssessmentData): ChecklistStatus {
-  if (data.languageTestStatus === "yes" && data.languageTestValid === "yes") return "complete"
-  if (data.languageTestStatus === "planning") return "warning"
-  if (data.languageTestStatus === "yes" && data.languageTestValid === "no") return "warning"
+  const englishCompleted =
+    (data.languageTestPlan === "english-only" || data.languageTestPlan === "both-languages") &&
+    data.englishTestStatus === "completed"
+  const frenchCompleted =
+    (data.languageTestPlan === "french-only" || data.languageTestPlan === "both-languages") &&
+    data.frenchTestStatus === "completed"
+  const anyBooked = data.englishTestStatus === "booked" || data.frenchTestStatus === "booked"
+  if (englishCompleted || frenchCompleted) return "complete"
+  if (anyBooked) return "warning"
   return "unknown"
 }
 
@@ -90,9 +83,11 @@ function hasCoreProfileCompleteness(data: AssessmentData): boolean {
   return Boolean(
     data.primaryGoal &&
       data.currentStatus &&
-      (data.totalExperience || data.currentJobTitle) &&
+      (data.derivedCanadianSkilledYearsBand ||
+        data.foreignSkilledYears ||
+        data.currentJobTitle) &&
       data.educationLevel &&
-      data.languageTestStatus,
+      data.languageTestPlan,
   )
 }
 
@@ -107,8 +102,8 @@ function buildWhyRelevantBullets(data: AssessmentData): string[] {
     bullets.push("You reported post-secondary education.")
   }
 
-  if (data.languageTestStatus === "yes") {
-    bullets.push("You indicated you have language test results (a key requirement for most Express Entry streams).")
+  if (data.englishTestStatus === "completed" || data.frenchTestStatus === "completed") {
+    bullets.push("You indicated completed language test results (a key requirement for most Express Entry streams).")
   }
 
   if (hasCanadianWorkOneYearPlus(data)) {

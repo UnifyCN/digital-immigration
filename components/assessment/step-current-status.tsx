@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CalendarIcon, HelpCircle } from "lucide-react"
+import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
 const statuses = [
@@ -62,6 +63,8 @@ export function StepCurrentStatus() {
   const showMaintainedStatus = currentLocation === "inside-canada"
   const showRefusalFollowup = refusalHistory !== "" && refusalHistory !== "no"
   const showPriorApplicationType = priorApplications === "yes"
+  const currentlyWorkingInCanada = useWatch({ control, name: "currentlyWorkingInCanada" })
+  const showWorkingInCanadaFollowups = currentlyWorkingInCanada === "yes"
 
   useEffect(() => {
     if (!showExpiry) {
@@ -86,6 +89,13 @@ export function StepCurrentStatus() {
       setValue("priorCanadaApplicationType", "", { shouldValidate: true })
     }
   }, [setValue, showPriorApplicationType])
+
+  useEffect(() => {
+    if (!showWorkingInCanadaFollowups) {
+      setValue("currentJobProvinceTerritory", "", { shouldValidate: true })
+      setValue("sameEmployerForPermanentOffer", "", { shouldValidate: true })
+    }
+  }, [setValue, showWorkingInCanadaFollowups])
 
   return (
     <div className="flex flex-col gap-8">
@@ -202,6 +212,102 @@ export function StepCurrentStatus() {
                     >
                       <RadioGroupItem value={o.value} id={`maintained-${o.value}`} />
                       <span className="text-foreground">{o.label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      <FormField
+        control={control}
+        name="currentlyWorkingInCanada"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Are you currently working in Canada?</FormLabel>
+            <FormControl>
+              <RadioGroup
+                onValueChange={field.onChange}
+                value={field.value}
+                className="flex gap-4"
+              >
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ].map((option) => (
+                  <Label
+                    key={option.value}
+                    htmlFor={`working-canada-${option.value}`}
+                    className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                  >
+                    <RadioGroupItem value={option.value} id={`working-canada-${option.value}`} />
+                    <span className="text-foreground">{option.label}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {showWorkingInCanadaFollowups && (
+        <FormField
+          control={control}
+          name="currentJobProvinceTerritory"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Which province or territory is your current job located in?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select job province or territory" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {CANADIAN_PROVINCES_AND_TERRITORIES.map((province) => (
+                    <SelectItem key={province} value={province}>
+                      {province}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {showWorkingInCanadaFollowups && (
+        <FormField
+          control={control}
+          name="sameEmployerForPermanentOffer"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>
+                Is your current employer the same employer who would offer you a permanent job?
+              </FormLabel>
+              <FormControl>
+                <RadioGroup
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  className="flex flex-col gap-2"
+                >
+                  {[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                    { value: "not-sure", label: "Not sure" },
+                  ].map((option) => (
+                    <Label
+                      key={option.value}
+                      htmlFor={`same-employer-${option.value}`}
+                      className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                    >
+                      <RadioGroupItem value={option.value} id={`same-employer-${option.value}`} />
+                      <span className="text-foreground">{option.label}</span>
                     </Label>
                   ))}
                 </RadioGroup>

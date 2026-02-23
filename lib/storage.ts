@@ -1,4 +1,5 @@
 import type { AssessmentData } from "./types"
+import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
 
 const STORAGE_KEY = "clarity-assessment-draft"
 const STEP_KEY = "clarity-assessment-step"
@@ -10,7 +11,6 @@ const UNSURE_NORMALIZATION_FIELDS = [
   "ecaStatus",
   "ecaValid",
   "hasMultipleCredentials",
-  "languageTestValid",
   "secondOfficialLanguageIntent",
   "closeRelativeInCanada",
   "hasDependentsUnder18",
@@ -19,10 +19,6 @@ const UNSURE_NORMALIZATION_FIELDS = [
 ] as const
 
 const RED_FLAG_UNSURE_FIELDS = [
-  "statusExpiringSoon",
-  "overstayHistory",
-  "removalOrDeportationHistory",
-  "hasActiveApplication",
   "multipleCountries",
   "nonTraditionalEmployment",
   "missingDocuments",
@@ -51,6 +47,15 @@ function normalizeLegacyUnsure(value: unknown): NormalizedYesNoUnsure {
   return undefined
 }
 
+function normalizeLegacyRemovedUnsure(
+  value: unknown,
+  allowedValues: readonly string[],
+): string {
+  if (value === "unsure") return ""
+  if (typeof value === "string" && allowedValues.includes(value)) return value
+  return ""
+}
+
 export const defaultAssessmentData: AssessmentData = {
   // Step 0
   firstName: "",
@@ -58,6 +63,12 @@ export const defaultAssessmentData: AssessmentData = {
   lastName: "",
   dateOfBirth: "",
   citizenshipCountry: "",
+  currentProvinceTerritory: "",
+  intendedProvinceTerritory: "",
+  hasValidTemporaryStatus: "",
+  temporaryStatusType: "",
+  temporaryStatusExpiryDate: "",
+  exactAge: null,
   email: "",
   consentAcknowledged: false,
   // Step 1
@@ -72,6 +83,7 @@ export const defaultAssessmentData: AssessmentData = {
   studyPermitHasLOA: "",
   workPermitHasJobOffer: "",
   sponsorshipRelation: "",
+  openToPNP: "",
   // Step 2
   currentStatus: "",
   statusExpiryDate: "",
@@ -79,13 +91,15 @@ export const defaultAssessmentData: AssessmentData = {
   refusalHistory: "",
   mostRecentRefusalType: "",
   priorCanadaApplicationType: "",
+  currentlyWorkingInCanada: "",
+  currentJobProvinceTerritory: "",
+  sameEmployerForPermanentOffer: "",
   countryOfResidence: "",
   nationality: "",
   priorApplications: "",
   // Step 3
   currentJobTitle: "",
   countryOfWork: "",
-  totalExperience: "",
   industryCategory: "",
   employmentGaps: "",
   mostRecentJobStart: "",
@@ -97,25 +111,51 @@ export const defaultAssessmentData: AssessmentData = {
   canObtainEmployerLetter: "",
   employerLetterChallenge: "",
   hasOverlappingPeriods: "",
+  hasCanadianJobOffer: "",
+  jobOfferProvinceTerritory: "",
+  jobOfferTitle: "",
+  jobOfferEmployerName: "",
+  jobOfferCity: "",
+  jobOfferFullTime: "",
+  jobOfferPermanent: "",
+  jobOfferCompensation: "",
+  jobOfferCompensationType: "",
+  jobOfferTenure: "",
+  employerWillSupportPNP: "",
+  occupationCategory: "",
+  occupationCategoryOtherRole: "",
+  jobDuties: "",
+  foreignSkilledYears: "",
+  hasContinuous12MonthsSkilled: "",
+  has12MonthsCanadaSkilled: "",
+  canadianWorkAuthorizedAll: "",
+  derivedCanadianSkilledYearsBand: "",
   jobs: [],
   // Step 4
   educationLevel: "",
+  fieldOfStudy: "",
   educationCountry: "",
   graduationYear: "",
   ecaStatus: "",
   canadaEducationStatus: "",
+  educationCompletedInCanada: "",
+  canadianEducationProvinceTerritory: "",
+  canadianEducationPublicInstitution: "",
   programLength: "",
   hasMultipleCredentials: "",
   additionalCredentials: [],
   ecaValid: "",
   // Step 5
   languageTestStatus: "",
+  languageTestPlan: "",
+  englishTestStatus: "",
+  englishTestType: "",
+  englishPlannedTestDate: "",
+  frenchTestStatus: "",
+  frenchTestType: "",
+  frenchPlannedTestDate: "",
   languageScores: { listening: "", reading: "", writing: "", speaking: "" },
   addScoresLater: false,
-  plannedTestDate: "",
-  languageApproxCLB: "",
-  languageTestValid: "",
-  languagePlannedTiming: "",
   ageRange: "",
   canadianEducation: "",
   canadianWorkExperience: "",
@@ -127,6 +167,8 @@ export const defaultAssessmentData: AssessmentData = {
   spouseAccompanying: "",
   spouseLocation: "",
   closeRelativeInCanada: "",
+  hasCloseRelativeInCanada: "",
+  relativeProvinceTerritory: "",
   closeRelativeRelationship: "",
   hasDependentsUnder18: "",
   hasDependents18Plus: "",
@@ -148,6 +190,9 @@ export const defaultAssessmentData: AssessmentData = {
   removalOrDeportationHistory: "",
   hasActiveApplication: "",
   employerLetterUnwilling: "",
+  workedWithoutAuthorizationInCanada: "",
+  refusedProvincialNomination: "",
+  isSkilledTrade: "",
 }
 
 export const demoAssessmentData: AssessmentData = {
@@ -157,6 +202,12 @@ export const demoAssessmentData: AssessmentData = {
   lastName: "Demo",
   dateOfBirth: "1990-05-15",
   citizenshipCountry: "India",
+  currentProvinceTerritory: "Ontario",
+  intendedProvinceTerritory: "Ontario",
+  hasValidTemporaryStatus: "yes",
+  temporaryStatusType: "work-permit-open",
+  temporaryStatusExpiryDate: "2026-12-31",
+  exactAge: 35,
   email: "alex.demo@example.com",
   consentAcknowledged: true,
   // Step 1: Goal & Timeline
@@ -171,6 +222,7 @@ export const demoAssessmentData: AssessmentData = {
   studyPermitHasLOA: "",
   workPermitHasJobOffer: "",
   sponsorshipRelation: "",
+  openToPNP: "yes",
   // Step 2: Current Status
   currentStatus: "worker",
   statusExpiryDate: "2026-12-31",
@@ -178,13 +230,15 @@ export const demoAssessmentData: AssessmentData = {
   refusalHistory: "no",
   mostRecentRefusalType: "",
   priorCanadaApplicationType: "",
+  currentlyWorkingInCanada: "yes",
+  currentJobProvinceTerritory: "Ontario",
+  sameEmployerForPermanentOffer: "not-sure",
   countryOfResidence: "Canada",
   nationality: "Indian",
   priorApplications: "no",
   // Step 3: Work History
   currentJobTitle: "Software Engineer",
   countryOfWork: "Canada",
-  totalExperience: "5+",
   industryCategory: "Information Technology",
   employmentGaps: "yes",
   mostRecentJobStart: "2021-03",
@@ -196,6 +250,26 @@ export const demoAssessmentData: AssessmentData = {
   canObtainEmployerLetter: "yes",
   employerLetterChallenge: "",
   hasOverlappingPeriods: "no",
+  hasCanadianJobOffer: "yes",
+  jobOfferProvinceTerritory: "Ontario",
+  jobOfferTitle: "Software Engineer",
+  jobOfferEmployerName: "Maple Tech Ltd.",
+  jobOfferCity: "Toronto",
+  jobOfferFullTime: "yes",
+  jobOfferPermanent: "yes",
+  jobOfferCompensation: "98000",
+  jobOfferCompensationType: "annual",
+  jobOfferTenure: "1-2-years",
+  employerWillSupportPNP: "unsure",
+  occupationCategory: "it-software-data",
+  occupationCategoryOtherRole: "",
+  jobDuties:
+    "Design and maintain backend services, implement APIs, review code, and collaborate on production incident response.",
+  foreignSkilledYears: "5+",
+  hasContinuous12MonthsSkilled: "yes",
+  has12MonthsCanadaSkilled: "yes",
+  canadianWorkAuthorizedAll: "yes",
+  derivedCanadianSkilledYearsBand: "5+",
   jobs: [
     {
       title: "Software Engineer",
@@ -216,22 +290,29 @@ export const demoAssessmentData: AssessmentData = {
   ],
   // Step 4: Education
   educationLevel: "masters",
+  fieldOfStudy: "it-computer-science",
   educationCountry: "India",
   graduationYear: "2018",
   ecaStatus: "yes",
   canadaEducationStatus: "no",
+  educationCompletedInCanada: "no",
+  canadianEducationProvinceTerritory: "",
+  canadianEducationPublicInstitution: "",
   programLength: "2-years",
   hasMultipleCredentials: "no",
   additionalCredentials: [],
   ecaValid: "yes",
   // Step 5: Language & CRS
-  languageTestStatus: "planning",
+  languageTestStatus: "booked",
+  languageTestPlan: "both-languages",
+  englishTestStatus: "booked",
+  englishTestType: "",
+  englishPlannedTestDate: "2026-05-10",
+  frenchTestStatus: "not-taken",
+  frenchTestType: "",
+  frenchPlannedTestDate: "",
   languageScores: { listening: "", reading: "", writing: "", speaking: "" },
   addScoresLater: true,
-  plannedTestDate: "2026-05-10",
-  languageApproxCLB: "not-sure",
-  languageTestValid: "not-sure",
-  languagePlannedTiming: "1-3-months",
   ageRange: "30-34",
   canadianEducation: "no",
   canadianWorkExperience: "yes",
@@ -243,6 +324,8 @@ export const demoAssessmentData: AssessmentData = {
   spouseAccompanying: "yes-accompanying",
   spouseLocation: "in-canada",
   closeRelativeInCanada: "no",
+  hasCloseRelativeInCanada: "no",
+  relativeProvinceTerritory: "",
   closeRelativeRelationship: "",
   hasDependentsUnder18: "yes",
   hasDependents18Plus: "no",
@@ -264,6 +347,9 @@ export const demoAssessmentData: AssessmentData = {
   removalOrDeportationHistory: "no",
   hasActiveApplication: "no",
   employerLetterUnwilling: "no",
+  workedWithoutAuthorizationInCanada: "no",
+  refusedProvincialNomination: "no",
+  isSkilledTrade: "no",
 }
 
 export function getStoredJson<T>(key: string, fallback: T): T {
@@ -287,7 +373,11 @@ export function setStoredJson(key: string, value: unknown): void {
 
 export function saveAssessment(data: AssessmentData): void {
   if (typeof window === "undefined") return
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+  const normalized: AssessmentData = {
+    ...data,
+    derivedCanadianSkilledYearsBand: deriveCanadianSkilledYearsBand(data),
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized))
 }
 
 export function loadAssessment(): AssessmentData | null {
@@ -295,16 +385,36 @@ export function loadAssessment(): AssessmentData | null {
   const raw = localStorage.getItem(STORAGE_KEY)
   if (!raw) return null
   try {
-    const parsed = JSON.parse(raw) as Partial<AssessmentData> & { fullName?: string }
+    const parsed = JSON.parse(raw) as Partial<AssessmentData> & {
+      fullName?: string
+      mainJobDuties?: string
+      canadianWork?: {
+        authorized?: boolean
+      }
+    }
+    const {
+      totalExperience: _legacyTotalExperience,
+      canadianWork: _legacyCanadianWork,
+      ...parsedWithoutLegacy
+    } = parsed as (Partial<AssessmentData> & {
+      totalExperience?: unknown
+      canadianWork?: { authorized?: boolean }
+    })
     const normalizedEcaStatus = normalizeLegacyUnsure(parsed.ecaStatus)
     const normalizedEcaValid = normalizeLegacyUnsure(parsed.ecaValid)
     const normalizedMultipleCredentials = normalizeLegacyUnsure(parsed.hasMultipleCredentials)
-    const normalizedLanguageTestValid = normalizeLegacyUnsure(parsed.languageTestValid)
     const normalizedSecondLanguageIntent = normalizeLegacyUnsure(parsed.secondOfficialLanguageIntent)
     const normalizedCloseRelativeInCanada = normalizeLegacyUnsure(parsed.closeRelativeInCanada)
     const normalizedHasDependentsUnder18 = normalizeLegacyUnsure(parsed.hasDependentsUnder18)
     const normalizedHasDependents18Plus = normalizeLegacyUnsure(parsed.hasDependents18Plus)
     const normalizedCanadianEducation = normalizeLegacyUnsure(parsed.canadianEducation)
+    const legacyCanadianAuthorized =
+      parsedWithoutLegacy.canadianWorkAuthorizedAll ??
+      (parsed.canadianWork?.authorized === true
+        ? "yes"
+        : parsed.canadianWork?.authorized === false
+          ? "no"
+          : "")
 
     const legacyFullName = typeof parsed.fullName === "string" ? parsed.fullName.trim() : ""
     const legacyNameParts = legacyFullName ? legacyFullName.split(/\s+/).filter(Boolean) : []
@@ -313,9 +423,9 @@ export function loadAssessment(): AssessmentData | null {
     const legacyMiddleName =
       legacyNameParts.length > 2 ? legacyNameParts.slice(1, -1).join(" ") : ""
 
-    return {
+    const merged = {
       ...defaultAssessmentData,
-      ...parsed,
+      ...parsedWithoutLegacy,
       firstName: parsed.firstName ?? legacyFirstName,
       middleName: parsed.middleName ?? legacyMiddleName,
       lastName: parsed.lastName ?? legacyLastName,
@@ -328,16 +438,50 @@ export function loadAssessment(): AssessmentData | null {
         : [],
       jobs: Array.isArray(parsed.jobs) ? parsed.jobs : [],
       ecaValid: normalizedEcaValid ?? "",
-      languageTestValid: normalizedLanguageTestValid ?? "",
       canadianEducation: normalizedCanadianEducation ?? "",
       secondOfficialLanguageIntent: normalizedSecondLanguageIntent ?? "",
       closeRelativeInCanada: normalizedCloseRelativeInCanada ?? "",
       hasDependentsUnder18: normalizedHasDependentsUnder18 ?? "",
       hasDependents18Plus: normalizedHasDependents18Plus ?? "",
+      priorRefusals: normalizeLegacyRemovedUnsure(parsedWithoutLegacy.priorRefusals, ["yes", "no"]),
+      criminalCharges: normalizeLegacyRemovedUnsure(parsedWithoutLegacy.criminalCharges, ["yes", "no"]),
+      overstayHistory: normalizeLegacyRemovedUnsure(parsedWithoutLegacy.overstayHistory, ["yes", "no"]),
+      removalOrDeportationHistory: normalizeLegacyRemovedUnsure(
+        parsedWithoutLegacy.removalOrDeportationHistory,
+        ["yes", "no"],
+      ),
+      hasActiveApplication: normalizeLegacyRemovedUnsure(parsedWithoutLegacy.hasActiveApplication, ["yes", "no"]),
+      statusExpiringSoon: normalizeLegacyRemovedUnsure(parsedWithoutLegacy.statusExpiringSoon, [
+        "yes",
+        "no",
+        "na",
+      ]),
+      workedWithoutAuthorizationInCanada: normalizeLegacyRemovedUnsure(
+        parsedWithoutLegacy.workedWithoutAuthorizationInCanada,
+        ["yes", "no"],
+      ),
+      refusedProvincialNomination: normalizeLegacyRemovedUnsure(
+        parsedWithoutLegacy.refusedProvincialNomination,
+        ["yes", "no"],
+      ),
+      canadianWorkAuthorizedAll:
+        legacyCanadianAuthorized === "yes" || legacyCanadianAuthorized === "no" || legacyCanadianAuthorized === "not_sure"
+          ? legacyCanadianAuthorized
+          : "",
+      jobDuties:
+        typeof parsed.jobDuties === "string"
+          ? parsed.jobDuties
+          : typeof parsed.mainJobDuties === "string"
+            ? parsed.mainJobDuties
+            : "",
       languageScores: {
         ...defaultAssessmentData.languageScores,
         ...parsed.languageScores,
       },
+    }
+    return {
+      ...merged,
+      derivedCanadianSkilledYearsBand: deriveCanadianSkilledYearsBand(merged),
     }
   } catch {
     return null
