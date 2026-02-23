@@ -20,6 +20,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { MonthYearPicker } from "@/components/ui/month-year-picker"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -274,7 +275,12 @@ export function StepWorkHistory() {
             <FormItem>
               <FormLabel>Start date (month/year)</FormLabel>
               <FormControl>
-                <Input type="month" {...field} value={field.value ?? ""} />
+                <MonthYearPicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Select month and year"
+                  aria-label="Start date (month and year)"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -288,11 +294,12 @@ export function StepWorkHistory() {
             <FormItem>
               <FormLabel>End date</FormLabel>
               <FormControl>
-                <Input
-                  type="month"
-                  {...field}
+                <MonthYearPicker
                   value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Select month and year"
                   disabled={!!mostRecentJobPresent}
+                  aria-label="End date (month and year)"
                 />
               </FormControl>
               <FormMessage />
@@ -1697,11 +1704,11 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input
-                            type="month"
-                            aria-label={`Job ${index + 1} start month`}
-                            {...f}
+                          <MonthYearPicker
                             value={f.value ?? ""}
+                            onChange={f.onChange}
+                            placeholder="Start"
+                            aria-label={`Job ${index + 1} start month and year`}
                           />
                         </FormControl>
                       </FormItem>
@@ -1714,12 +1721,12 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input
-                            type="month"
-                            aria-label={`Job ${index + 1} end month`}
-                            {...f}
+                          <MonthYearPicker
                             value={f.value ?? ""}
+                            onChange={f.onChange}
+                            placeholder="End"
                             disabled={!!jobPresent}
+                            aria-label={`Job ${index + 1} end month and year`}
                           />
                         </FormControl>
                       </FormItem>

@@ -1,30 +1,43 @@
 "use client"
 
-import { format } from "date-fns"
+import { format, parse } from "date-fns"
 import { CalendarIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
 
-type DatePickerProps = {
+type MonthYearPickerProps = {
   value: string
   onChange: (value: string) => void
   placeholder?: string
+  disabled?: boolean
   className?: string
+  "aria-label"?: string
 }
 
 const DEFAULT_START_MONTH = new Date(1900, 0)
 const DEFAULT_END_MONTH = new Date(2100, 11)
 
-export function DatePicker({
+function parseMonthValue(value: string): Date | undefined {
+  if (!value || value.length < 7) return undefined
+  try {
+    const d = parse(value, "yyyy-MM", new Date())
+    return Number.isNaN(d.getTime()) ? undefined : d
+  } catch {
+    return undefined
+  }
+}
+
+export function MonthYearPicker({
   value,
   onChange,
-  placeholder = "Select date",
+  placeholder = "Month and year",
+  disabled = false,
   className,
-}: DatePickerProps) {
-  const selectedDate = value ? new Date(`${value}T00:00:00`) : undefined
-  const isValidDate = selectedDate && !Number.isNaN(selectedDate.getTime())
+  "aria-label": ariaLabel,
+}: MonthYearPickerProps) {
+  const selectedDate = parseMonthValue(value)
 
   return (
     <Popover>
@@ -32,9 +45,11 @@ export function DatePicker({
         <Button
           type="button"
           variant="outline"
+          disabled={disabled}
+          aria-label={ariaLabel}
           className={cn("w-full justify-between font-normal", className)}
         >
-          {isValidDate ? format(selectedDate, "PPP") : placeholder}
+          {selectedDate ? format(selectedDate, "MMM yyyy") : placeholder}
           <CalendarIcon className="size-4 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -44,9 +59,9 @@ export function DatePicker({
           captionLayout="dropdown"
           startMonth={DEFAULT_START_MONTH}
           endMonth={DEFAULT_END_MONTH}
-          selected={isValidDate ? selectedDate : undefined}
-          defaultMonth={isValidDate ? selectedDate : new Date()}
-          onSelect={(date) => onChange(date ? format(date, "yyyy-MM-dd") : "")}
+          selected={selectedDate}
+          defaultMonth={selectedDate ?? new Date()}
+          onSelect={(date) => onChange(date ? format(date, "yyyy-MM") : "")}
         />
       </PopoverContent>
     </Popover>
