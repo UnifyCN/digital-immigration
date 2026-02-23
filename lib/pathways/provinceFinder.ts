@@ -76,7 +76,6 @@ export type ProvinceFinderAnswers = {
 
 export type ProvinceFinderDraftAnswers = Partial<Omit<ProvinceFinderAnswers, "hourlyWage">> & {
   hourlyWage: number | null
-  ee_crs_score: number | null
 }
 
 export type ProvinceRecommendation = {
@@ -582,6 +581,16 @@ export function topProvinceRecommendations(
   count = 3,
 ): ProvinceRecommendation[] {
   return computeProvinceRecommendations(answers).slice(0, Math.max(1, count))
+}
+
+export function recommendationForProvince(
+  answers: ProvinceFinderAnswers,
+  provinceCode: ProvinceCode,
+): ProvinceRecommendation | null {
+  const matched = computeProvinceRecommendations(answers).find(
+    (recommendation) => recommendation.provinceCode === provinceCode,
+  )
+  return matched ?? null
 }
 
 export function formatProvinceShortlistSummary(recommendations: ProvinceRecommendation[]): string {

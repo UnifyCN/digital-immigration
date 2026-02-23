@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -25,18 +26,24 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import {
-  computeProvinceRecommendations,
   getProvinceFinderRequiredRadioKeys,
   isCompleteProvinceFinderAnswers,
+  recommendationForProvince,
   validateProvinceFinderSupplementalAnswers,
   type ProvinceFinderAnswers,
   type ProvinceFinderDraftAnswers,
 } from "@/lib/pathways/provinceFinder"
 import {
-  loadProvinceFinderDraft,
-  saveProvinceFinderDraft,
+  loadPNPProvinceFinderAnswers,
+  savePNPProvinceFinderResult,
   saveProvinceFinderRecommendations,
+  savePNPProvinceFinderAnswers,
 } from "@/lib/pathways/provinceFinderStorage"
+import { buildPNPSignals } from "@/lib/pathways/pnpSignals"
+import { buildPNPProvinceFinderSignals, mergeSignals, resolveMVPProvince } from "@/lib/pathways/pnpProvinceScope"
+import { evaluatePNPProvince } from "@/lib/pathways/pnpProvinceEvaluator"
+import { buildBCProvinceFinderResult } from "@/lib/pathways/pnpBcFamilyEvaluator"
+import { PNP_PROVINCE_LABELS } from "@/lib/config/pnpScope"
 import { loadAssessment } from "@/lib/storage"
 
 type RadioQuestionKey = Exclude<keyof ProvinceFinderAnswers, "hourlyWage">
@@ -271,9 +278,15 @@ function asDraftValue(
 
 export function ProvinceFinderQuestionnaire() {
   const router = useRouter()
-  const [answers, setAnswers] = useState<ProvinceFinderDraftAnswers>(() => loadProvinceFinderDraft())
+  const [answers, setAnswers] = useState<ProvinceFinderDraftAnswers>(() => loadPNPProvinceFinderAnswers())
   const [errors, setErrors] = useState<string[]>([])
   const assessment = useMemo(() => loadAssessment(), [])
+  const { signals: mainSignals, meta } = useMemo(() => buildPNPSignals(assessment ?? {}), [assessment])
+  const finderSignals = useMemo(() => buildPNPProvinceFinderSignals(answers), [answers])
+  const mvpResolution = useMemo(
+    () => resolveMVPProvince({ mainSignals, finderSignals }),
+    [finderSignals, mainSignals],
+  )
   const hasJobOffer = assessment?.hasCanadianJobOffer === "yes"
   const currentlyWorkingInCanada = assessment?.currentlyWorkingInCanada === "yes"
   const outsideCanada = assessment?.currentLocation === "outside-canada"
@@ -326,12 +339,12 @@ export function ProvinceFinderQuestionnaire() {
     }
     if (answers.ee_profile_active !== "yes") {
       if (answers.ee_crs_known) updateAnswer("ee_crs_known", undefined)
-      if (answers.ee_crs_score !== null) updateAnswer("ee_crs_score", null)
+      if (answers.ee_crs_score != null) updateAnswer("ee_crs_score", null)
       if (answers.ee_crs_range) updateAnswer("ee_crs_range", undefined)
     } else if (answers.ee_crs_known === "yes") {
       if (answers.ee_crs_range) updateAnswer("ee_crs_range", undefined)
     } else if (answers.ee_crs_known === "no") {
-      if (answers.ee_crs_score !== null) updateAnswer("ee_crs_score", null)
+      if (answers.ee_crs_score != null) updateAnswer("ee_crs_score", null)
     }
     if (!showEmployerEligibilityDetails) {
       if (answers.employer_operation_years_in_province) updateAnswer("employer_operation_years_in_province", undefined)
@@ -370,7 +383,7 @@ export function ProvinceFinderQuestionnaire() {
       [key]: value,
     }
     setAnswers(updated)
-    saveProvinceFinderDraft(updated)
+    savePNPProvinceFinderAnswers(updated)
   }
 
   function onContinue() {
@@ -399,8 +412,39 @@ export function ProvinceFinderQuestionnaire() {
     if (newErrors.length > 0) return
     if (!isCompleteProvinceFinderAnswers(answers)) return
 
-    const recommendations = computeProvinceRecommendations(answers)
-    saveProvinceFinderRecommendations(recommendations, answers)
+    const currentFinderSignals = buildPNPProvinceFinderSignals(answers)
+    const combinedSignals = mergeSignals(mainSignals, currentFinderSignals)
+    const currentMVPResolution = resolveMVPProvince({
+      mainSignals,
+      finderSignals: currentFinderSignals,
+    })
+    const provinceCode = currentMVPResolution.provinceCode
+    const evaluation = evaluatePNPProvince({
+      provinceCode,
+      combinedSignals,
+    })
+    if (!evaluation.supported) {
+      setErrors([
+        "MVP: Province refinement is currently available for British Columbia only.",
+      ])
+      return
+    }
+
+    const bcRecommendation = recommendationForProvince(answers, provinceCode)
+    if (!bcRecommendation) {
+      setErrors([
+        "We couldn't build a British Columbia refinement result yet. Please try again.",
+      ])
+      return
+    }
+
+    const familyResult = buildBCProvinceFinderResult({
+      combinedSignals,
+      meta,
+    })
+
+    saveProvinceFinderRecommendations([bcRecommendation], answers, currentMVPResolution)
+    savePNPProvinceFinderResult(familyResult)
     router.push(FINDER_RESULTS_PATH)
   }
 
@@ -439,6 +483,20 @@ export function ProvinceFinderQuestionnaire() {
           <p className="text-sm text-muted-foreground">
             Answer a few questions to see which provinces may align with your profile.
           </p>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="secondary">
+              MVP: {PNP_PROVINCE_LABELS.BC} only (more provinces coming)
+            </Badge>
+          </div>
+          {mvpResolution.mvpProvinceNotice ? (
+            <p className="text-xs text-amber-700">
+              MVP: Province refinement is currently available for British Columbia only.
+              {mvpResolution.requestedProvinceInput
+                ? ` You selected ${mvpResolution.requestedProvinceInput}.`
+                : ""}{" "}
+              You can still explore BC pathways.
+            </p>
+          ) : null}
           <p className="text-xs text-muted-foreground">Progress: {progressText}</p>
         </CardHeader>
       </Card>

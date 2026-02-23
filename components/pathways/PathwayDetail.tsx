@@ -12,16 +12,17 @@ import { computeResults } from "@/lib/scoring"
 import { buildPnpBrief } from "@/lib/pathways/pnpContent"
 import { buildExpressEntryBrief } from "@/lib/pathways/expressEntryContent"
 import {
-  computeProvinceRecommendations,
   demoProvinceFinderAnswers,
   formatProvinceShortlistSummary,
+  recommendationForProvince,
   type ProvinceRecommendation,
 } from "@/lib/pathways/provinceFinder"
 import {
   loadProvinceFinderRecommendations,
-  saveProvinceFinderDraft,
+  savePNPProvinceFinderAnswers,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
+import { PNP_MVP_DEFAULT_PROVINCE } from "@/lib/config/pnpScope"
 import type { ChecklistStatus } from "@/lib/pathways/types"
 import type { AssessmentData, ConfidenceLevel, PathwayCard } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
@@ -555,9 +556,18 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
             size="sm"
             className="h-5 w-fit px-0 text-[11px] text-muted-foreground"
             onClick={() => {
-              const demoRecommendations = computeProvinceRecommendations(demoProvinceFinderAnswers)
-              saveProvinceFinderDraft(demoProvinceFinderAnswers)
-              saveProvinceFinderRecommendations(demoRecommendations, demoProvinceFinderAnswers)
+              const bcRecommendation = recommendationForProvince(
+                demoProvinceFinderAnswers,
+                PNP_MVP_DEFAULT_PROVINCE,
+              )
+              const demoRecommendations = bcRecommendation ? [bcRecommendation] : []
+              savePNPProvinceFinderAnswers(demoProvinceFinderAnswers)
+              saveProvinceFinderRecommendations(demoRecommendations, demoProvinceFinderAnswers, {
+                provinceCode: PNP_MVP_DEFAULT_PROVINCE,
+                mvpProvinceNotice: false,
+                requestedProvinceCode: "BC",
+                requestedProvinceInput: "British Columbia",
+              })
               setProvinceShortlist(demoRecommendations.slice(0, 3))
               router.push("/assessment/results/pathways/pnp/province-finder/results")
             }}
