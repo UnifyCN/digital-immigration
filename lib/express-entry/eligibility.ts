@@ -19,6 +19,11 @@ import { derivePrimaryClb } from "./clb.ts"
 import { toMissingFieldRef, uniqueMissingFields } from "./missing-fields.ts"
 import type {
   ExpressEntryEligibilityResult,
+  ExpressEntryReason,
+  ExpressEntryReasonActionability,
+  ExpressEntryReasonCode,
+  ExpressEntryReasonKind,
+  ExpressEntryReasonProgram,
   MissingFieldRef,
   ProgramEligibilityResult,
   ProgramEligibilityStatus,
@@ -218,22 +223,46 @@ function clbMinimum(clb: { listening: number | null; reading: number | null; wri
   return Math.min(clb.listening as number, clb.reading as number, clb.writing as number, clb.speaking as number)
 }
 
-function programResult(status: ProgramEligibilityStatus, reasons: string[], missingKeys: string[]): ProgramEligibilityResult {
+function addReason(
+  reasonDetails: ExpressEntryReason[],
+  code: ExpressEntryReasonCode,
+  message: string,
+  program: ExpressEntryReasonProgram,
+  kind: ExpressEntryReasonKind,
+  actionability: ExpressEntryReasonActionability = "actionable",
+) {
+  reasonDetails.push({
+    code,
+    message,
+    program,
+    kind,
+    actionability,
+  })
+}
+
+function programResult(
+  status: ProgramEligibilityStatus,
+  reasonDetails: ExpressEntryReason[],
+  missingKeys: string[],
+): ProgramEligibilityResult {
+  const reasons = Array.from(new Set(reasonDetails.map((reason) => reason.message)))
   return {
     status,
     reasons,
+    reasonDetails,
     missingFields: uniqueMissingFields(missingKeys),
   }
 }
 
 function checkLanguageForProfile(profile: AssessmentData, minimumByAbility: { listening: number; reading: number; writing: number; speaking: number }, asOfDate: Date): {
   ok: boolean
-  reasons: string[]
+  reasonDetails: ExpressEntryReason[]
   missingKeys: string[]
   minClb: number
+  reasonCode?: ExpressEntryReasonCode
 } {
   const clbResult = derivePrimaryClb(profile, asOfDate)
-  const reasons: string[] = []
+  const reasonDetails: ExpressEntryReason[] = []
   const missingKeys: string[] = []
 
   if (!clbResult.isValid) {
@@ -241,8 +270,20 @@ function checkLanguageForProfile(profile: AssessmentData, minimumByAbility: { li
     const isExpired = validityReason.toLowerCase().includes("expired")
     const isWrongStream = validityReason.toLowerCase().includes("stream")
     if (isExpired || isWrongStream) {
-      reasons.push(validityReason)
-      return { ok: false, reasons, missingKeys, minClb: 0 }
+      addReason(
+        reasonDetails,
+        isExpired ? "language_test_expired" : "language_wrong_stream",
+        validityReason,
+        "shared",
+        "fail",
+      )
+      return {
+        ok: false,
+        reasonDetails,
+        missingKeys,
+        minClb: 0,
+        reasonCode: isExpired ? "language_test_expired" : "language_wrong_stream",
+      }
     }
 
     const hasTestType = profile.languageTests?.[0]?.testType || profile.englishTestType
@@ -251,8 +292,8 @@ function checkLanguageForProfile(profile: AssessmentData, minimumByAbility: { li
     if (!hasDate) missingKeys.push("language.primary.date")
     if (!(profile.languageTests?.[0]?.stream || profile.englishTestType)) missingKeys.push("language.primary.stream")
     missingKeys.push("language.primary.scores")
-    reasons.push(validityReason)
-    return { ok: false, reasons, missingKeys, minClb: 0 }
+    addReason(reasonDetails, "language_missing_or_invalid", validityReason, "shared", "missing")
+    return { ok: false, reasonDetails, missingKeys, minClb: 0, reasonCode: "language_missing_or_invalid" }
   }
 
   const clb = clbResult.clb
@@ -267,24 +308,34 @@ function checkLanguageForProfile(profile: AssessmentData, minimumByAbility: { li
     writing < minimumByAbility.writing ||
     speaking < minimumByAbility.speaking
   ) {
-    reasons.push(
+    addReason(
+      reasonDetails,
+      "language_below_threshold",
       `Language results are below required thresholds (L${minimumByAbility.listening}/R${minimumByAbility.reading}/W${minimumByAbility.writing}/S${minimumByAbility.speaking}).`,
+      "shared",
+      "fail",
     )
-    return { ok: false, reasons, missingKeys, minClb: clbMinimum(clb) }
+    return { ok: false, reasonDetails, missingKeys, minClb: clbMinimum(clb), reasonCode: "language_below_threshold" }
   }
 
-  return { ok: true, reasons, missingKeys, minClb: clbMinimum(clb) }
+  return { ok: true, reasonDetails, missingKeys, minClb: clbMinimum(clb) }
 }
 
 export function checkCEC(profile: AssessmentData, asOfDate: Date = new Date()): ProgramEligibilityResult {
   const roles = getWorkRoles(profile)
-  const reasons: string[] = []
+  const reasonDetails: ExpressEntryReason[] = []
   const missingKeys: string[] = []
 
   if (!roles.length) {
     missingKeys.push("work.roles")
-    reasons.push("Detailed work role history is needed to assess CEC eligibility.")
-    return programResult("needs_more_info", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "work_history_missing",
+      "Detailed work role history is needed to assess CEC eligibility.",
+      "cec",
+      "missing",
+    )
+    return programResult("needs_more_info", reasonDetails, missingKeys)
   }
 
   for (const role of roles) {
@@ -298,8 +349,23 @@ export function checkCEC(profile: AssessmentData, asOfDate: Date = new Date()): 
   }
 
   if (missingKeys.length > 0) {
-    reasons.push("Some Canadian work role details are missing for CEC assessment.")
-    return programResult("needs_more_info", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "work_role_fields_missing",
+      "Some Canadian work role details are missing for CEC assessment.",
+      "cec",
+      "missing",
+    )
+    if (missingKeys.includes("work.roles.authorization")) {
+      addReason(
+        reasonDetails,
+        "work_role_authorization_missing",
+        "Canadian work authorization and student status details are incomplete.",
+        "cec",
+        "missing",
+      )
+    }
+    return programResult("needs_more_info", reasonDetails, missingKeys)
   }
 
   const qualifyingRoles = roles.filter((role) => {
@@ -314,8 +380,14 @@ export function checkCEC(profile: AssessmentData, asOfDate: Date = new Date()): 
   })
 
   if (!qualifyingRoles.length) {
-    reasons.push("No qualifying Canadian skilled work periods were identified for CEC.")
-    return programResult("ineligible", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "cec_no_qualifying_work",
+      "No qualifying Canadian skilled work periods were identified for CEC.",
+      "cec",
+      "fail",
+    )
+    return programResult("ineligible", reasonDetails, missingKeys)
   }
 
   const languageRequirement = qualifyingRoles.some((role) => role.teer === "0" || role.teer === "1")
@@ -323,11 +395,16 @@ export function checkCEC(profile: AssessmentData, asOfDate: Date = new Date()): 
     : { listening: 5, reading: 5, writing: 5, speaking: 5 }
 
   const language = checkLanguageForProfile(profile, languageRequirement, asOfDate)
-  reasons.push(...language.reasons)
+  reasonDetails.push(
+    ...language.reasonDetails.map((reason) => ({
+      ...reason,
+      program: reason.program === "shared" ? "cec" : reason.program,
+    })),
+  )
   missingKeys.push(...language.missingKeys)
   if (!language.ok) {
     const status: ProgramEligibilityStatus = language.missingKeys.length > 0 ? "needs_more_info" : "ineligible"
-    return programResult(status, reasons, missingKeys)
+    return programResult(status, reasonDetails, missingKeys)
   }
 
   const normalized = normalizeWorkHours(qualifyingRoles, {
@@ -336,12 +413,25 @@ export function checkCEC(profile: AssessmentData, asOfDate: Date = new Date()): 
   })
 
   if (normalized.totalHours < CEC_MIN_HOURS) {
-    reasons.push(`CEC requires at least ${CEC_MIN_HOURS} countable hours in the last 3 years.`)
-    return programResult("ineligible", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "cec_hours_below_minimum",
+      `CEC requires at least ${CEC_MIN_HOURS} countable hours in the last 3 years.`,
+      "cec",
+      "fail",
+    )
+    return programResult("ineligible", reasonDetails, missingKeys)
   }
 
-  reasons.push("Meets Canadian Experience Class work and language minimums.")
-  return programResult("eligible", reasons, missingKeys)
+  addReason(
+    reasonDetails,
+    "cec_passed",
+    "Meets Canadian Experience Class work and language minimums.",
+    "cec",
+    "pass",
+    "informational",
+  )
+  return programResult("eligible", reasonDetails, missingKeys)
 }
 
 export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): ProgramEligibilityResult & {
@@ -357,13 +447,19 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
   }
 } {
   const roles = getWorkRoles(profile)
-  const reasons: string[] = []
+  const reasonDetails: ExpressEntryReason[] = []
   const missingKeys: string[] = []
 
   if (!roles.length) {
     missingKeys.push("work.roles")
-    reasons.push("Detailed work role history is needed to assess FSW eligibility.")
-    return { ...programResult("needs_more_info", reasons, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
+    addReason(
+      reasonDetails,
+      "work_history_missing",
+      "Detailed work role history is needed to assess FSW eligibility.",
+      "fsw",
+      "missing",
+    )
+    return { ...programResult("needs_more_info", reasonDetails, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
   }
 
   for (const role of roles) {
@@ -378,7 +474,12 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
     { listening: 7, reading: 7, writing: 7, speaking: 7 },
     asOfDate,
   )
-  reasons.push(...language.reasons)
+  reasonDetails.push(
+    ...language.reasonDetails.map((reason) => ({
+      ...reason,
+      program: reason.program === "shared" ? "fsw" : reason.program,
+    })),
+  )
   missingKeys.push(...language.missingKeys)
 
   const educationLevel = bestEducationLevel(profile)
@@ -393,13 +494,25 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
     if (!hasValidForeignEca) {
       missingKeys.push("education.eca.issueDate")
       missingKeys.push("education.eca.equivalency")
-      reasons.push("Foreign education requires a valid ECA for FSW assessment.")
+      addReason(
+        reasonDetails,
+        "eca_missing_or_expired",
+        "Foreign education requires a valid ECA for FSW assessment.",
+        "fsw",
+        "missing",
+      )
     }
   } else if (!credentials.length && !isCanadaCountry(profile.educationCountry)) {
     if (profile.ecaValid !== "yes") {
       missingKeys.push("education.eca.issueDate")
       missingKeys.push("education.eca.equivalency")
-      reasons.push("Foreign education ECA details are missing.")
+      addReason(
+        reasonDetails,
+        "eca_missing_or_expired",
+        "Foreign education ECA details are missing.",
+        "fsw",
+        "missing",
+      )
     }
   }
 
@@ -411,22 +524,40 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
   const hasContinuousYear = hasContinuousCountableYear(normalizedSkilled)
 
   if (missingKeys.length > 0) {
-    reasons.push("Some required data for FSW assessment is missing.")
-    return { ...programResult("needs_more_info", reasons, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
+    addReason(
+      reasonDetails,
+      "fsw_required_data_missing",
+      "Some required data for FSW assessment is missing.",
+      "fsw",
+      "missing",
+    )
+    return { ...programResult("needs_more_info", reasonDetails, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
   }
 
   if (!language.ok) {
-    return { ...programResult("ineligible", reasons, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
+    return { ...programResult("ineligible", reasonDetails, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
   }
 
   if (!hasContinuousYear || normalizedSkilled.totalHours < FSW_MIN_HOURS) {
-    reasons.push("FSW requires at least one continuous year of skilled paid work in the last 10 years.")
-    return { ...programResult("ineligible", reasons, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
+    addReason(
+      reasonDetails,
+      "fsw_continuous_work_requirement_not_met",
+      "FSW requires at least one continuous year of skilled paid work in the last 10 years.",
+      "fsw",
+      "fail",
+    )
+    return { ...programResult("ineligible", reasonDetails, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
   }
 
   if (educationLevel === "none") {
-    reasons.push("FSW requires at least secondary education.")
-    return { ...programResult("ineligible", reasons, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
+    addReason(
+      reasonDetails,
+      "fsw_education_requirement_not_met",
+      "FSW requires at least secondary education.",
+      "fsw",
+      "fail",
+    )
+    return { ...programResult("ineligible", reasonDetails, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
   }
 
   if (!fundsExempt(profile)) {
@@ -437,14 +568,26 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
       if (profile.settlementFundsCad === null || profile.settlementFundsCad === undefined) {
         missingKeys.push("funds.available")
       } else {
-        reasons.push("Settlement funds appear insufficient or missing for FSW.")
+        addReason(
+          reasonDetails,
+          "fsw_funds_insufficient",
+          "Settlement funds appear insufficient or missing for FSW.",
+          "fsw",
+          "fail",
+        )
       }
     }
   }
 
   if (missingKeys.length > 0) {
-    reasons.push("Proof-of-funds details are incomplete for FSW.")
-    return { ...programResult("needs_more_info", reasons, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
+    addReason(
+      reasonDetails,
+      "fsw_funds_details_missing",
+      "Proof-of-funds details are incomplete for FSW.",
+      "fsw",
+      "missing",
+    )
+    return { ...programResult("needs_more_info", reasonDetails, missingKeys), fsw67PassThreshold: FSW_PASS_MARK }
   }
 
   const languagePoints = fswLanguagePoints(language.minClb)
@@ -473,9 +616,15 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
   adaptability = Math.min(10, adaptability)
 
   if (missingKeys.length > 0) {
-    reasons.push("Spouse details are required to finalize FSW adaptability points.")
+    addReason(
+      reasonDetails,
+      "fsw_spouse_details_missing",
+      "Spouse details are required to finalize FSW adaptability points.",
+      "fsw",
+      "missing",
+    )
     return {
-      ...programResult("needs_more_info", reasons, missingKeys),
+      ...programResult("needs_more_info", reasonDetails, missingKeys),
       fsw67PassThreshold: FSW_PASS_MARK,
       fsw67Breakdown: {
         language: languagePoints,
@@ -490,9 +639,15 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
 
   const score = languagePoints + educationPoints + experiencePoints + agePoints + arrangedEmployment + adaptability
   if (score < FSW_PASS_MARK) {
-    reasons.push(`FSW 67-point grid score is ${score}, below the pass mark of ${FSW_PASS_MARK}.`)
+    addReason(
+      reasonDetails,
+      "fsw_grid_below_pass_mark",
+      `FSW 67-point grid score is ${score}, below the pass mark of ${FSW_PASS_MARK}.`,
+      "fsw",
+      "fail",
+    )
     return {
-      ...programResult("ineligible", reasons, missingKeys),
+      ...programResult("ineligible", reasonDetails, missingKeys),
       fsw67Score: score,
       fsw67PassThreshold: FSW_PASS_MARK,
       fsw67Breakdown: {
@@ -506,9 +661,16 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
     }
   }
 
-  reasons.push(`Meets FSW minimum criteria and 67-point grid (${score}/${FSW_PASS_MARK}).`)
+  addReason(
+    reasonDetails,
+    "fsw_passed",
+    `Meets FSW minimum criteria and 67-point grid (${score}/${FSW_PASS_MARK}).`,
+    "fsw",
+    "pass",
+    "informational",
+  )
   return {
-    ...programResult("eligible", reasons, missingKeys),
+    ...programResult("eligible", reasonDetails, missingKeys),
     fsw67Score: score,
     fsw67PassThreshold: FSW_PASS_MARK,
     fsw67Breakdown: {
@@ -524,13 +686,19 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
 
 export function checkFST(profile: AssessmentData, asOfDate: Date = new Date()): ProgramEligibilityResult {
   const roles = getWorkRoles(profile)
-  const reasons: string[] = []
+  const reasonDetails: ExpressEntryReason[] = []
   const missingKeys: string[] = []
 
   if (!roles.length) {
     missingKeys.push("work.roles")
-    reasons.push("Detailed work role history is needed to assess FST eligibility.")
-    return programResult("needs_more_info", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "work_history_missing",
+      "Detailed work role history is needed to assess FST eligibility.",
+      "fst",
+      "missing",
+    )
+    return programResult("needs_more_info", reasonDetails, missingKeys)
   }
 
   for (const role of roles) {
@@ -543,13 +711,25 @@ export function checkFST(profile: AssessmentData, asOfDate: Date = new Date()): 
 
   if (!skilledTradeRoles.length) {
     if (profile.isSkilledTrade === "yes") {
-      reasons.push("Skilled trade roles are not fully mapped yet.")
+      addReason(
+        reasonDetails,
+        "fst_required_data_missing",
+        "Skilled trade roles are not fully mapped yet.",
+        "fst",
+        "missing",
+      )
       missingKeys.push("work.roles")
-      return programResult("needs_more_info", reasons, missingKeys)
+      return programResult("needs_more_info", reasonDetails, missingKeys)
     }
 
-    reasons.push("No eligible skilled trade work periods identified for FST.")
-    return programResult("ineligible", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "fst_no_skilled_trade_work",
+      "No eligible skilled trade work periods identified for FST.",
+      "fst",
+      "fail",
+    )
+    return programResult("ineligible", reasonDetails, missingKeys)
   }
 
   const language = checkLanguageForProfile(
@@ -557,11 +737,16 @@ export function checkFST(profile: AssessmentData, asOfDate: Date = new Date()): 
     { listening: 5, reading: 4, writing: 4, speaking: 5 },
     asOfDate,
   )
-  reasons.push(...language.reasons)
+  reasonDetails.push(
+    ...language.reasonDetails.map((reason) => ({
+      ...reason,
+      program: reason.program === "shared" ? "fst" : reason.program,
+    })),
+  )
   missingKeys.push(...language.missingKeys)
   if (!language.ok) {
     const status: ProgramEligibilityStatus = language.missingKeys.length > 0 ? "needs_more_info" : "ineligible"
-    return programResult(status, reasons, missingKeys)
+    return programResult(status, reasonDetails, missingKeys)
   }
 
   const normalized = normalizeWorkHours(skilledTradeRoles, {
@@ -570,8 +755,14 @@ export function checkFST(profile: AssessmentData, asOfDate: Date = new Date()): 
   })
 
   if (normalized.totalHours < FST_MIN_HOURS) {
-    reasons.push(`FST requires ${FST_MIN_HOURS} countable skilled-trade hours in the last 5 years.`)
-    return programResult("ineligible", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "fst_hours_below_minimum",
+      `FST requires ${FST_MIN_HOURS} countable skilled-trade hours in the last 5 years.`,
+      "fst",
+      "fail",
+    )
+    return programResult("ineligible", reasonDetails, missingKeys)
   }
 
   const hasOffer = profile.jobOfferMeetsValidOfferDefinition === "yes"
@@ -579,19 +770,37 @@ export function checkFST(profile: AssessmentData, asOfDate: Date = new Date()): 
   if (!hasOffer && !hasCertificate) {
     if (profile.hasCanadianTradeCertificate === "" && profile.jobOfferMeetsValidOfferDefinition === "") {
       missingKeys.push("fst.offerOrCert")
-      reasons.push("FST needs either a valid job offer or Canadian certificate of qualification.")
-      return programResult("needs_more_info", reasons, missingKeys)
+      addReason(
+        reasonDetails,
+        "fst_offer_or_certificate_missing",
+        "FST needs either a valid job offer or Canadian certificate of qualification.",
+        "fst",
+        "missing",
+      )
+      return programResult("needs_more_info", reasonDetails, missingKeys)
     }
 
-    reasons.push("FST requires either a valid job offer or a Canadian certificate of qualification.")
-    return programResult("ineligible", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "fst_offer_or_certificate_missing",
+      "FST requires either a valid job offer or a Canadian certificate of qualification.",
+      "fst",
+      "fail",
+    )
+    return programResult("ineligible", reasonDetails, missingKeys)
   }
 
   if (hasOffer && profile.jobOfferMeetsValidOfferDefinition === "yes") {
     if (!profile.jobOfferSupportType || !profile.jobOfferNonSeasonal) {
       missingKeys.push("jobOffer.validity")
-      reasons.push("Additional job offer validity details are required.")
-      return programResult("needs_more_info", reasons, missingKeys)
+      addReason(
+        reasonDetails,
+        "fst_job_offer_validity_missing",
+        "Additional job offer validity details are required.",
+        "fst",
+        "missing",
+      )
+      return programResult("needs_more_info", reasonDetails, missingKeys)
     }
   }
 
@@ -605,12 +814,25 @@ export function checkFST(profile: AssessmentData, asOfDate: Date = new Date()): 
   }
 
   if (missingKeys.length > 0) {
-    reasons.push("Some required details are missing for FST assessment.")
-    return programResult("needs_more_info", reasons, missingKeys)
+    addReason(
+      reasonDetails,
+      "fst_required_data_missing",
+      "Some required details are missing for FST assessment.",
+      "fst",
+      "missing",
+    )
+    return programResult("needs_more_info", reasonDetails, missingKeys)
   }
 
-  reasons.push("Meets Federal Skilled Trades minimum requirements.")
-  return programResult("eligible", reasons, missingKeys)
+  addReason(
+    reasonDetails,
+    "fst_passed",
+    "Meets Federal Skilled Trades minimum requirements.",
+    "fst",
+    "pass",
+    "informational",
+  )
+  return programResult("eligible", reasonDetails, missingKeys)
 }
 
 function mergeReasons(
