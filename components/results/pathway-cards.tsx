@@ -53,17 +53,32 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
                     {pathway.name}
                   </CardTitle>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn(
-                    "shrink-0 text-[10px] font-medium",
-                    confidenceColors[pathway.confidence]
-                  )}
-                >
-                  {pathway.confidence}
-                </Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "shrink-0 text-[10px] font-medium",
+                      confidenceColors[pathway.confidence]
+                    )}
+                  >
+                    {pathway.confidence}
+                  </Badge>
+                  {pathway.statusTag ? (
+                    <Badge
+                      variant={pathway.statusTag === "Eligible" ? "default" : "secondary"}
+                      className="text-[10px]"
+                    >
+                      {pathway.statusTag}
+                    </Badge>
+                  ) : null}
+                </div>
               </CardHeader>
               <CardContent className="flex min-h-0 flex-1 flex-col gap-3 pt-0">
+                {pathway.statusNote ? (
+                  <p className="rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                    {pathway.statusNote}
+                  </p>
+                ) : null}
                 <div>
                   <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground mb-1.5">
                     Why it appears relevant

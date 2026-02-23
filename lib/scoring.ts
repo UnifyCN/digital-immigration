@@ -6,8 +6,10 @@ import type {
   RiskFlag,
   TierResult,
 } from "./types"
-import { recommendNextSteps } from "./next-steps"
+import { recommendNextSteps } from "./next-steps.ts"
 import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
+import { computeExpressEntryEligibility } from "./express-entry/eligibility.ts"
+import type { ExpressEntryEligibilityResult } from "./express-entry/types.ts"
 
 // ── Tier Classification ──
 
@@ -128,39 +130,51 @@ function getConfidence(data: AssessmentData): ConfidenceLevel {
   return "Low"
 }
 
-export function computePathways(data: AssessmentData): PathwayCard[] {
+export function computePathways(
+  data: AssessmentData,
+  expressEntryEligibility?: ExpressEntryEligibilityResult,
+): PathwayCard[] {
   const pathways: PathwayCard[] = []
   const confidence = getConfidence(data)
   const isInsideCanada = data.currentLocation === "inside-canada"
   const goal = data.primaryGoal
 
-  const derivedCanadianYearsBand = data.derivedCanadianSkilledYearsBand || deriveCanadianSkilledYearsBand(data)
-  const hasSkilledWorkExperience =
-    (derivedCanadianYearsBand !== "" && derivedCanadianYearsBand !== "0") ||
-    Boolean(data.foreignSkilledYears && data.foreignSkilledYears !== "0")
-
   // Express Entry (Federal Skilled Worker / CEC / FST)
   if (goal === "pr" || goal === "not-sure") {
-    const whyRelevant: string[] = []
-    const whatNext: string[] = []
+    const eeEligibility = expressEntryEligibility ?? computeExpressEntryEligibility(data)
+    if (eeEligibility.overallStatus !== "ineligible") {
+      const missingActions = eeEligibility.missingFields
+        .slice(0, 2)
+        .map((field) => `Complete: ${field.label}`)
 
-    if (hasSkilledWorkExperience) {
-      whyRelevant.push("Skilled work experience indicated")
+      pathways.push({
+        id: "express-entry",
+        name: "Express Entry",
+        whyRelevant:
+          eeEligibility.overallStatus === "eligible"
+            ? [
+                "At least one federal Express Entry program is currently eligible.",
+                "Permanent residence is your stated goal.",
+              ]
+            : [
+                "Permanent residence is your stated goal.",
+                "More details are needed before eligibility can be finalized.",
+              ],
+        whatNext:
+          eeEligibility.overallStatus === "eligible"
+            ? ["Review your program-level results in Express Entry details", "Keep language/ECA/work documents current"]
+            : missingActions.length > 0
+              ? missingActions
+              : ["Complete missing profile details", "Recheck Express Entry eligibility"],
+        confidence,
+        statusTag: eeEligibility.overallStatus === "eligible" ? "Eligible" : "Needs info",
+        statusNote:
+          eeEligibility.overallStatus === "eligible"
+            ? "You currently qualify for at least one Express Entry program."
+            : `Eligibility is pending missing details (${eeEligibility.missingFields.length} fields).`,
+        eligibilityStatus: eeEligibility.overallStatus,
+      })
     }
-    if (data.educationLevel && !["none", "high-school"].includes(data.educationLevel)) {
-      whyRelevant.push("Post-secondary education reported")
-    }
-    whyRelevant.push("PR is a stated goal")
-    whatNext.push("Confirm language test scores (CLB 7+ typically needed)")
-    whatNext.push("Verify education credential assessment (ECA)")
-
-    pathways.push({
-      id: "express-entry",
-      name: "Express Entry",
-      whyRelevant: whyRelevant.slice(0, 2),
-      whatNext: whatNext.slice(0, 2),
-      confidence,
-    })
   }
 
   // PNP
@@ -373,10 +387,11 @@ export function computeNextActions(tier: TierResult, flags: RiskFlag[]): string[
 
 export function computeResults(data: AssessmentData): AssessmentResults {
   const tier = computeTier(data)
-  const pathways = computePathways(data)
+  const expressEntryEligibility = computeExpressEntryEligibility(data)
+  const pathways = computePathways(data, expressEntryEligibility)
   const riskFlags = computeRiskFlags(data)
   const nextSteps = recommendNextSteps(data, pathways, riskFlags)
   const nextActions = nextSteps.slice(0, 3).map((step) => step.title)
 
-  return { tier, pathways, riskFlags, nextSteps, nextActions }
+  return { tier, pathways, riskFlags, nextSteps, nextActions, expressEntryEligibility }
 }

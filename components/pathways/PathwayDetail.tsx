@@ -22,6 +22,7 @@ import {
   saveProvinceFinderDraft,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
+import type { ExpressEntryEligibilityResult } from "@/lib/express-entry/types"
 import type { ChecklistStatus } from "@/lib/pathways/types"
 import type { AssessmentData, ConfidenceLevel } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
@@ -275,6 +276,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [confidence, setConfidence] = useState<ConfidenceLevel>("High")
   const [provinceShortlist, setProvinceShortlist] = useState<ProvinceRecommendation[]>([])
+  const [expressEntryEligibility, setExpressEntryEligibility] = useState<ExpressEntryEligibilityResult | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
@@ -288,10 +290,13 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
     setProvinceShortlist(loadProvinceFinderRecommendations().slice(0, 3))
 
     try {
-      const pathwayConfidence = computeResults(data).pathways.find((pathway) => pathway.id === slug)?.confidence
+      const computed = computeResults(data)
+      const pathwayConfidence = computed.pathways.find((pathway) => pathway.id === slug)?.confidence
       setConfidence(formatConfidence(pathwayConfidence))
+      setExpressEntryEligibility(computed.expressEntryEligibility)
     } catch {
       setConfidence("High")
+      setExpressEntryEligibility(null)
     } finally {
       setIsLoaded(true)
     }
@@ -307,8 +312,8 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
 
   const expressEntryBrief = useMemo(() => {
     if (!assessment || !isExpressEntry) return null
-    return buildExpressEntryBrief(assessment)
-  }, [assessment, isExpressEntry])
+    return buildExpressEntryBrief(assessment, expressEntryEligibility ?? undefined)
+  }, [assessment, expressEntryEligibility, isExpressEntry])
 
   if (!isLoaded) {
     return (
