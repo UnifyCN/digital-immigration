@@ -11,6 +11,17 @@ import { loadAssessment } from "@/lib/storage"
 import { computeResults } from "@/lib/scoring"
 import { buildPnpBrief } from "@/lib/pathways/pnpContent"
 import { buildExpressEntryBrief } from "@/lib/pathways/expressEntryContent"
+import {
+  computeProvinceRecommendations,
+  demoProvinceFinderAnswers,
+  formatProvinceShortlistSummary,
+  type ProvinceRecommendation,
+} from "@/lib/pathways/provinceFinder"
+import {
+  loadProvinceFinderRecommendations,
+  saveProvinceFinderDraft,
+  saveProvinceFinderRecommendations,
+} from "@/lib/pathways/provinceFinderStorage"
 import type { ChecklistStatus } from "@/lib/pathways/types"
 import type { AssessmentData, ConfidenceLevel } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
@@ -49,6 +60,7 @@ type PathwayBriefLayoutProps = {
   openQuestionsHref: string
   refinePlanLabel: string
   pathwaySpecificSection: ReactNode
+  nextActionsPrimary?: ReactNode
 }
 
 const statusMeta: Record<ChecklistStatus, { label: string; className: string }> = {
@@ -83,6 +95,7 @@ function PathwayBriefLayout({
   openQuestionsHref,
   refinePlanLabel,
   pathwaySpecificSection,
+  nextActionsPrimary,
 }: PathwayBriefLayoutProps) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -229,9 +242,11 @@ function PathwayBriefLayout({
             <CardTitle className="text-base">10) Next actions</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <Button asChild>
-              <Link href="/assessment/results">{refinePlanLabel}</Link>
-            </Button>
+            {nextActionsPrimary ?? (
+              <Button asChild>
+                <Link href="/assessment/results">{refinePlanLabel}</Link>
+              </Button>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" asChild>
                 <Link href="/assessment/results#review-answers">View my answers</Link>
@@ -259,6 +274,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [confidence, setConfidence] = useState<ConfidenceLevel>("High")
+  const [provinceShortlist, setProvinceShortlist] = useState<ProvinceRecommendation[]>([])
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
@@ -269,6 +285,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
     }
 
     setAssessment(data)
+    setProvinceShortlist(loadProvinceFinderRecommendations().slice(0, 3))
 
     try {
       const pathwayConfidence = computeResults(data).pathways.find((pathway) => pathway.id === slug)?.confidence
@@ -393,6 +410,45 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
       onBack={() => router.push("/assessment/results")}
       openQuestionsHref="/assessment"
       refinePlanLabel="Refine my PNP plan"
+      nextActionsPrimary={
+        <div className="space-y-2">
+          <Button asChild>
+            <Link href="/assessment/results/pathways/pnp/province-finder">
+              See which provinces align with you
+            </Link>
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Answer a few questions to shortlist provinces to explore for PNP.
+          </p>
+          <Button
+            type="button"
+            variant="link"
+            size="sm"
+            className="h-5 w-fit px-0 text-[11px] text-muted-foreground"
+            onClick={() => {
+              const demoRecommendations = computeProvinceRecommendations(demoProvinceFinderAnswers)
+              saveProvinceFinderDraft(demoProvinceFinderAnswers)
+              saveProvinceFinderRecommendations(demoRecommendations, demoProvinceFinderAnswers)
+              setProvinceShortlist(demoRecommendations.slice(0, 3))
+              router.push("/assessment/results/pathways/pnp/province-finder/results")
+            }}
+          >
+            Use demo answers
+          </Button>
+          {provinceShortlist.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="secondary">
+                Province shortlist saved: {formatProvinceShortlistSummary(provinceShortlist)}
+              </Badge>
+              <Button variant="link" className="h-auto p-0 text-xs" asChild>
+                <Link href="/assessment/results/pathways/pnp/province-finder/results">
+                  View province shortlist
+                </Link>
+              </Button>
+            </div>
+          ) : null}
+        </div>
+      }
       pathwaySpecificSection={
         <Card>
           <CardHeader>
