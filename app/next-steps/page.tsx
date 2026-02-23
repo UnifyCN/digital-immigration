@@ -6,7 +6,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { Checklist, type ChecklistItem } from "@/components/next-steps/checklist"
-import { loadSelectedPathway, hasImm5669Draft, type SelectedPathway } from "@/lib/imm5669/storage"
+import { loadSelectedPathway, hasImm5669Draft, loadImm5669Status, type SelectedPathway } from "@/lib/imm5669/storage"
 
 export default function NextStepsPage() {
   const router = useRouter()
@@ -44,6 +44,13 @@ export default function NextStepsPage() {
   }
 
   const hasDraft = hasImm5669Draft()
+  const docStatus = loadImm5669Status()
+
+  function getImm5669Status(): "not-started" | "in-progress" | "completed" {
+    if (docStatus === "generated") return "completed"
+    if (hasDraft) return "in-progress"
+    return "not-started"
+  }
 
   const items: ChecklistItem[] = [
     {
@@ -53,7 +60,7 @@ export default function NextStepsPage() {
         "Fill out the official background and declaration form required for your application. " +
         "We will guide you through each section and generate a filled PDF for download.",
       href: "/documents/imm5669",
-      status: hasDraft ? "in-progress" : "not-started",
+      status: getImm5669Status(),
     },
   ]
 
