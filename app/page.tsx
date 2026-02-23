@@ -14,7 +14,6 @@ const rotatingMessages = [
   ["See exactly", "where you stand."]
 ]
 
-export default function LandingPage() {
 type LandingPageProps = {
   searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
   params?: Promise<{ [key: string]: string | undefined }>
