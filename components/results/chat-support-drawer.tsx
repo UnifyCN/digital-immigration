@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import { useIsMobile } from "@/hooks/use-mobile"
 import type { AssessmentResults, NextStepAiAssistContext } from "@/lib/types"
+import { getStoredJson, setStoredJson } from "@/lib/storage"
 
 // ── Types ──
 
@@ -47,26 +48,6 @@ const FOLLOW_UP_CHIPS = [
   "What should I do next?",
   "What documents are needed?",
 ]
-
-// ── localStorage helpers ──
-
-function storageGet<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? (JSON.parse(raw) as T) : fallback
-  } catch {
-    return fallback
-  }
-}
-
-function storageSet(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    /* quota exceeded or SSR */
-  }
-}
 
 // ── Context builders (unchanged core logic) ──
 
@@ -219,6 +200,8 @@ export function ChatSupportDrawer({
   const streamRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isOpenRef = useRef(false)
   const messagesRef = useRef<Message[]>(INITIAL_MESSAGES)
+  const resizeTeardownRef = useRef<(() => void) | null>(null)
+  const requestAbortRef = useRef<AbortController | null>(null)
 
   // Core state
   const [isOpen, setIsOpen] = useState(false)
@@ -256,6 +239,7 @@ export function ChatSupportDrawer({
 
   // Hydration flag
   const [hydrated, setHydrated] = useState(false)
+  const [isMac, setIsMac] = useState(false)
 
   // Keep refs in sync
   isOpenRef.current = isOpen
@@ -270,8 +254,8 @@ export function ChatSupportDrawer({
   // ── Hydration: load persisted state ──
 
   useEffect(() => {
-    const storedWidth = storageGet<number>(widthKey, DEFAULT_WIDTH)
-    const storedMessages = storageGet<Message[]>(chatKey, INITIAL_MESSAGES)
+    const storedWidth = getStoredJson<number>(widthKey, DEFAULT_WIDTH)
+    const storedMessages = getStoredJson<Message[]>(chatKey, INITIAL_MESSAGES)
 
     setWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, storedWidth)))
     if (Array.isArray(storedMessages) && storedMessages.length > 0) {
@@ -284,13 +268,24 @@ export function ChatSupportDrawer({
 
   useEffect(() => {
     if (!hydrated) return
-    storageSet(widthKey, width)
+    setStoredJson(widthKey, width)
   }, [width, widthKey, hydrated])
 
   useEffect(() => {
     if (!hydrated) return
-    storageSet(chatKey, messages)
+    setStoredJson(chatKey, messages)
   }, [messages, chatKey, hydrated])
+
+  // ── Platform hint detection ──
+
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const nav = window.navigator as Navigator & {
+      userAgentData?: { platform?: string }
+    }
+    const platform = nav.userAgentData?.platform ?? nav.platform ?? nav.userAgent
+    setIsMac(/mac|iphone|ipad|ipod/i.test(platform))
+  }, [])
 
   // ── Pill entrance animation ──
 
@@ -384,6 +379,10 @@ export function ChatSupportDrawer({
   useEffect(() => {
     return () => {
       if (streamRef.current) clearInterval(streamRef.current)
+      streamRef.current = null
+      resizeTeardownRef.current?.()
+      requestAbortRef.current?.abort()
+      requestAbortRef.current = null
     }
   }, [])
 
@@ -392,6 +391,7 @@ export function ChatSupportDrawer({
   function handleResizeStart(e: React.MouseEvent | React.TouchEvent) {
     if (isMobile) return
     e.preventDefault()
+    resizeTeardownRef.current?.()
     setIsResizing(true)
     const startX = "touches" in e ? e.touches[0].clientX : e.clientX
     const startWidth = width
@@ -402,23 +402,35 @@ export function ChatSupportDrawer({
       setWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, startWidth + delta)))
     }
 
-    function onEnd() {
-      setIsResizing(false)
+    const teardown = () => {
       document.removeEventListener("mousemove", onMove)
       document.removeEventListener("mouseup", onEnd)
       document.removeEventListener("touchmove", onMove)
       document.removeEventListener("touchend", onEnd)
+      setIsResizing(false)
+      if (resizeTeardownRef.current === teardown) {
+        resizeTeardownRef.current = null
+      }
+    }
+
+    function onEnd() {
+      teardown()
     }
 
     document.addEventListener("mousemove", onMove)
     document.addEventListener("mouseup", onEnd)
     document.addEventListener("touchmove", onMove)
     document.addEventListener("touchend", onEnd)
+    resizeTeardownRef.current = teardown
   }
 
   // ── Streaming simulation ──
 
   function startStreaming(fullText: string, msgsWithoutReply: Message[]) {
+    if (streamRef.current) {
+      clearInterval(streamRef.current)
+      streamRef.current = null
+    }
     let idx = 0
     setStreamingContent("")
 
@@ -451,6 +463,11 @@ export function ChatSupportDrawer({
       msgsToSend: Message[],
       assistContext: NextStepAiAssistContext | null = null,
     ) => {
+      if (requestAbortRef.current) {
+        requestAbortRef.current.abort()
+      }
+      const controller = new AbortController()
+      requestAbortRef.current = controller
       setIsLoading(true)
       setError(null)
       setLastSentMessages(msgsToSend)
@@ -460,6 +477,7 @@ export function ChatSupportDrawer({
         const res = await fetch("/api/ai/results-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             messages: msgsToSend,
             systemContext,
@@ -475,10 +493,18 @@ export function ChatSupportDrawer({
           return
         }
 
+        if (controller.signal.aborted) return
         startStreaming(data.message, msgsToSend)
-      } catch {
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return
+        }
         setError("Failed to reach AI service. Please try again.")
         setIsLoading(false)
+      } finally {
+        if (requestAbortRef.current === controller) {
+          requestAbortRef.current = null
+        }
       }
     },
     [systemContext], // eslint-disable-line react-hooks/exhaustive-deps
@@ -526,10 +552,8 @@ export function ChatSupportDrawer({
       sendMessages(updated)
       setQueuedQuestion(null)
       onQuestionConsumed?.()
+      return
     }
-  }, [isLoading, queuedQuestion]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
     if (!isLoading && queuedAssistContext) {
       setIsOpen(true)
       const userMsg: Message = {
@@ -542,7 +566,7 @@ export function ChatSupportDrawer({
       setQueuedAssistContext(null)
       onAssistContextConsumed?.()
     }
-  }, [isLoading, queuedAssistContext]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, queuedQuestion, queuedAssistContext]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── User actions ──
 
@@ -570,6 +594,8 @@ export function ChatSupportDrawer({
   }
 
   function handleClear() {
+    requestAbortRef.current?.abort()
+    requestAbortRef.current = null
     if (streamRef.current) {
       clearInterval(streamRef.current)
       streamRef.current = null
@@ -633,7 +659,7 @@ export function ChatSupportDrawer({
 
       {/* ── Subtle backdrop (desktop, non-blocking) ── */}
       <div
-        className="fixed inset-0 z-40 bg-black/[0.04] transition-opacity duration-300"
+        className="fixed inset-0 z-40 bg-foreground/5 transition-opacity duration-300 dark:bg-foreground/45"
         style={{
           opacity: isOpen && !isMobile ? 1 : 0,
           pointerEvents: "none",
@@ -644,7 +670,7 @@ export function ChatSupportDrawer({
       {/* ── Mobile backdrop (blocks interaction, closes drawer) ── */}
       {isOpen && isMobile && (
         <div
-          className="fixed inset-0 z-40 bg-black/20 transition-opacity duration-200"
+          className="fixed inset-0 z-40 bg-foreground/20 transition-opacity duration-200 dark:bg-foreground/60"
           onClick={() => setIsOpen(false)}
           aria-hidden="true"
         />
@@ -663,12 +689,12 @@ export function ChatSupportDrawer({
             ? "translate-x-0 opacity-100"
             : "pointer-events-none translate-x-full opacity-0",
           isResizing ? "duration-0" : "duration-300",
+          isOpen ? "shadow-[var(--shadow-soft)]" : "shadow-[var(--shadow-none)]",
         )}
         style={{
           width: isMobile ? "100%" : `${width}px`,
           transitionProperty: "transform, opacity",
           transitionTimingFunction: "cubic-bezier(0.32, 0.72, 0, 1)",
-          boxShadow: isOpen ? "-8px 0 30px -12px rgba(0,0,0,0.10)" : "none",
         }}
         inert={!isOpen}
       >
@@ -899,7 +925,9 @@ export function ChatSupportDrawer({
           </div>
           <div className="mt-1.5 flex items-center justify-between text-[10px] text-muted-foreground/50">
             <span>Shift+Enter for new line</span>
-            <span className="hidden sm:inline">⌘/ to toggle</span>
+            <span className="hidden sm:inline">
+              {isMac ? "⌘/ to toggle" : "Ctrl+/ to toggle"}
+            </span>
           </div>
         </div>
       </div>

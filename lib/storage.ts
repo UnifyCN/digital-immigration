@@ -266,6 +266,25 @@ export const demoAssessmentData: AssessmentData = {
   employerLetterUnwilling: "no",
 }
 
+export function getStoredJson<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback
+  try {
+    const raw = localStorage.getItem(key)
+    return raw ? (JSON.parse(raw) as T) : fallback
+  } catch {
+    return fallback
+  }
+}
+
+export function setStoredJson(key: string, value: unknown): void {
+  if (typeof window === "undefined") return
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch {
+    // Ignore storage quota and serialization errors.
+  }
+}
+
 export function saveAssessment(data: AssessmentData): void {
   if (typeof window === "undefined") return
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
