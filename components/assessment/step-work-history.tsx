@@ -20,6 +20,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
+import { MonthYearPicker } from "@/components/ui/month-year-picker"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Button } from "@/components/ui/button"
@@ -87,12 +88,32 @@ const jobOfferTenureOptions = [
   { value: "2-plus-years", label: "2+ years" },
 ]
 
+const teerOptions = [
+  { value: "0", label: "TEER 0" },
+  { value: "1", label: "TEER 1" },
+  { value: "2", label: "TEER 2" },
+  { value: "3", label: "TEER 3" },
+  { value: "4", label: "TEER 4" },
+  { value: "5", label: "TEER 5" },
+]
+
+const detailedEmploymentTypeOptions = [
+  { value: "employee", label: "Employee" },
+  { value: "self-employed", label: "Self-employed" },
+  { value: "contractor", label: "Contractor" },
+]
+
 const workHistoryRadioLabelClass =
   "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
 
 export function StepWorkHistory() {
   const { control, setValue, formState } = useFormContext<AssessmentData>()
   const { fields, append, remove } = useFieldArray({ control, name: "jobs" })
+  const {
+    fields: detailedWorkRoleFields,
+    append: appendDetailedWorkRole,
+    remove: removeDetailedWorkRole,
+  } = useFieldArray({ control, name: "workRoles" })
 
   const mostRecentJobPresent = useWatch({ control, name: "mostRecentJobPresent" })
   const canObtainEmployerLetter = useWatch({ control, name: "canObtainEmployerLetter" })
@@ -105,7 +126,9 @@ export function StepWorkHistory() {
   const hoursPerWeekRange = useWatch({ control, name: "hoursPerWeekRange" })
   const has12MonthsCanadaSkilled = useWatch({ control, name: "has12MonthsCanadaSkilled" })
   const jobDuties = useWatch({ control, name: "jobDuties" }) ?? ""
+  const hasCanadianTradeCertificate = useWatch({ control, name: "hasCanadianTradeCertificate" })
   const watchedJobs = useWatch({ control, name: "jobs" })
+  const watchedWorkRoles = useWatch({ control, name: "workRoles" })
   const jobDutiesCount = jobDuties.length
   const hasCanadianWorkEntries = hasAnyCanadianWorkEntry({
     countryOfWork,
@@ -151,6 +174,11 @@ export function StepWorkHistory() {
       setValue("jobOfferCompensationType", "", { shouldValidate: true })
       setValue("jobOfferTenure", "", { shouldValidate: true })
       setValue("employerWillSupportPNP", "", { shouldValidate: true })
+      setValue("jobOfferNonSeasonal", "", { shouldValidate: true })
+      setValue("jobOfferSupportType", "", { shouldValidate: true })
+      setValue("jobOfferSupportBasis", "", { shouldValidate: true })
+      setValue("jobOfferIntendedDurationMonths", null, { shouldValidate: true })
+      setValue("jobOfferMeetsValidOfferDefinition", "", { shouldValidate: true })
     }
   }, [hasCanadianJobOffer, setValue])
 
@@ -166,6 +194,14 @@ export function StepWorkHistory() {
       setValue("has12MonthsCanadaSkilled", "", { shouldValidate: true })
     }
   }, [hasCanadianWorkEntries, setValue])
+
+  useEffect(() => {
+    if (hasCanadianTradeCertificate !== "yes") {
+      setValue("tradeCertificateIssuingAuthority", "", { shouldValidate: true })
+      setValue("tradeCertificateTrade", "", { shouldValidate: true })
+      setValue("tradeCertificateIssueDate", "", { shouldValidate: true })
+    }
+  }, [hasCanadianTradeCertificate, setValue])
 
   useEffect(() => {
     setValue(
@@ -239,7 +275,12 @@ export function StepWorkHistory() {
             <FormItem>
               <FormLabel>Start date (month/year)</FormLabel>
               <FormControl>
-                <Input type="month" {...field} value={field.value ?? ""} />
+                <MonthYearPicker
+                  value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Select month and year"
+                  aria-label="Start date (month and year)"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -253,11 +294,12 @@ export function StepWorkHistory() {
             <FormItem>
               <FormLabel>End date</FormLabel>
               <FormControl>
-                <Input
-                  type="month"
-                  {...field}
+                <MonthYearPicker
                   value={field.value ?? ""}
+                  onChange={field.onChange}
+                  placeholder="Select month and year"
                   disabled={!!mostRecentJobPresent}
+                  aria-label="End date (month and year)"
                 />
               </FormControl>
               <FormMessage />
@@ -753,6 +795,134 @@ export function StepWorkHistory() {
         />
       )}
 
+      {hasCanadianJobOffer === "yes" && (
+        <FormField
+          control={control}
+          name="jobOfferNonSeasonal"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Is this offer non-seasonal?</FormLabel>
+              <FormControl>
+                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                  {[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                    { value: "not-sure", label: "Not sure" },
+                  ].map((option) => (
+                    <Label
+                      key={option.value}
+                      htmlFor={`job-offer-non-seasonal-${option.value}`}
+                      className={workHistoryRadioLabelClass}
+                    >
+                      <RadioGroupItem value={option.value} id={`job-offer-non-seasonal-${option.value}`} />
+                      <span className="text-foreground">{option.label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {hasCanadianJobOffer === "yes" && (
+        <FormField
+          control={control}
+          name="jobOfferSupportType"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>How is this offer supported?</FormLabel>
+              <Select onValueChange={field.onChange} value={field.value}>
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select support type" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="lmia">LMIA-supported</SelectItem>
+                  <SelectItem value="lmia-exempt">LMIA-exempt basis</SelectItem>
+                  <SelectItem value="unknown">Not sure</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {hasCanadianJobOffer === "yes" && (
+        <FormField
+          control={control}
+          name="jobOfferSupportBasis"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>LMIA number or exemption basis</FormLabel>
+              <FormControl>
+                <Input placeholder="e.g. LMIA #, C12 exemption, intra-company transfer" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {hasCanadianJobOffer === "yes" && (
+        <FormField
+          control={control}
+          name="jobOfferIntendedDurationMonths"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Intended duration (months)</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min="1"
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(event) => {
+                    const next = event.target.value.trim()
+                    field.onChange(next ? Number.parseInt(next, 10) : null)
+                  }}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
+      {hasCanadianJobOffer === "yes" && (
+        <FormField
+          control={control}
+          name="jobOfferMeetsValidOfferDefinition"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Based on your details, does this meet a valid offer definition for EE?</FormLabel>
+              <FormControl>
+                <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                  {[
+                    { value: "yes", label: "Yes" },
+                    { value: "no", label: "No" },
+                    { value: "not-sure", label: "Not sure" },
+                  ].map((option) => (
+                    <Label
+                      key={option.value}
+                      htmlFor={`job-offer-valid-definition-${option.value}`}
+                      className={workHistoryRadioLabelClass}
+                    >
+                      <RadioGroupItem value={option.value} id={`job-offer-valid-definition-${option.value}`} />
+                      <span className="text-foreground">{option.label}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+      )}
+
       <FormField
         control={control}
         name="occupationCategory"
@@ -958,6 +1128,486 @@ export function StepWorkHistory() {
       />
 
       <div className="flex flex-col gap-3">
+        <FormLabel>Detailed roles for Express Entry (recommended)</FormLabel>
+        <FormDescription>
+          Add each role you want counted for eligibility. This powers deterministic Express Entry checks.
+        </FormDescription>
+
+        {detailedWorkRoleFields.map((field, index) => {
+          const roleCountry = (watchedWorkRoles?.[index]?.country ?? "").trim().toLowerCase()
+          const rolePresent = watchedWorkRoles?.[index]?.present === true
+          const showCanadianRoleFields = roleCountry === "canada" || roleCountry === "ca" || roleCountry === "can"
+
+          return (
+            <Card key={field.id} className="relative">
+              <CardContent className="flex flex-col gap-3 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Detailed role #{index + 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeDetailedWorkRole(index)}
+                    className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-3.5" />
+                    <span className="sr-only">Remove detailed role</span>
+                  </Button>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.title`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Role title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Software Engineer" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.employerName`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Employer name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Employer" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.noc2021Code`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>NOC 2021 code (5-digit)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. 21231" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.teer`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>TEER</FormLabel>
+                        <Select onValueChange={roleField.onChange} value={roleField.value}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select TEER" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {teerOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.country`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Country</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Canada" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.province`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Province (if Canada)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Province" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.city`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>City</FormLabel>
+                        <FormControl>
+                          <Input placeholder="City" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.startDate`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Start date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...roleField} value={roleField.value ?? ""} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.endDate`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>End date</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...roleField} value={roleField.value ?? ""} disabled={rolePresent} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={control}
+                  name={`workRoles.${index}.present`}
+                  render={({ field: roleField }) => (
+                    <FormItem className="flex flex-row items-center gap-2 space-y-0">
+                      <FormControl>
+                        <Checkbox
+                          checked={!!roleField.value}
+                          onCheckedChange={(checked) => {
+                            const isChecked = checked === true
+                            roleField.onChange(isChecked)
+                            if (isChecked) {
+                              setValue(`workRoles.${index}.endDate`, "")
+                            }
+                          }}
+                        />
+                      </FormControl>
+                      <FormLabel className="font-normal">Present</FormLabel>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.hoursPerWeek`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Hours per week</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...roleField}
+                            type="number"
+                            min="1"
+                            max="80"
+                            step="0.5"
+                            value={roleField.value ?? ""}
+                            onChange={(event) => {
+                              const next = event.target.value.trim()
+                              roleField.onChange(next ? Number.parseFloat(next) : null)
+                            }}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control}
+                    name={`workRoles.${index}.employmentType`}
+                    render={({ field: roleField }) => (
+                      <FormItem>
+                        <FormLabel>Employment type</FormLabel>
+                        <Select onValueChange={roleField.onChange} value={roleField.value}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {detailedEmploymentTypeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={control}
+                  name={`workRoles.${index}.paid`}
+                  render={({ field: roleField }) => (
+                    <FormItem>
+                      <FormLabel>Was this role paid?</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={(value) => roleField.onChange(value === "yes")}
+                          value={roleField.value === true ? "yes" : roleField.value === false ? "no" : ""}
+                          className="flex gap-4"
+                        >
+                          {[
+                            { value: "yes", label: "Yes" },
+                            { value: "no", label: "No" },
+                          ].map((option) => (
+                            <Label key={option.value} htmlFor={`work-role-paid-${index}-${option.value}`} className={workHistoryRadioLabelClass}>
+                              <RadioGroupItem value={option.value} id={`work-role-paid-${index}-${option.value}`} />
+                              <span className="text-foreground">{option.label}</span>
+                            </Label>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={control}
+                  name={`workRoles.${index}.isSkilledTradeRole`}
+                  render={({ field: roleField }) => (
+                    <FormItem>
+                      <FormLabel>Is this role a skilled trade occupation?</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={(value) => roleField.onChange(value === "yes")}
+                          value={roleField.value === true ? "yes" : roleField.value === false ? "no" : ""}
+                          className="flex gap-4"
+                        >
+                          {[
+                            { value: "yes", label: "Yes" },
+                            { value: "no", label: "No" },
+                          ].map((option) => (
+                            <Label key={option.value} htmlFor={`work-role-trade-${index}-${option.value}`} className={workHistoryRadioLabelClass}>
+                              <RadioGroupItem value={option.value} id={`work-role-trade-${index}-${option.value}`} />
+                              <span className="text-foreground">{option.label}</span>
+                            </Label>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {showCanadianRoleFields && (
+                  <div className="grid gap-3 sm:grid-cols-3">
+                    <FormField
+                      control={control}
+                      name={`workRoles.${index}.wasAuthorizedInCanada`}
+                      render={({ field: roleField }) => (
+                        <FormItem>
+                          <FormLabel>Authorized to work in Canada?</FormLabel>
+                          <Select onValueChange={roleField.onChange} value={roleField.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
+                              <SelectItem value="not-sure">Not sure</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={control}
+                      name={`workRoles.${index}.wasFullTimeStudent`}
+                      render={({ field: roleField }) => (
+                        <FormItem>
+                          <FormLabel>Full-time student during period?</FormLabel>
+                          <Select onValueChange={roleField.onChange} value={roleField.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
+                              <SelectItem value="not-sure">Not sure</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={control}
+                      name={`workRoles.${index}.physicallyInCanada`}
+                      render={({ field: roleField }) => (
+                        <FormItem>
+                          <FormLabel>Physically in Canada while working?</FormLabel>
+                          <Select onValueChange={roleField.onChange} value={roleField.value}>
+                            <FormControl>
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Select" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="yes">Yes</SelectItem>
+                              <SelectItem value="no">No</SelectItem>
+                              <SelectItem value="not-sure">Not sure</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )
+        })}
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() =>
+            appendDetailedWorkRole({
+              id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+              noc2021Code: "",
+              teer: "",
+              title: "",
+              employerName: "",
+              country: "",
+              province: "",
+              city: "",
+              startDate: "",
+              endDate: "",
+              present: false,
+              hoursPerWeek: null,
+              hoursVaried: false,
+              paid: true,
+              employmentType: "",
+              isSkilledTradeRole: false,
+              wasAuthorizedInCanada: "",
+              authorizationType: "",
+              authorizationValidFrom: "",
+              authorizationValidTo: "",
+              wasFullTimeStudent: "",
+              physicallyInCanada: "",
+              hasOverlapWithOtherRoles: "",
+            })
+          }
+          className="w-fit gap-1.5"
+        >
+          <Plus className="size-3.5" />
+          Add detailed role
+        </Button>
+      </div>
+
+      <FormField
+        control={control}
+        name="hasCanadianTradeCertificate"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Do you have a Canadian certificate of qualification (for skilled trades)?</FormLabel>
+            <FormControl>
+              <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                ].map((option) => (
+                  <Label key={option.value} htmlFor={`trade-certificate-${option.value}`} className={workHistoryRadioLabelClass}>
+                    <RadioGroupItem value={option.value} id={`trade-certificate-${option.value}`} />
+                    <span className="text-foreground">{option.label}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {hasCanadianTradeCertificate === "yes" && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField
+            control={control}
+            name="tradeCertificateIssuingAuthority"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Issuing authority</FormLabel>
+                <FormControl>
+                  <Input placeholder="Province/territory authority" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="tradeCertificateTrade"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Trade</FormLabel>
+                <FormControl>
+                  <Input placeholder="e.g. Electrician" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="tradeCertificateIssueDate"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Issue date</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
         <FormLabel>Quick-add previous roles (optional)</FormLabel>
         {(has12MonthsCanadaSkilled === "yes" || has12MonthsCanadaSkilled === "not_sure") && (
           <FormDescription>
@@ -1055,11 +1705,11 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input
-                            type="month"
-                            aria-label={`Job ${index + 1} start month`}
-                            {...f}
+                          <MonthYearPicker
                             value={f.value ?? ""}
+                            onChange={f.onChange}
+                            placeholder="Start"
+                            aria-label={`Job ${index + 1} start month and year`}
                           />
                         </FormControl>
                       </FormItem>
@@ -1072,12 +1722,12 @@ export function StepWorkHistory() {
                     render={({ field: f }) => (
                       <FormItem>
                         <FormControl>
-                          <Input
-                            type="month"
-                            aria-label={`Job ${index + 1} end month`}
-                            {...f}
+                          <MonthYearPicker
                             value={f.value ?? ""}
+                            onChange={f.onChange}
+                            placeholder="End"
                             disabled={!!jobPresent}
+                            aria-label={`Job ${index + 1} end month and year`}
                           />
                         </FormControl>
                       </FormItem>

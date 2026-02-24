@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { RadioCard } from "@/components/ui/radio-card"
 import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
+import { educationLevels } from "./step-education"
 
 const maritalStatuses = [
   { value: "single", label: "Single" },
@@ -33,19 +34,48 @@ const maritalStatuses = [
   { value: "widowed", label: "Widowed" },
 ]
 
+const spouseLanguageTestTypeOptions = [
+  { value: "ielts-general-training", label: "IELTS (General Training)" },
+  { value: "celpip-general", label: "CELPIP (General)" },
+  { value: "tef-canada", label: "TEF Canada" },
+  { value: "tcf-canada", label: "TCF Canada" },
+  { value: "pte-core", label: "PTE Core" },
+]
+
+const spouseLanguageTestStreamOptions = [
+  { value: "general", label: "General" },
+  { value: "academic", label: "Academic" },
+  { value: "n/a", label: "N/A" },
+]
+
 export function StepFamily() {
   const { control, setValue } = useFormContext<AssessmentData>()
   const maritalStatus = useWatch({ control, name: "maritalStatus" })
   const primaryGoal = useWatch({ control, name: "primaryGoal" })
+  const spouseAccompanying = useWatch({ control, name: "spouseAccompanying" })
   const closeRelativeInCanada = useWatch({ control, name: "closeRelativeInCanada" })
   const hasCloseRelativeInCanada = useWatch({ control, name: "hasCloseRelativeInCanada" })
+  const hasEligibleSiblingInCanada = useWatch({ control, name: "hasEligibleSiblingInCanada" })
+  const fundsExemptByValidJobOffer = useWatch({ control, name: "fundsExemptByValidJobOffer" })
   const showPartner = maritalStatus === "married" || maritalStatus === "common-law"
   const isSponsorshipGoal = primaryGoal === "sponsorship"
+  const isPrFlow = primaryGoal === "pr" || primaryGoal === "not-sure"
 
   useEffect(() => {
     if (!showPartner) {
       setValue("spouseAccompanying", "", { shouldValidate: true })
       setValue("spouseLocation", "", { shouldValidate: true })
+      setValue("spouseEducationLevel", "", { shouldValidate: true })
+      setValue("spouseForeignEducationHasEca", "", { shouldValidate: true })
+      setValue("spouseEcaEquivalency", "", { shouldValidate: true })
+      setValue("spouseEcaIssueDate", "", { shouldValidate: true })
+      setValue("spouseLanguageTestType", "", { shouldValidate: true })
+      setValue("spouseLanguageTestDate", "", { shouldValidate: true })
+      setValue("spouseLanguageTestStream", "", { shouldValidate: true })
+      setValue("spouseLanguageScores", { listening: "", reading: "", writing: "", speaking: "" }, { shouldValidate: true })
+      setValue("spouseCanadianWorkMonths", null, { shouldValidate: true })
+      setValue("spouseCanadianWorkStartDate", "", { shouldValidate: true })
+      setValue("spouseCanadianWorkEndDate", "", { shouldValidate: true })
     }
   }, [setValue, showPartner])
 
@@ -60,6 +90,16 @@ export function StepFamily() {
       setValue("relativeProvinceTerritory", "", { shouldValidate: true })
     }
   }, [hasCloseRelativeInCanada, setValue])
+
+  useEffect(() => {
+    if (hasEligibleSiblingInCanada !== "yes") {
+      setValue("siblingRelationshipType", "", { shouldValidate: true })
+      setValue("siblingProvinceTerritory", "", { shouldValidate: true })
+      setValue("siblingStatus", "", { shouldValidate: true })
+      setValue("siblingAge18OrOlder", "", { shouldValidate: true })
+      setValue("siblingLivesInCanada", "", { shouldValidate: true })
+    }
+  }, [hasEligibleSiblingInCanada, setValue])
 
   useEffect(() => {
     if (!isSponsorshipGoal) {
@@ -190,6 +230,181 @@ export function StepFamily() {
           />
 
           <Separator />
+        </>
+      )}
+
+      {showPartner && spouseAccompanying === "yes-accompanying" && (
+        <>
+          <FormField
+            control={control}
+            name="spouseEducationLevel"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Spouse highest education level</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select education level" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {educationLevels.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={control}
+            name="spouseForeignEducationHasEca"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>If spouse education is foreign, do they have ECA?</FormLabel>
+                <FormControl>
+                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                    {[
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                      { value: "not-sure", label: "Not sure" },
+                    ].map((option) => (
+                      <RadioCard
+                        key={option.value}
+                        value={option.value}
+                        id={`spouse-eca-${option.value}`}
+                        label={option.label}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={control}
+              name="spouseLanguageTestType"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse language test type</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select language test type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {spouseLanguageTestTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="spouseLanguageTestDate"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse language test date</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="spouseLanguageTestStream"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse test stream</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select test stream" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {spouseLanguageTestStreamOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FormField
+              control={control}
+              name="spouseLanguageScores.listening"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse listening score</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="spouseLanguageScores.reading"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse reading score</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="spouseLanguageScores.writing"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse writing score</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={control}
+              name="spouseLanguageScores.speaking"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Spouse speaking score</FormLabel>
+                  <FormControl>
+                    <Input {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </>
       )}
 
@@ -374,6 +589,238 @@ export function StepFamily() {
             </FormItem>
           )}
         />
+      )}
+
+      <FormField
+        control={control}
+        name="hasEligibleSiblingInCanada"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              Do you (or your spouse) have a sibling in Canada who is 18+, a citizen/PR, and living in Canada?
+            </FormLabel>
+            <FormControl>
+              <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                {[
+                  { value: "yes", label: "Yes" },
+                  { value: "no", label: "No" },
+                  { value: "not-sure", label: "Not sure" },
+                ].map((option) => (
+                  <RadioCard
+                    key={option.value}
+                    value={option.value}
+                    id={`eligible-sibling-${option.value}`}
+                    label={option.label}
+                  />
+                ))}
+              </RadioGroup>
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      />
+
+      {hasEligibleSiblingInCanada === "yes" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            control={control}
+            name="siblingRelationshipType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sibling relationship type</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select relationship type" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="applicant_sibling">Your sibling</SelectItem>
+                    <SelectItem value="spouse_sibling">Spouse's sibling</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="siblingStatus"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sibling status in Canada</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="citizen">Citizen</SelectItem>
+                    <SelectItem value="pr">Permanent resident</SelectItem>
+                    <SelectItem value="not-sure">Not sure</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="siblingProvinceTerritory"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sibling province/territory</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select province or territory" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {CANADIAN_PROVINCES_AND_TERRITORIES.map((province) => (
+                      <SelectItem key={province} value={province}>
+                        {province}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="siblingAge18OrOlder"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sibling is 18+?</FormLabel>
+                <FormControl>
+                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                    {[
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                      { value: "not-sure", label: "Not sure" },
+                    ].map((option) => (
+                      <RadioCard
+                        key={option.value}
+                        value={option.value}
+                        id={`sibling-age-${option.value}`}
+                        label={option.label}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="siblingLivesInCanada"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Sibling currently living in Canada?</FormLabel>
+                <FormControl>
+                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                    {[
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                      { value: "not-sure", label: "Not sure" },
+                    ].map((option) => (
+                      <RadioCard
+                        key={option.value}
+                        value={option.value}
+                        id={`sibling-lives-${option.value}`}
+                        label={option.label}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+      )}
+
+      {isPrFlow && (
+        <>
+          <Separator />
+          <FormField
+            control={control}
+            name="fundsFamilySize"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Proof-of-funds family size (include non-accompanying spouse/children)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="1"
+                    max="15"
+                    value={field.value ?? ""}
+                    onChange={(event) => {
+                      const next = event.target.value.trim()
+                      field.onChange(next ? Number.parseInt(next, 10) : null)
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={control}
+            name="fundsExemptByValidJobOffer"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Are you exempt from funds due to valid job offer/current authorization?</FormLabel>
+                <FormControl>
+                  <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                    {[
+                      { value: "yes", label: "Yes" },
+                      { value: "no", label: "No" },
+                      { value: "not-sure", label: "Not sure" },
+                    ].map((option) => (
+                      <RadioCard
+                        key={option.value}
+                        value={option.value}
+                        id={`funds-exempt-${option.value}`}
+                        label={option.label}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {fundsExemptByValidJobOffer === "no" && (
+            <FormField
+              control={control}
+              name="settlementFundsCad"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Current available settlement funds (CAD)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={field.value ?? ""}
+                      onChange={(event) => {
+                        const next = event.target.value.trim()
+                        field.onChange(next ? Number.parseFloat(next) : null)
+                      }}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          )}
+        </>
       )}
 
       {isSponsorshipGoal && (

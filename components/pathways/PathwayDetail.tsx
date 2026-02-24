@@ -22,8 +22,9 @@ import {
   saveProvinceFinderDraft,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
+import type { ExpressEntryEligibilityResult } from "@/lib/express-entry/types"
 import type { ChecklistStatus } from "@/lib/pathways/types"
-import type { AssessmentData, ConfidenceLevel } from "@/lib/types"
+import type { AssessmentData, AssessmentResults, ConfidenceLevel } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 
 type PathwayDetailProps = {
@@ -55,6 +56,8 @@ type PathwayBriefLayoutProps = {
   title: string
   description: string
   confidence: ConfidenceLevel
+  statusBadgeLabel?: string
+  statusSummary?: string
   brief: PathwayBriefCommon
   onBack: () => void
   openQuestionsHref: string
@@ -90,6 +93,8 @@ function PathwayBriefLayout({
   title,
   description,
   confidence,
+  statusBadgeLabel,
+  statusSummary,
   brief,
   onBack,
   openQuestionsHref,
@@ -109,8 +114,18 @@ function PathwayBriefLayout({
           <div className="space-y-2">
             <h1 className="font-heading text-foreground">{title}</h1>
             <p className="text-sm text-muted-foreground">{description}</p>
+            {statusSummary ? (
+              <p className="text-sm text-muted-foreground">{statusSummary}</p>
+            ) : null}
           </div>
-          <Badge variant="outline" className="text-xs">Confidence: {confidence}</Badge>
+          <div className="flex flex-col items-end gap-1.5">
+            <Badge variant="outline" className="text-xs">Confidence: {confidence}</Badge>
+            {statusBadgeLabel ? (
+              <Badge variant="secondary" className="text-xs">
+                {statusBadgeLabel}
+              </Badge>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -275,6 +290,8 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [confidence, setConfidence] = useState<ConfidenceLevel>("High")
   const [provinceShortlist, setProvinceShortlist] = useState<ProvinceRecommendation[]>([])
+  const [expressEntryEligibility, setExpressEntryEligibility] = useState<ExpressEntryEligibilityResult | null>(null)
+  const [resultsContext, setResultsContext] = useState<Pick<AssessmentResults, "pathways" | "riskFlags" | "nextSteps"> | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
@@ -288,10 +305,19 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
     setProvinceShortlist(loadProvinceFinderRecommendations().slice(0, 3))
 
     try {
-      const pathwayConfidence = computeResults(data).pathways.find((pathway) => pathway.id === slug)?.confidence
+      const computed = computeResults(data)
+      const pathwayConfidence = computed.pathways.find((pathway) => pathway.id === slug)?.confidence
       setConfidence(formatConfidence(pathwayConfidence))
+      setExpressEntryEligibility(computed.expressEntryEligibility)
+      setResultsContext({
+        pathways: computed.pathways,
+        riskFlags: computed.riskFlags,
+        nextSteps: computed.nextSteps,
+      })
     } catch {
       setConfidence("High")
+      setExpressEntryEligibility(null)
+      setResultsContext(null)
     } finally {
       setIsLoaded(true)
     }
@@ -307,8 +333,8 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
 
   const expressEntryBrief = useMemo(() => {
     if (!assessment || !isExpressEntry) return null
-    return buildExpressEntryBrief(assessment)
-  }, [assessment, isExpressEntry])
+    return buildExpressEntryBrief(assessment, expressEntryEligibility ?? undefined, resultsContext ?? undefined)
+  }, [assessment, expressEntryEligibility, isExpressEntry, resultsContext])
 
   if (!isLoaded) {
     return (
@@ -363,6 +389,8 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
         title="Express Entry"
         description="Canada's federal system for selecting skilled immigrants, including programs like FSW, CEC, and FST. You create a profile and may receive an invitation to apply based on your points and eligibility."
         confidence={confidence}
+        statusBadgeLabel={expressEntryBrief.statusBadgeLabel}
+        statusSummary={expressEntryBrief.statusSummary}
         brief={expressEntryBrief}
         onBack={() => router.push("/assessment/results")}
         openQuestionsHref="/assessment"

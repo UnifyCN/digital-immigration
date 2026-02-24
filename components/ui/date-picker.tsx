@@ -14,6 +14,9 @@ type DatePickerProps = {
   className?: string
 }
 
+const DEFAULT_START_MONTH = new Date(1900, 0)
+const DEFAULT_END_MONTH = new Date(2100, 11)
+
 export function DatePicker({
   value,
   onChange,
@@ -38,7 +41,11 @@ export function DatePicker({
       <PopoverContent className="w-auto p-0" align="start">
         <Calendar
           mode="single"
+          captionLayout="dropdown"
+          startMonth={DEFAULT_START_MONTH}
+          endMonth={DEFAULT_END_MONTH}
           selected={isValidDate ? selectedDate : undefined}
+          defaultMonth={isValidDate ? selectedDate : new Date()}
           onSelect={(date) => onChange(date ? format(date, "yyyy-MM-dd") : "")}
         />
       </PopoverContent>

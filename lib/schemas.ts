@@ -14,6 +14,99 @@ export const jobEntrySchema = z.object({
   present: z.boolean().optional(),
 })
 
+const workRoleSchema = z.object({
+  id: z.string(),
+  noc2021Code: z.string().optional(),
+  teer: z.union([z.enum(["0", "1", "2", "3", "4", "5"]), z.literal("")]).optional(),
+  title: z.string().optional(),
+  employerName: z.string().optional(),
+  country: z.string().optional(),
+  province: z.string().optional(),
+  city: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  present: z.boolean().optional(),
+  hoursPerWeek: z.number().nullable().optional(),
+  hoursVaried: z.boolean().optional(),
+  paid: z.boolean().optional(),
+  employmentType: z.union([z.enum(["employee", "self-employed", "contractor"]), z.literal("")]).optional(),
+  isSkilledTradeRole: z.boolean().optional(),
+  wasAuthorizedInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  authorizationType: z.string().optional(),
+  authorizationValidFrom: z.string().optional(),
+  authorizationValidTo: z.string().optional(),
+  wasFullTimeStudent: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  physicallyInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  hasOverlapWithOtherRoles: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+})
+
+const educationCredentialSchema = z.object({
+  id: z.string(),
+  level: z
+    .union([
+      z.enum([
+        "none",
+        "high-school",
+        "one-year-diploma",
+        "two-year-diploma",
+        "bachelors",
+        "two-or-more-degrees",
+        "masters",
+        "phd",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
+  country: z.string().optional(),
+  isCanadianCredential: z.union([z.enum(["yes", "no"]), z.literal("")]).optional(),
+  issueDate: z.string().optional(),
+  institutionName: z.string().optional(),
+  programLengthMonths: z.number().nullable().optional(),
+  studyLoad: z.union([z.enum(["full-time", "part-time"]), z.literal("")]).optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  physicallyInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  distanceLearningPercent: z.number().nullable().optional(),
+  ecaIssuer: z.union([z.enum(["wes", "iqas", "icas", "ces", "mcc", "pebc", "other"]), z.literal("")]).optional(),
+  ecaOtherIssuer: z.string().optional(),
+  ecaReferenceNumber: z.string().optional(),
+  ecaIssueDate: z.string().optional(),
+  ecaEquivalency: z
+    .union([
+      z.enum([
+        "none",
+        "high-school",
+        "one-year-diploma",
+        "two-year-diploma",
+        "bachelors",
+        "two-or-more-degrees",
+        "masters",
+        "phd",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
+})
+
+const languageTestSchema = z.object({
+  id: z.string(),
+  isPrimary: z.boolean().optional(),
+  testType: z
+    .union([z.enum(["ielts-general-training", "celpip-general", "pte-core", "tef-canada", "tcf-canada"]), z.literal("")])
+    .optional(),
+  stream: z.union([z.enum(["general", "academic", "n/a"]), z.literal("")]).optional(),
+  testDate: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  scores: z
+    .object({
+      listening: z.string().optional(),
+      reading: z.string().optional(),
+      writing: z.string().optional(),
+      speaking: z.string().optional(),
+    })
+    .optional(),
+})
+
 const step0BaseSchema = z.object({
   firstName: z.string().trim().min(2, "Please enter your first name"),
   middleName: z.string().optional(),
@@ -273,6 +366,13 @@ const step3BaseSchema = z.object({
     .union([z.enum(["lt-6-months", "6-12-months", "1-2-years", "2-plus-years"]), z.literal("")])
     .optional(),
   employerWillSupportPNP: z.union([z.enum(["yes", "no", "unsure"]), z.literal("")]).optional(),
+  jobOfferNonSeasonal: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  jobOfferSupportType: z.union([z.enum(["lmia", "lmia-exempt", "unknown"]), z.literal("")]).optional(),
+  jobOfferSupportBasis: z.string().optional(),
+  jobOfferIntendedDurationMonths: z.number().nullable().optional(),
+  jobOfferMeetsValidOfferDefinition: z
+    .union([z.enum(["yes", "no", "not-sure"]), z.literal("")])
+    .optional(),
   occupationCategory: z
     .union([
       z.enum([
@@ -303,6 +403,11 @@ const step3BaseSchema = z.object({
     .union([z.enum(["0", "1", "2", "3", "4", "5+"]), z.literal("")])
     .optional(),
   jobs: z.array(jobEntrySchema).optional(),
+  workRoles: z.array(workRoleSchema).optional(),
+  hasCanadianTradeCertificate: z.union([z.enum(["yes", "no"]), z.literal("")]).optional(),
+  tradeCertificateIssuingAuthority: z.string().optional(),
+  tradeCertificateTrade: z.string().optional(),
+  tradeCertificateIssueDate: z.string().optional(),
 })
 
 export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
@@ -486,6 +591,41 @@ export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
         message: "Please select an option",
       })
     }
+    if (!data.jobOfferNonSeasonal) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jobOfferNonSeasonal"],
+        message: "Please select whether the job is non-seasonal",
+      })
+    }
+    if (!data.jobOfferSupportType) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jobOfferSupportType"],
+        message: "Please select support type",
+      })
+    }
+    if (!data.jobOfferMeetsValidOfferDefinition) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jobOfferMeetsValidOfferDefinition"],
+        message: "Please select an option",
+      })
+    }
+    if (data.jobOfferMeetsValidOfferDefinition === "yes" && !data.jobOfferSupportBasis?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jobOfferSupportBasis"],
+        message: "Please provide the LMIA or exemption basis",
+      })
+    }
+    if (data.jobOfferMeetsValidOfferDefinition === "yes" && !data.jobOfferIntendedDurationMonths) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["jobOfferIntendedDurationMonths"],
+        message: "Please provide intended duration in months",
+      })
+    }
   }
 
   if (!data.foreignSkilledYears) {
@@ -524,6 +664,89 @@ export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
       path: ["canadianWorkAuthorizedAll"],
       message: "Select one option.",
     })
+  }
+
+  const roles = data.workRoles ?? []
+  for (let index = 0; index < roles.length; index++) {
+    const role = roles[index]
+    if (!role.noc2021Code?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workRoles", index, "noc2021Code"],
+        message: "NOC code is required for each counted role",
+      })
+    }
+    if (!role.teer) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workRoles", index, "teer"],
+        message: "TEER is required",
+      })
+    }
+    if (!role.startDate || (!role.present && !role.endDate)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workRoles", index, "startDate"],
+        message: "Start and end dates are required (or mark present)",
+      })
+    }
+    if (role.hoursPerWeek === null || role.hoursPerWeek === undefined) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["workRoles", index, "hoursPerWeek"],
+        message: "Hours per week are required",
+      })
+    }
+
+    const roleCountry = role.country?.trim().toLowerCase() ?? ""
+    const isRoleCanadian = roleCountry === "canada" || roleCountry === "ca" || roleCountry === "can"
+    if (isRoleCanadian) {
+      if (!role.wasAuthorizedInCanada) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["workRoles", index, "wasAuthorizedInCanada"],
+          message: "Select authorization status",
+        })
+      }
+      if (!role.wasFullTimeStudent) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["workRoles", index, "wasFullTimeStudent"],
+          message: "Select student status for this period",
+        })
+      }
+      if (!role.physicallyInCanada) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["workRoles", index, "physicallyInCanada"],
+          message: "Select whether you were physically in Canada",
+        })
+      }
+    }
+  }
+
+  if (data.hasCanadianTradeCertificate === "yes") {
+    if (!data.tradeCertificateIssuingAuthority?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tradeCertificateIssuingAuthority"],
+        message: "Please provide issuing authority",
+      })
+    }
+    if (!data.tradeCertificateTrade?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tradeCertificateTrade"],
+        message: "Please provide trade",
+      })
+    }
+    if (!data.tradeCertificateIssueDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["tradeCertificateIssueDate"],
+        message: "Please provide issue date",
+      })
+    }
   }
 })
 
@@ -603,6 +826,7 @@ export const step4Schema = z.object({
   }),
   additionalCredentials: z.array(additionalCredentialSchema).optional(),
   ecaValid: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  educationCredentials: z.array(educationCredentialSchema).optional(),
 }).superRefine((data, ctx) => {
   if (data.educationCompletedInCanada === "yes" && !data.canadianEducationProvinceTerritory) {
     ctx.addIssue({
@@ -618,6 +842,64 @@ export const step4Schema = z.object({
       path: ["canadianEducationPublicInstitution"],
       message: "Please select an option",
     })
+  }
+
+  for (let index = 0; index < (data.educationCredentials ?? []).length; index++) {
+    const credential = data.educationCredentials?.[index]
+    if (!credential) continue
+
+    if (!credential.level) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["educationCredentials", index, "level"],
+        message: "Credential level is required",
+      })
+    }
+    if (!credential.country?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["educationCredentials", index, "country"],
+        message: "Country is required",
+      })
+    }
+    if (!credential.issueDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["educationCredentials", index, "issueDate"],
+        message: "Issue/graduation date is required",
+      })
+    }
+    if (!credential.isCanadianCredential) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["educationCredentials", index, "isCanadianCredential"],
+        message: "Please indicate whether the credential is Canadian",
+      })
+    }
+
+    if (credential.isCanadianCredential === "no") {
+      if (!credential.ecaIssueDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["educationCredentials", index, "ecaIssueDate"],
+          message: "ECA issue date is required for foreign credentials",
+        })
+      }
+      if (!credential.ecaEquivalency) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["educationCredentials", index, "ecaEquivalency"],
+          message: "ECA equivalency is required for foreign credentials",
+        })
+      }
+      if (!credential.ecaIssuer) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["educationCredentials", index, "ecaIssuer"],
+          message: "ECA issuer is required for foreign credentials",
+        })
+      }
+    }
   }
 })
 
@@ -649,6 +931,7 @@ const step5BaseSchema = z.object({
     .union([z.enum(["none", "less-than-1-year", "1-year", "2-plus-years", "not-sure"]), z.literal("")])
     .optional(),
   secondOfficialLanguageIntent: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  languageTests: z.array(languageTestSchema).optional(),
 })
 
 export const step5Schema = step5BaseSchema.superRefine((data, ctx) => {
@@ -668,6 +951,51 @@ export const step5Schema = step5BaseSchema.superRefine((data, ctx) => {
         path: ["languageScores", "listening"],
         message: "Enter all four scores.",
       })
+    }
+  }
+
+  if (data.languageTestStatus === "valid") {
+    const primary = (data.languageTests ?? []).find((test) => test.isPrimary) ?? data.languageTests?.[0]
+    if (!primary) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["languageTests"],
+        message: "Add at least one language test with type, date, stream, and scores.",
+      })
+    } else {
+      if (!primary.testType) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["languageTests", 0, "testType"],
+          message: "Primary test type is required",
+        })
+      }
+      if (!primary.testDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["languageTests", 0, "testDate"],
+          message: "Primary test date is required",
+        })
+      }
+      if (!primary.stream) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["languageTests", 0, "stream"],
+          message: "Primary test stream is required",
+        })
+      }
+      if (
+        !primary.scores?.listening?.trim() ||
+        !primary.scores?.reading?.trim() ||
+        !primary.scores?.writing?.trim() ||
+        !primary.scores?.speaking?.trim()
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["languageTests", 0, "scores"],
+          message: "Enter all four scores for the primary test.",
+        })
+      }
     }
   }
 
@@ -726,6 +1054,63 @@ const step6BaseSchema = z.object({
   partnerEducation: z.boolean().optional(),
   partnerLanguageScores: z.boolean().optional(),
   partnerWorkExperience: z.boolean().optional(),
+  spouseEducationLevel: z
+    .union([
+      z.enum([
+        "none",
+        "high-school",
+        "one-year-diploma",
+        "two-year-diploma",
+        "bachelors",
+        "two-or-more-degrees",
+        "masters",
+        "phd",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
+  spouseForeignEducationHasEca: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  spouseEcaEquivalency: z
+    .union([
+      z.enum([
+        "none",
+        "high-school",
+        "one-year-diploma",
+        "two-year-diploma",
+        "bachelors",
+        "two-or-more-degrees",
+        "masters",
+        "phd",
+      ]),
+      z.literal(""),
+    ])
+    .optional(),
+  spouseEcaIssueDate: z.string().optional(),
+  spouseLanguageTestType: z
+    .union([z.enum(["ielts-general-training", "celpip-general", "pte-core", "tef-canada", "tcf-canada"]), z.literal("")])
+    .optional(),
+  spouseLanguageTestDate: z.string().optional(),
+  spouseLanguageTestStream: z.union([z.enum(["general", "academic", "n/a"]), z.literal("")]).optional(),
+  spouseLanguageScores: z
+    .object({
+      listening: z.string().optional(),
+      reading: z.string().optional(),
+      writing: z.string().optional(),
+      speaking: z.string().optional(),
+    })
+    .optional(),
+  spouseCanadianWorkMonths: z.number().nullable().optional(),
+  spouseCanadianWorkStartDate: z.string().optional(),
+  spouseCanadianWorkEndDate: z.string().optional(),
+  hasEligibleSiblingInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  siblingRelationshipType: z.union([z.enum(["applicant_sibling", "spouse_sibling"]), z.literal("")]).optional(),
+  siblingProvinceTerritory: z.string().optional(),
+  siblingStatus: z.union([z.enum(["citizen", "pr", "not-sure"]), z.literal("")]).optional(),
+  siblingAge18OrOlder: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  siblingLivesInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  fundsFamilySize: z.number().nullable().optional(),
+  settlementFundsCad: z.number().nullable().optional(),
+  fundsExemptByValidJobOffer: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
 })
 
 function getStep6Schema(primaryGoal: "pr" | "study-permit" | "work-permit" | "sponsorship" | "not-sure" | "") {
@@ -746,6 +1131,36 @@ function getStep6Schema(primaryGoal: "pr" | "study-permit" | "work-permit" | "sp
           message: "Please select an option",
         })
       }
+
+      if (data.spouseAccompanying === "yes-accompanying") {
+        if (!data.spouseEducationLevel) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["spouseEducationLevel"],
+            message: "Please select spouse education level",
+          })
+        }
+        if (!data.spouseLanguageTestType || !data.spouseLanguageTestDate || !data.spouseLanguageTestStream) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["spouseLanguageTestType"],
+            message: "Please provide spouse language test details",
+          })
+        }
+        const spouseScores = data.spouseLanguageScores ?? {}
+        if (
+          !spouseScores.listening?.trim() ||
+          !spouseScores.reading?.trim() ||
+          !spouseScores.writing?.trim() ||
+          !spouseScores.speaking?.trim()
+        ) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["spouseLanguageScores"],
+            message: "Please provide spouse language scores",
+          })
+        }
+      }
     }
 
     if (data.closeRelativeInCanada === "yes" && !data.closeRelativeRelationship) {
@@ -762,6 +1177,47 @@ function getStep6Schema(primaryGoal: "pr" | "study-permit" | "work-permit" | "sp
         path: ["relativeProvinceTerritory"],
         message: "Please select a province or territory",
       })
+    }
+
+    if (data.hasEligibleSiblingInCanada === "yes") {
+      if (!data.siblingRelationshipType) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["siblingRelationshipType"],
+          message: "Please select sibling relationship type",
+        })
+      }
+      if (!data.siblingStatus) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["siblingStatus"],
+          message: "Please confirm sibling status",
+        })
+      }
+      if (!data.siblingAge18OrOlder || !data.siblingLivesInCanada) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["siblingAge18OrOlder"],
+          message: "Please confirm sibling age and residence details",
+        })
+      }
+    }
+
+    if (primaryGoal === "pr" || primaryGoal === "not-sure") {
+      if (data.fundsFamilySize === null || data.fundsFamilySize === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["fundsFamilySize"],
+          message: "Please provide proof-of-funds family size",
+        })
+      }
+      if (data.fundsExemptByValidJobOffer !== "yes" && (data.settlementFundsCad === null || data.settlementFundsCad === undefined)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["settlementFundsCad"],
+          message: "Please provide available settlement funds",
+        })
+      }
     }
 
     if (primaryGoal === "sponsorship") {

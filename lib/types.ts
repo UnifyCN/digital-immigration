@@ -1,3 +1,5 @@
+import type { ExpressEntryEligibilityResult, ProgramEligibilityStatus } from "./express-entry/types"
+
 // ── Assessment form types ──
 
 export type PrimaryGoal = "pr" | "study-permit" | "work-permit" | "sponsorship" | "not-sure"
@@ -49,6 +51,10 @@ export type LanguageTestPlan = "english-only" | "french-only" | "both-languages"
 export type LanguagePerLangStatus = "completed" | "booked" | "not-taken"
 export type EnglishLanguageTestType = "ielts-general-training" | "celpip-general"
 export type FrenchLanguageTestType = "tef-canada" | "tcf-canada"
+export type ExpressEntryLanguageTestType =
+  | EnglishLanguageTestType
+  | FrenchLanguageTestType
+  | "pte-core"
 export type HasValidLanguageTest = "yes" | "no" | "booked"
 export type HardGateLanguageTestStatus = "valid" | "not_valid" | "booked"
 export type LanguageApproxCLB = "clb-4-6" | "clb-7" | "clb-8" | "clb-9-plus" | "not-sure"
@@ -85,6 +91,20 @@ export type FieldOfStudy =
   | "other"
 export type MaritalStatus = "single" | "married" | "common-law" | "separated" | "divorced" | "widowed"
 export type AgeRange = "17-or-less" | "18-24" | "25-29" | "30-34" | "35-39" | "40-44" | "45+"
+export type TeerLevel = "0" | "1" | "2" | "3" | "4" | "5"
+export type WorkRoleEmploymentType = "employee" | "self-employed" | "contractor"
+export type JobOfferSupportType = "lmia" | "lmia-exempt" | "unknown"
+export type SiblingRelationshipType = "applicant_sibling" | "spouse_sibling"
+export type SiblingStatusType = "citizen" | "pr" | "not-sure"
+export type LanguageTestStream = "general" | "academic" | "n/a"
+export type EcaIssuer =
+  | "wes"
+  | "iqas"
+  | "icas"
+  | "ces"
+  | "mcc"
+  | "pebc"
+  | "other"
 
 export interface JobEntry {
   title: string
@@ -100,6 +120,67 @@ export interface AdditionalCredential {
   country: string
   graduationYear: string
   programLength: ProgramLength | ""
+}
+
+export interface WorkRole {
+  id: string
+  noc2021Code: string
+  teer: TeerLevel | ""
+  title: string
+  employerName: string
+  country: string
+  province: string
+  city: string
+  startDate: string
+  endDate: string
+  present: boolean
+  hoursPerWeek: number | null
+  hoursVaried: boolean
+  paid: boolean
+  employmentType: WorkRoleEmploymentType | ""
+  isSkilledTradeRole: boolean
+  wasAuthorizedInCanada: YesNoNotSure | ""
+  authorizationType: string
+  authorizationValidFrom: string
+  authorizationValidTo: string
+  wasFullTimeStudent: YesNoNotSure | ""
+  physicallyInCanada: YesNoNotSure | ""
+  hasOverlapWithOtherRoles: YesNoNotSure | ""
+}
+
+export interface EducationCredential {
+  id: string
+  level: EducationLevel | ""
+  country: string
+  isCanadianCredential: YesNo | ""
+  issueDate: string
+  institutionName: string
+  programLengthMonths: number | null
+  studyLoad?: "full-time" | "part-time" | ""
+  startDate?: string
+  endDate?: string
+  physicallyInCanada?: YesNoNotSure | ""
+  distanceLearningPercent?: number | null
+  ecaIssuer: EcaIssuer | ""
+  ecaOtherIssuer?: string
+  ecaReferenceNumber: string
+  ecaIssueDate: string
+  ecaEquivalency: EducationLevel | ""
+}
+
+export interface LanguageTestEntry {
+  id: string
+  isPrimary: boolean
+  testType: ExpressEntryLanguageTestType | ""
+  stream: LanguageTestStream | ""
+  testDate: string
+  registrationNumber: string
+  scores: {
+    listening: string
+    reading: string
+    writing: string
+    speaking: string
+  }
 }
 
 export interface AssessmentData {
@@ -171,6 +252,11 @@ export interface AssessmentData {
   jobOfferCompensationType: JobOfferCompensationType | ""
   jobOfferTenure: JobOfferTenure | ""
   employerWillSupportPNP: YesNoUnsure | ""
+  jobOfferNonSeasonal: YesNoNotSure | ""
+  jobOfferSupportType: JobOfferSupportType | ""
+  jobOfferSupportBasis: string
+  jobOfferIntendedDurationMonths: number | null
+  jobOfferMeetsValidOfferDefinition: YesNoNotSure | ""
   occupationCategory: OccupationCategory | ""
   occupationCategoryOtherRole: string
   jobDuties: string
@@ -180,6 +266,11 @@ export interface AssessmentData {
   canadianWorkAuthorizedAll: "yes" | "no" | "not_sure" | ""
   derivedCanadianSkilledYearsBand: "0" | "1" | "2" | "3" | "4" | "5+" | ""
   jobs: JobEntry[]
+  workRoles: WorkRole[]
+  hasCanadianTradeCertificate: YesNo | ""
+  tradeCertificateIssuingAuthority: string
+  tradeCertificateTrade: string
+  tradeCertificateIssueDate: string
 
   // Step 4: Education
   educationLevel: EducationLevel | ""
@@ -195,9 +286,11 @@ export interface AssessmentData {
   hasMultipleCredentials: YesNoNotSure | ""
   additionalCredentials: AdditionalCredential[]
   ecaValid: EcaStatus | ""
+  educationCredentials: EducationCredential[]
 
   // Step 5: Language & CRS
   languageTestStatus: HardGateLanguageTestStatus | ""
+  languageTestPlannedDate: string
   languageTestPlan: LanguageTestPlan | ""
   englishTestStatus: LanguagePerLangStatus | ""
   englishTestType: EnglishLanguageTestType | ""
@@ -217,6 +310,7 @@ export interface AssessmentData {
   canadianWorkExperience: YesNoUnsure | ""
   canadianWorkDuration: CanadianWorkDuration | ""
   secondOfficialLanguageIntent: SecondOfficialLanguageIntent | ""
+  languageTests: LanguageTestEntry[]
 
   // Step 6: Family
   maritalStatus: MaritalStatus | ""
@@ -234,6 +328,31 @@ export interface AssessmentData {
   partnerEducation: boolean
   partnerLanguageScores: boolean
   partnerWorkExperience: boolean
+  spouseEducationLevel: EducationLevel | ""
+  spouseForeignEducationHasEca: YesNoNotSure | ""
+  spouseEcaEquivalency: EducationLevel | ""
+  spouseEcaIssueDate: string
+  spouseLanguageTestType: ExpressEntryLanguageTestType | ""
+  spouseLanguageTestDate: string
+  spouseLanguageTestStream: LanguageTestStream | ""
+  spouseLanguageScores: {
+    listening: string
+    reading: string
+    writing: string
+    speaking: string
+  }
+  spouseCanadianWorkMonths: number | null
+  spouseCanadianWorkStartDate: string
+  spouseCanadianWorkEndDate: string
+  hasEligibleSiblingInCanada: YesNoNotSure | ""
+  siblingRelationshipType: SiblingRelationshipType | ""
+  siblingProvinceTerritory: string
+  siblingStatus: SiblingStatusType | ""
+  siblingAge18OrOlder: YesNoNotSure | ""
+  siblingLivesInCanada: YesNoNotSure | ""
+  fundsFamilySize: number | null
+  settlementFundsCad: number | null
+  fundsExemptByValidJobOffer: YesNoNotSure | ""
 
   // Step 7: Red Flags
   priorRefusals: YesNoUnsure | ""
@@ -259,6 +378,11 @@ export type TierLevel = 1 | 2 | 3
 export type TierLabel = "Clean" | "Moderate" | "Complex"
 export type Severity = "low" | "medium" | "high"
 export type ConfidenceLevel = "High" | "Medium" | "Low"
+export const PATHWAY_STATUS = {
+  ELIGIBLE: "Eligible",
+  NEEDS_INFO: "Needs info",
+} as const
+export type PathwayStatusTag = (typeof PATHWAY_STATUS)[keyof typeof PATHWAY_STATUS]
 
 export interface TierResult {
   level: TierLevel
@@ -272,6 +396,9 @@ export interface PathwayCard {
   whyRelevant: string[]
   whatNext: string[]
   confidence: ConfidenceLevel
+  statusTag?: PathwayStatusTag
+  statusNote?: string
+  eligibilityStatus?: ProgramEligibilityStatus
 }
 
 export type RiskId =
@@ -337,4 +464,5 @@ export interface AssessmentResults {
   riskFlags: RiskFlag[]
   nextSteps: NextStep[]
   nextActions: string[]
+  expressEntryEligibility: ExpressEntryEligibilityResult
 }

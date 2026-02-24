@@ -26,7 +26,7 @@ import { X } from "lucide-react"
 import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
-const educationLevels = [
+export const educationLevels = [
   { value: "none", label: "No formal education" },
   { value: "high-school", label: "High school diploma" },
   { value: "one-year-diploma", label: "One-year diploma or certificate" },
@@ -57,9 +57,19 @@ const fieldOfStudyOptions = [
 
 const CURRENT_YEAR = new Date().getFullYear()
 const MAX_CREDENTIALS = 5
+const ecaIssuers = [
+  { value: "wes", label: "WES" },
+  { value: "iqas", label: "IQAS" },
+  { value: "icas", label: "ICAS" },
+  { value: "ces", label: "CES" },
+  { value: "mcc", label: "MCC" },
+  { value: "pebc", label: "PEBC" },
+  { value: "other", label: "Other" },
+]
 
 export function StepEducation() {
   const { control, setValue } = useFormContext<AssessmentData>()
+  const primaryGoal = useWatch({ control, name: "primaryGoal" })
   const ecaStatus = useWatch({ control, name: "ecaStatus" })
   const hasMultipleCredentials = useWatch({ control, name: "hasMultipleCredentials" })
   const educationCompletedInCanada = useWatch({ control, name: "educationCompletedInCanada" })
@@ -67,7 +77,17 @@ export function StepEducation() {
     control,
     name: "additionalCredentials",
   })
+  const {
+    fields: eeCredentialFields,
+    append: appendEeCredential,
+    remove: removeEeCredential,
+  } = useFieldArray({
+    control,
+    name: "educationCredentials",
+  })
+  const isPrFlow = primaryGoal === "pr" || primaryGoal === "not-sure"
   const isMaxCredentialsReached = fields.length >= MAX_CREDENTIALS
+  const isMaxEeCredentialsReached = eeCredentialFields.length >= MAX_CREDENTIALS
 
   useEffect(() => {
     if (educationCompletedInCanada !== "yes") {
@@ -519,6 +539,268 @@ export function StepEducation() {
               : "+ Add credential"}
           </Button>
           {isMaxCredentialsReached && (
+            <p className="text-xs text-muted-foreground">
+              You can add up to {MAX_CREDENTIALS} total credentials.
+            </p>
+          )}
+        </div>
+      )}
+
+      {isPrFlow && (
+        <div className="flex flex-col gap-3">
+          <FormLabel>Detailed credential records for Express Entry</FormLabel>
+          <FormDescription>
+            Add each credential you want counted. Foreign credentials need ECA details.
+          </FormDescription>
+
+          {eeCredentialFields.map((item, index) => (
+            <Card key={item.id} className="relative">
+              <CardContent className="flex flex-col gap-3 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    EE Credential #{index + 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeEeCredential(index)}
+                    className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-3.5" />
+                    <span className="sr-only">Remove EE credential</span>
+                  </Button>
+                </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.level`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Credential level</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select level" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {educationLevels.filter((level) => level.value !== "none").map((level) => (
+                            <SelectItem key={level.value} value={level.value}>
+                              {level.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.country`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Canada, India" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.isCanadianCredential`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Is this a Canadian credential?</FormLabel>
+                      <FormControl>
+                        <RadioGroup onValueChange={field.onChange} value={field.value} className="flex gap-4">
+                          {[
+                            { value: "yes", label: "Yes" },
+                            { value: "no", label: "No" },
+                          ].map((option) => (
+                            <Label
+                              key={option.value}
+                              htmlFor={`ee-credential-canadian-${index}-${option.value}`}
+                              className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                            >
+                              <RadioGroupItem value={option.value} id={`ee-credential-canadian-${index}-${option.value}`} />
+                              <span className="text-foreground">{option.label}</span>
+                            </Label>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.issueDate`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Issue / graduation date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.institutionName`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Institution name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Institution" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.programLengthMonths`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Program length (months)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={field.value ?? ""}
+                          onChange={(event) => {
+                            const next = event.target.value.trim()
+                            field.onChange(next ? Number.parseInt(next, 10) : null)
+                          }}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={control}
+                name={`educationCredentials.${index}.ecaIssuer`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>ECA issuer (for foreign credentials)</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select issuer" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {ecaIssuers.map((issuer) => (
+                          <SelectItem key={issuer.value} value={issuer.value}>
+                            {issuer.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.ecaReferenceNumber`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ECA reference number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Reference" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.ecaIssueDate`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ECA issue date</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} value={field.value ?? ""} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={control}
+                  name={`educationCredentials.${index}.ecaEquivalency`}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>ECA equivalency</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select equivalency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {educationLevels.map((level) => (
+                            <SelectItem key={level.value} value={level.value}>
+                              {level.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (isMaxEeCredentialsReached) return
+              appendEeCredential({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+                level: "",
+                country: "",
+                isCanadianCredential: "",
+                issueDate: "",
+                institutionName: "",
+                programLengthMonths: null,
+                ecaIssuer: "",
+                ecaReferenceNumber: "",
+                ecaIssueDate: "",
+                ecaEquivalency: "",
+              })
+            }}
+            disabled={isMaxEeCredentialsReached}
+            className="w-fit gap-1.5"
+          >
+            {isMaxEeCredentialsReached
+              ? `Credential limit reached (${MAX_CREDENTIALS})`
+              : "+ Add EE credential"}
+          </Button>
+          {isMaxEeCredentialsReached && (
             <p className="text-xs text-muted-foreground">
               You can add up to {MAX_CREDENTIALS} total credentials.
             </p>

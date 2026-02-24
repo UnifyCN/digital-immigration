@@ -96,11 +96,14 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "jobOfferCompensationType", label: "Job offer compensation type" },
       { key: "jobOfferTenure", label: "Employer tenure" },
       { key: "employerWillSupportPNP", label: "Employer supports PNP" },
+      { key: "jobOfferNonSeasonal", label: "Job offer non-seasonal" },
+      { key: "jobOfferSupportType", label: "Job offer support type" },
       { key: "occupationCategory", label: "Occupation category" },
       { key: "occupationCategoryOtherRole", label: "Occupation category (other)" },
       { key: "jobDuties", label: "Main job duties" },
       { key: "foreignSkilledYears", label: "Skilled work outside Canada" },
       { key: "has12MonthsCanadaSkilled", label: "Completed 12 months skilled work in Canada" },
+      { key: "workRoles", label: "Detailed work roles" },
     ],
   },
   {
@@ -120,6 +123,7 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "programLength", label: "Program length" },
       { key: "hasMultipleCredentials", label: "More than one completed credential" },
       { key: "ecaValid", label: "ECA still valid" },
+      { key: "educationCredentials", label: "Detailed education credentials" },
     ],
   },
   {
@@ -130,6 +134,7 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "languageTestStatus", label: "Valid language test status" },
       { key: "languageTestPlannedDate", label: "Planned test date" },
       { key: "secondOfficialLanguageIntent", label: "Second official language test intent" },
+      { key: "languageTests", label: "Detailed language tests" },
     ],
   },
   {
@@ -149,6 +154,10 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "hasDependents18Plus", label: "Dependents 18+" },
       { key: "sponsorshipTarget", label: "Sponsorship target" },
       { key: "sponsorStatus", label: "Sponsor status" },
+      { key: "spouseLanguageTestType", label: "Spouse language test type" },
+      { key: "spouseLanguageTestStream", label: "Spouse language test stream" },
+      { key: "fundsFamilySize", label: "Proof-of-funds family size" },
+      { key: "settlementFundsCad", label: "Settlement funds (CAD)" },
     ],
   },
   {
@@ -255,6 +264,9 @@ const enumLabels: Record<string, string> = {
   "work-permit-open": "Work permit - open",
   "work-permit-employer-specific": "Work permit - employer-specific",
   "visitor-record": "Visitor record",
+  "lmia-exempt": "LMIA-exempt",
+  lmia: "LMIA",
+  unknown: "Unknown",
   "17-or-less": "17 or younger",
   "18-24": "18–24",
   "25-29": "25–29",
@@ -332,7 +344,11 @@ export function formatAnswer(value: unknown): string {
   if (value === null || value === undefined || value === "") return "Not provided"
   if (typeof value === "boolean") return value ? "Yes" : "No"
   if (typeof value === "number") return String(value)
-  if (Array.isArray(value)) return value.length ? value.join(", ") : "None"
+  if (Array.isArray(value)) {
+    if (!value.length) return "None"
+    if (typeof value[0] === "object") return `${value.length} item(s)`
+    return value.join(", ")
+  }
   if (typeof value !== "string") return String(value)
 
   if (/^\d{4}-\d{2}$/.test(value)) return formatMonthYear(value)
