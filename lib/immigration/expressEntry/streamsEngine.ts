@@ -109,7 +109,7 @@ export function buildProfileFromAnswers(rawAnswers: AssessmentData, asOfDate: Da
     endDate: role.endDate ?? "",
     present: role.present === true,
     hoursPerWeek: role.hoursPerWeek ?? null,
-    paid: role.paid === true,
+    paid: typeof role.paid === "boolean" ? role.paid : null,
     employmentType: role.employmentType ?? "",
     wasAuthorizedInCanada: role.wasAuthorizedInCanada ?? "",
     wasFullTimeStudent: role.wasFullTimeStudent ?? "",
@@ -412,18 +412,29 @@ export function checkCEC(profile: CandidateProfile, asOfDate: Date = new Date())
 
   const canadianRoles = profile.workRoles.filter((role) => isCanada(role.country))
   if (canadianRoles.length === 0) {
+    const countryMissing = profile.workRoles.some((role) => !role.country)
+    if (countryMissing) {
+      const countryMissingFields = profile.workRoles
+        .filter((role) => !role.country)
+        .map((role) => `work.roles.${role.id}.country`)
+      reasons.push("Complete country details for work roles to confirm Canadian experience for CEC.")
+      return toResult("needs_more_info", reasons, countryMissingFields, evidence)
+    }
     reasons.push("CEC requires qualifying Canadian work experience.")
     return toResult("ineligible", reasons, [], evidence)
   }
 
   for (const role of canadianRoles) {
     const teer = resolveRoleTeer(role)
+    if (!role.country) missingFields.push(`work.roles.${role.id}.country`)
     if (!isValidNocCode(role.nocCode)) missingFields.push(`work.roles.${role.id}.nocCode`)
     if (!teer) missingFields.push(`work.roles.${role.id}.teer`)
     if (!role.nocDutiesMatchConfirmed) missingFields.push(`work.roles.${role.id}.nocDutiesMatchConfirmed`)
     if (!role.startDate) missingFields.push(`work.roles.${role.id}.startDate`)
     if (!role.present && !role.endDate) missingFields.push(`work.roles.${role.id}.endDate`)
     if (role.hoursPerWeek === null || role.hoursPerWeek === undefined) missingFields.push(`work.roles.${role.id}.hoursPerWeek`)
+    if (role.paid === null) missingFields.push(`work.roles.${role.id}.paid`)
+    if (!role.employmentType) missingFields.push(`work.roles.${role.id}.employmentType`)
     if (isUnknown(role.wasAuthorizedInCanada)) missingFields.push(`work.roles.${role.id}.wasAuthorizedInCanada`)
     if (isUnknown(role.wasFullTimeStudent)) missingFields.push(`work.roles.${role.id}.wasFullTimeStudent`)
     if (isUnknown(role.physicallyInCanada)) missingFields.push(`work.roles.${role.id}.physicallyInCanada`)
@@ -497,12 +508,15 @@ export function checkFSW(profile: CandidateProfile, asOfDate: Date = new Date())
 
   for (const role of profile.workRoles) {
     const teer = resolveRoleTeer(role)
+    if (!role.country) missingFields.push(`work.roles.${role.id}.country`)
     if (!isValidNocCode(role.nocCode)) missingFields.push(`work.roles.${role.id}.nocCode`)
     if (!teer) missingFields.push(`work.roles.${role.id}.teer`)
     if (!role.nocDutiesMatchConfirmed) missingFields.push(`work.roles.${role.id}.nocDutiesMatchConfirmed`)
     if (!role.startDate) missingFields.push(`work.roles.${role.id}.startDate`)
     if (!role.present && !role.endDate) missingFields.push(`work.roles.${role.id}.endDate`)
     if (role.hoursPerWeek === null || role.hoursPerWeek === undefined) missingFields.push(`work.roles.${role.id}.hoursPerWeek`)
+    if (role.paid === null) missingFields.push(`work.roles.${role.id}.paid`)
+    if (!role.employmentType) missingFields.push(`work.roles.${role.id}.employmentType`)
   }
 
   const language = evaluateLanguage(profile, { listening: 7, reading: 7, writing: 7, speaking: 7 })
@@ -708,12 +722,15 @@ export function checkFST(profile: CandidateProfile, asOfDate: Date = new Date())
 
   for (const role of profile.workRoles) {
     const teer = resolveRoleTeer(role)
+    if (!role.country) missingFields.push(`work.roles.${role.id}.country`)
     if (!isValidNocCode(role.nocCode)) missingFields.push(`work.roles.${role.id}.nocCode`)
     if (!teer) missingFields.push(`work.roles.${role.id}.teer`)
     if (!role.nocDutiesMatchConfirmed) missingFields.push(`work.roles.${role.id}.nocDutiesMatchConfirmed`)
     if (!role.startDate) missingFields.push(`work.roles.${role.id}.startDate`)
     if (!role.present && !role.endDate) missingFields.push(`work.roles.${role.id}.endDate`)
     if (role.hoursPerWeek === null || role.hoursPerWeek === undefined) missingFields.push(`work.roles.${role.id}.hoursPerWeek`)
+    if (role.paid === null) missingFields.push(`work.roles.${role.id}.paid`)
+    if (!role.employmentType) missingFields.push(`work.roles.${role.id}.employmentType`)
     if (isUnknown(role.wasFullTimeStudent)) missingFields.push(`work.roles.${role.id}.wasFullTimeStudent`)
     if (isUnknown(role.qualifiedToPracticeInCountry ?? "")) missingFields.push(`work.roles.${role.id}.qualifiedToPracticeInCountry`)
   }

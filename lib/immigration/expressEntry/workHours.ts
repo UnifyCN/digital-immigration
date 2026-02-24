@@ -1,8 +1,8 @@
 import { subYears } from "date-fns"
 import type { CandidateWorkRole } from "./types.ts"
+import { HOURS_PER_WEEK_CAP } from "../../express-entry/rules.ts"
 
 const DAY_MS = 24 * 60 * 60 * 1000
-const HOURS_PER_WEEK_CAP = 30
 const DAILY_CAP = HOURS_PER_WEEK_CAP / 7
 
 function toDate(value: string): Date | null {

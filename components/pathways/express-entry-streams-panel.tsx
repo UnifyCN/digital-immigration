@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { classifyExpressEntryStreams } from "@/lib/immigration/expressEntry/streamsEngine"
 import type { ExpressEntryStreamsResult } from "@/lib/immigration/expressEntry/types"
+import { getStreamStatusMeta } from "@/lib/immigration/expressEntry/statusMeta"
 import type { AssessmentData } from "@/lib/types"
 import { saveAssessment } from "@/lib/storage"
 import { ExpressEntryStreamsQuestionnaire } from "@/components/pathways/express-entry-streams-questionnaire"
@@ -13,12 +14,6 @@ import { ExpressEntryStreamsQuestionnaire } from "@/components/pathways/express-
 type ExpressEntryStreamsPanelProps = {
   assessment: AssessmentData
   onAssessmentUpdated: (next: AssessmentData) => void
-}
-
-function statusLabel(status: "eligible" | "ineligible" | "needs_more_info") {
-  if (status === "eligible") return { label: "Eligible", variant: "default" as const }
-  if (status === "needs_more_info") return { label: "Needs more info", variant: "secondary" as const }
-  return { label: "Ineligible", variant: "outline" as const }
 }
 
 function topReasons(reasons: string[]): string[] {
@@ -29,26 +24,26 @@ export function ExpressEntryStreamsPanel({ assessment, onAssessmentUpdated }: Ex
   const [isOpen, setIsOpen] = useState(false)
   const [draft, setDraft] = useState<AssessmentData>(assessment)
   const [result, setResult] = useState<ExpressEntryStreamsResult | null>(null)
+  const assessmentUpdatedRef = useRef(onAssessmentUpdated)
 
   useEffect(() => {
     setDraft(assessment)
   }, [assessment])
 
   useEffect(() => {
-    if (!isOpen) return
-    const computed = classifyExpressEntryStreams(draft)
-    setResult(computed)
-  }, [draft, isOpen])
+    assessmentUpdatedRef.current = onAssessmentUpdated
+  }, [onAssessmentUpdated])
 
   useEffect(() => {
     if (!isOpen) return
     const timer = setTimeout(() => {
+      setResult(classifyExpressEntryStreams(draft))
       saveAssessment(draft)
-      onAssessmentUpdated(draft)
+      assessmentUpdatedRef.current(draft)
     }, 300)
 
     return () => clearTimeout(timer)
-  }, [draft, isOpen, onAssessmentUpdated])
+  }, [draft, isOpen])
 
   const hasQuestions = (result?.nextQuestions.length ?? 0) > 0
   const eligibleProgramsLabel = useMemo(() => {
@@ -89,23 +84,23 @@ export function ExpressEntryStreamsPanel({ assessment, onAssessmentUpdated }: Ex
                 ["FSW", result.programResults.FSW],
                 ["FST", result.programResults.FST],
               ] as const).map(([program, programResult]) => {
-                const meta = statusLabel(programResult.status)
+                const meta = getStreamStatusMeta(programResult.status)
                 return (
-                  <Card key={program} className="border-border/70">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="flex items-center justify-between text-sm">
+                  <section key={program} className="rounded-lg border border-border/70 bg-card">
+                    <div className="border-b px-4 py-3">
+                      <h3 className="flex items-center justify-between text-sm font-semibold">
                         <span>{program}</span>
                         <Badge variant={meta.variant}>{meta.label}</Badge>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                      </h3>
+                    </div>
+                    <div className="px-4 py-3">
                       <ul className="space-y-1 text-xs text-muted-foreground">
                         {topReasons(programResult.reasons).map((reason, index) => (
                           <li key={`${program}-${index}`}>{reason}</li>
                         ))}
                       </ul>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </section>
                 )
               })}
             </CardContent>

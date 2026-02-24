@@ -15,12 +15,16 @@ export function ExpressEntryNocInput({ value, onChange, placeholder = "Enter 5-d
   const normalized = value.trim()
   const derivedTeer = useMemo(() => deriveTeerFromNocCode(normalized), [normalized])
   const isValid = normalized.length === 0 ? true : isValidNocCode(normalized)
+  const invalid = normalized.length > 0 && !isValid
 
   return (
     <div className="space-y-2">
       <Input
         value={value}
         placeholder={placeholder}
+        inputMode="numeric"
+        pattern="[0-9]*"
+        aria-invalid={invalid}
         onChange={(event) => {
           const next = event.target.value.replace(/[^\d]/g, "").slice(0, 5)
           onChange(next, deriveTeerFromNocCode(next))

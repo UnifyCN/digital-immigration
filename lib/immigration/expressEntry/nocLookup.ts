@@ -1,5 +1,5 @@
 export function normalizeNocCode(input: string): string {
-  return input.trim()
+  return input.trim().replace(/\D/g, "")
 }
 
 export function isValidNocCode(code: string): boolean {

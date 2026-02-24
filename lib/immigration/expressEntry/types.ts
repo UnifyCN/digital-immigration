@@ -1,3 +1,12 @@
+import type {
+  AssessmentData,
+  ExpressEntryLanguageTestType,
+  LanguageTestStream,
+  WorkRoleEmploymentType,
+  YesNo,
+  YesNoNotSure,
+} from "../../types"
+
 export type StreamProgram = "CEC" | "FSW" | "FST"
 
 export type ProgramCheckStatus = "eligible" | "ineligible" | "needs_more_info"
@@ -36,8 +45,8 @@ export interface FollowUpQuestionSpec {
 }
 
 export interface CandidateLanguageTest {
-  testType: string
-  stream: string
+  testType: ExpressEntryLanguageTestType | ""
+  stream: LanguageTestStream | ""
   testDate: string
   scores: {
     listening: string
@@ -57,12 +66,12 @@ export interface CandidateWorkRole {
   endDate: string
   present: boolean
   hoursPerWeek: number | null
-  paid: boolean
-  employmentType: string
-  wasAuthorizedInCanada: string
-  wasFullTimeStudent: string
-  qualifiedToPracticeInCountry: string
-  physicallyInCanada: string
+  paid: boolean | null
+  employmentType: WorkRoleEmploymentType | ""
+  wasAuthorizedInCanada: YesNoNotSure | ""
+  wasFullTimeStudent: YesNoNotSure | ""
+  qualifiedToPracticeInCountry: YesNoNotSure | ""
+  physicallyInCanada: YesNoNotSure | ""
   title: string
   employerName: string
 }
@@ -72,10 +81,10 @@ export interface CandidateFstJobOfferEmployer {
   employerName: string
   province: string
   noc2021Code: string
-  paid: string
-  fullTime: string
-  continuous: string
-  nonSeasonal: string
+  paid: YesNo | ""
+  fullTime: YesNo | ""
+  continuous: YesNoNotSure | ""
+  nonSeasonal: YesNoNotSure | ""
   hoursPerWeek: number | null
   durationMonths: number | null
 }
@@ -83,17 +92,17 @@ export interface CandidateFstJobOfferEmployer {
 export interface CandidateProfile {
   asOfDate: Date
   source: AssessmentData
-  intentOutsideQuebec: string
-  currentlyAuthorizedToWorkInCanada: string
+  intentOutsideQuebec: YesNoNotSure | ""
+  currentlyAuthorizedToWorkInCanada: YesNoNotSure | ""
   fswPrimaryOccupationRoleId: string
   fundsFamilySize: number | null
   settlementFundsCad: number | null
-  fundsExemptByValidJobOffer: string
-  hasCanadianTradeCertificate: string
+  fundsExemptByValidJobOffer: YesNoNotSure | ""
+  hasCanadianTradeCertificate: YesNo | ""
   tradeCertificateIssuingAuthority: string
   tradeCertificateTrade: string
   tradeCertificateIssueDate: string
-  jobOfferMeetsValidOfferDefinition: string
+  jobOfferMeetsValidOfferDefinition: YesNoNotSure | ""
   language: CandidateLanguageTest
   workRoles: CandidateWorkRole[]
   fstJobOfferEmployers: CandidateFstJobOfferEmployer[]
@@ -110,4 +119,3 @@ export interface ExpressEntryStreamsResult {
   rulesetDate: string
   asOfDate: string
 }
-import type { AssessmentData } from "../../types"

@@ -18,6 +18,7 @@ import {
 import { derivePrimaryClb } from "./clb.ts"
 import { toMissingFieldRef, uniqueMissingFields } from "./missing-fields.ts"
 import { classifyExpressEntryStreams } from "../immigration/expressEntry/streamsEngine.ts"
+import type { ExpressEntryStreamsResult } from "../immigration/expressEntry/types.ts"
 import type {
   ExpressEntryEligibilityResult,
   ExpressEntryReason,
@@ -902,6 +903,9 @@ export function getExpressEntryMissingFieldLinks(result: ExpressEntryEligibility
     : [toMissingFieldRef("work.roles")]
 }
 
-export function computeExpressEntryEligibilityFromStreamsEngine(profile: AssessmentData, asOfDate: Date = new Date()) {
+export function computeExpressEntryEligibilityFromStreamsEngine(
+  profile: AssessmentData,
+  asOfDate: Date = new Date(),
+): ExpressEntryStreamsResult {
   return classifyExpressEntryStreams(profile, asOfDate)
 }

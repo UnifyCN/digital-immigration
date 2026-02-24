@@ -1,4 +1,5 @@
 import type { CandidateProfile, FollowUpQuestionSpec } from "./types.ts"
+import { isCanadaCountry } from "../../canada-helpers.ts"
 
 const APPROVED_LANGUAGE_TEST_OPTIONS = [
   { value: "ielts-general-training", label: "IELTS General" },
@@ -9,8 +10,50 @@ const APPROVED_LANGUAGE_TEST_OPTIONS = [
 ]
 
 function roleFromField(field: string): string | null {
-  const match = field.match(/^work\.roles\.([^\.]+)\./)
+  const match = field.match(/^work\.roles\.([^.]+)\./)
   return match ? match[1] : null
+}
+
+export function buildComprehensiveFollowUpFieldList(profile: CandidateProfile): string[] {
+  const fields = [
+    "shared.intentOutsideQuebec",
+    "auth.currentlyAuthorizedToWorkInCanada",
+    "language.primary.testType",
+    "language.primary.testDate",
+    "language.primary.stream",
+    "language.primary.scores",
+    "jobOffer.validity",
+    "funds.familySize",
+    "funds.available",
+    "fst.offer.path",
+    "fst.offer.employer.1",
+  ]
+
+  const hasSkilledRole = profile.workRoles.some((role) => role.teer === "0" || role.teer === "1" || role.teer === "2" || role.teer === "3")
+  if (hasSkilledRole) {
+    fields.push("fsw.primaryOccupationRoleId")
+  }
+
+  for (const role of profile.workRoles) {
+    const prefix = `work.roles.${role.id}`
+    fields.push(
+      `${prefix}.nocCode`,
+      `${prefix}.nocDutiesMatchConfirmed`,
+      `${prefix}.startDate`,
+      `${prefix}.endDate`,
+      `${prefix}.hoursPerWeek`,
+      `${prefix}.paid`,
+      `${prefix}.employmentType`,
+      `${prefix}.wasFullTimeStudent`,
+      `${prefix}.qualifiedToPracticeInCountry`,
+    )
+
+    if (isCanadaCountry(role.country)) {
+      fields.push(`${prefix}.wasAuthorizedInCanada`, `${prefix}.physicallyInCanada`)
+    }
+  }
+
+  return fields
 }
 
 function addQuestion(collection: FollowUpQuestionSpec[], next: FollowUpQuestionSpec) {

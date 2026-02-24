@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { useMemo, useState } from "react"
 import { ArrowLeft } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -15,15 +16,10 @@ import {
 } from "@/components/ui/breadcrumb"
 import { loadAssessment } from "@/lib/storage"
 import { classifyExpressEntryStreams } from "@/lib/immigration/expressEntry/streamsEngine"
+import { getStreamStatusMeta } from "@/lib/immigration/expressEntry/statusMeta"
 
 const QUESTIONNAIRE_PATH = "/assessment/results/pathways/express-entry/streams"
 const EXPRESS_ENTRY_OVERVIEW_PATH = "/assessment/results/pathways/express-entry"
-
-function statusMeta(status: "eligible" | "ineligible" | "needs_more_info") {
-  if (status === "eligible") return { label: "Eligible", variant: "default" as const }
-  if (status === "needs_more_info") return { label: "Needs more info", variant: "secondary" as const }
-  return { label: "Ineligible", variant: "outline" as const }
-}
 
 const streamInfo = {
   CEC: "Canadian Experience Class is for skilled workers with eligible recent Canadian work experience.",
@@ -32,7 +28,7 @@ const streamInfo = {
 }
 
 export function ExpressEntryStreamsResultsPage() {
-  const assessment = loadAssessment()
+  const [assessment] = useState(() => loadAssessment())
 
   if (!assessment) {
     return (
@@ -52,7 +48,7 @@ export function ExpressEntryStreamsResultsPage() {
     )
   }
 
-  const result = classifyExpressEntryStreams(assessment)
+  const result = useMemo(() => classifyExpressEntryStreams(assessment), [assessment])
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
@@ -98,7 +94,7 @@ export function ExpressEntryStreamsResultsPage() {
       <div className="space-y-4">
         {(["CEC", "FSW", "FST"] as const).map((program) => {
           const programResult = result.programResults[program]
-          const meta = statusMeta(programResult.status)
+          const meta = getStreamStatusMeta(programResult.status)
           return (
             <Card key={program}>
               <CardHeader>

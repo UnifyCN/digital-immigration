@@ -37,6 +37,32 @@ function ensureOffer(offers: FstJobOfferEmployer[], index: number): FstJobOfferE
   return next
 }
 
+function isCompleteFstOfferEmployer(offer: FstJobOfferEmployer | undefined): boolean {
+  if (!offer) return false
+  return Boolean(
+    offer.employerName &&
+      offer.noc2021Code &&
+      offer.paid &&
+      offer.fullTime &&
+      offer.continuous &&
+      offer.hoursPerWeek !== null &&
+      offer.durationMonths !== null,
+  )
+}
+
+function parseFstEmployerIndex(fieldKey: string): number | null {
+  const bracketMatch = fieldKey.match(/^fst\.offer\.employer\[(\d+)\]$/)
+  if (bracketMatch) return Number.parseInt(bracketMatch[1], 10)
+
+  const dotMatch = fieldKey.match(/^fst\.offer\.employer\.(\d+)$/)
+  if (dotMatch) {
+    const oneBased = Number.parseInt(dotMatch[1], 10)
+    return Number.isFinite(oneBased) ? Math.max(0, oneBased - 1) : null
+  }
+
+  return null
+}
+
 function getQuestionValue(question: FollowUpQuestionSpec, assessment: AssessmentData): string | boolean {
   if (question.fieldKey === "shared.intentOutsideQuebec") return assessment.expressEntryIntentOutsideQuebec
   if (question.fieldKey === "auth.currentlyAuthorizedToWorkInCanada") return assessment.currentlyAuthorizedToWorkInCanada
@@ -57,17 +83,12 @@ function getQuestionValue(question: FollowUpQuestionSpec, assessment: Assessment
     return ""
   }
   if (question.fieldKey.startsWith("fst.offer.employer")) {
-    const first = assessment.fstJobOfferEmployers?.[0]
-    return Boolean(
-      first &&
-        first.employerName &&
-        first.noc2021Code &&
-        first.paid &&
-        first.fullTime &&
-        first.continuous &&
-        first.hoursPerWeek !== null &&
-        first.durationMonths !== null,
-    )
+    const offers = assessment.fstJobOfferEmployers ?? []
+    const targetIndex = parseFstEmployerIndex(question.fieldKey)
+    if (targetIndex !== null) {
+      return isCompleteFstOfferEmployer(offers[targetIndex])
+    }
+    return offers.length > 0 && offers.every((offer) => isCompleteFstOfferEmployer(offer))
   }
 
   if (question.roleId) {
@@ -79,7 +100,7 @@ function getQuestionValue(question: FollowUpQuestionSpec, assessment: Assessment
     if (question.fieldKey.endsWith(".startDate")) return role.startDate ?? ""
     if (question.fieldKey.endsWith(".endDate")) return role.endDate ?? ""
     if (question.fieldKey.endsWith(".hoursPerWeek")) return role.hoursPerWeek?.toString() ?? ""
-    if (question.fieldKey.endsWith(".paid")) return role.paid ? "yes" : "no"
+    if (question.fieldKey.endsWith(".paid")) return typeof role.paid === "boolean" ? (role.paid ? "yes" : "no") : ""
     if (question.fieldKey.endsWith(".employmentType")) return role.employmentType ?? ""
     if (question.fieldKey.endsWith(".wasAuthorizedInCanada")) return role.wasAuthorizedInCanada ?? ""
     if (question.fieldKey.endsWith(".wasFullTimeStudent")) return role.wasFullTimeStudent ?? ""
