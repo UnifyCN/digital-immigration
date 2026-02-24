@@ -58,6 +58,7 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "hasAppliedToExtendStatus", label: "Applied to extend status" },
       { key: "refusalHistory", label: "Refusal history" },
       { key: "mostRecentRefusalType", label: "Most recent refusal type" },
+      { key: "mostRecentRefusalDate", label: "Most recent refusal date" },
       { key: "priorCanadaApplicationType", label: "Prior Canada application type" },
       { key: "currentlyWorkingInCanada", label: "Currently working in Canada" },
       { key: "currentJobProvinceTerritory", label: "Current job province/territory" },

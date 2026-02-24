@@ -1,4 +1,5 @@
 import type { PNPSignals } from "./pnpSignals"
+import { isProvinceDirected } from "./pnpProvinceDirection.ts"
 
 export type ChecklistStatus = "complete" | "attention" | "unknown" | "na"
 
@@ -19,14 +20,7 @@ function normalizeLocation(value: string | null): "inside" | "outside" | "unknow
 }
 
 function hasProvinceDirection(signals: PNPSignals): boolean {
-  const flex = signals.settleFlexibility?.trim().toLowerCase()
-  return (
-    flex === "preferprovince" ||
-    flex === "onlyprovince" ||
-    flex === "prefer-specific" ||
-    flex === "only-specific" ||
-    Boolean(signals.preferredProvince && signals.preferredProvince.trim().length > 0)
-  )
+  return isProvinceDirected(signals)
 }
 
 function buildProvinceDirectionItem(signals: PNPSignals): ChecklistItem {
@@ -231,7 +225,8 @@ export function buildPNPReadinessChecklistAll(params: {
   signals: PNPSignals
   meta: { unknownRate: number }
 }): ChecklistItem[] {
-  void params.meta
+  // `unknownRate` is intentionally accepted for API stability with other builders.
+  void params.meta.unknownRate
 
   return [
     buildProvinceDirectionItem(params.signals),

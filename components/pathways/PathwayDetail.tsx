@@ -75,6 +75,8 @@ type PathwayBriefLayoutProps = {
   nextActionsPrimary?: ReactNode
 }
 
+type DocumentRoadmapItem = NonNullable<PathwayCard["documentRoadmap"]>["typical"][number]
+
 const statusMeta: Record<ChecklistStatus, { label: string; className: string }> = {
   complete: { label: "✅", className: "text-tier-clean" },
   warning: { label: "⚠️", className: "text-tier-moderate" },
@@ -108,6 +110,33 @@ function SectionList({ items }: { items: string[] }) {
   )
 }
 
+function DocumentRoadmapSection({
+  title,
+  items,
+}: {
+  title: string
+  items: DocumentRoadmapItem[]
+}) {
+  return (
+    <div>
+      <p className="mb-2 text-sm font-medium text-foreground">{title}</p>
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-md border border-border px-3 py-2">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm text-foreground">{item.label}</p>
+              <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
+                {documentStatusMeta[item.status].label}
+              </span>
+            </div>
+            {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function PathwayBriefLayout({
   title,
   description,
@@ -121,6 +150,9 @@ function PathwayBriefLayout({
   pathwaySpecificSection,
   nextActionsPrimary,
 }: PathwayBriefLayoutProps) {
+  const hasLowLimitedBullets = (lowConfidenceMessaging?.whyLimitedBullets?.length ?? 0) > 0
+  const hasLowImproveBullets = (lowConfidenceMessaging?.howToImproveBullets?.length ?? 0) > 0
+
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">
       <Button variant="ghost" size="sm" onClick={onBack} className="mb-4 gap-2">
@@ -150,20 +182,28 @@ function PathwayBriefLayout({
           </CardHeader>
           <CardContent>
             {lowConfidenceMessaging ? (
-              <div className="space-y-4">
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground">
-                    Why PNP appears limited right now
-                  </p>
-                  <SectionList items={lowConfidenceMessaging.whyLimitedBullets} />
+              hasLowLimitedBullets || hasLowImproveBullets ? (
+                <div className="space-y-4">
+                  {hasLowLimitedBullets ? (
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-foreground">
+                        Why PNP appears limited right now
+                      </p>
+                      <SectionList items={lowConfidenceMessaging.whyLimitedBullets} />
+                    </div>
+                  ) : null}
+                  {hasLowImproveBullets ? (
+                    <div>
+                      <p className="mb-2 text-sm font-medium text-foreground">
+                        What would strengthen your PNP options
+                      </p>
+                      <SectionList items={lowConfidenceMessaging.howToImproveBullets} />
+                    </div>
+                  ) : null}
                 </div>
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground">
-                    What would strengthen your PNP options
-                  </p>
-                  <SectionList items={lowConfidenceMessaging.howToImproveBullets} />
-                </div>
-              </div>
+              ) : (
+                <SectionList items={brief.whyBullets} />
+              )
             ) : (
               <SectionList items={brief.whyBullets} />
             )}
@@ -213,54 +253,9 @@ function PathwayBriefLayout({
           <CardContent className="space-y-4">
             {documentRoadmap ? (
               <>
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground">Typical:</p>
-                  <div className="space-y-2">
-                    {documentRoadmap.typical.map((item) => (
-                      <div key={item.id} className="rounded-md border border-border px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm text-foreground">{item.label}</p>
-                          <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
-                            {documentStatusMeta[item.status].label}
-                          </span>
-                        </div>
-                        {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground">Sometimes:</p>
-                  <div className="space-y-2">
-                    {documentRoadmap.sometimes.map((item) => (
-                      <div key={item.id} className="rounded-md border border-border px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm text-foreground">{item.label}</p>
-                          <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
-                            {documentStatusMeta[item.status].label}
-                          </span>
-                        </div>
-                        {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="mb-2 text-sm font-medium text-foreground">Later-stage:</p>
-                  <div className="space-y-2">
-                    {documentRoadmap.later.map((item) => (
-                      <div key={item.id} className="rounded-md border border-border px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <p className="text-sm text-foreground">{item.label}</p>
-                          <span className={`text-xs font-medium ${documentStatusMeta[item.status].className}`}>
-                            {documentStatusMeta[item.status].label}
-                          </span>
-                        </div>
-                        {item.note ? <p className="mt-1 text-xs text-muted-foreground">{item.note}</p> : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                <DocumentRoadmapSection title="Typical:" items={documentRoadmap.typical} />
+                <DocumentRoadmapSection title="Sometimes:" items={documentRoadmap.sometimes} />
+                <DocumentRoadmapSection title="Later-stage:" items={documentRoadmap.later} />
               </>
             ) : (
               <>
@@ -370,12 +365,18 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const router = useRouter()
   const [assessment, setAssessment] = useState<AssessmentData | null>(null)
   const [confidence, setConfidence] = useState<ConfidenceLevel>("High")
-  const [pnpConfidenceLevel, setPnpConfidenceLevel] = useState<PathwayCard["confidenceLevel"]>()
-  const [pnpWhyBullets, setPnpWhyBullets] = useState<string[]>([])
-  const [pnpWhyLimitedBullets, setPnpWhyLimitedBullets] = useState<string[]>([])
-  const [pnpHowToImproveBullets, setPnpHowToImproveBullets] = useState<string[]>([])
   const [provinceShortlist, setProvinceShortlist] = useState<ProvinceRecommendation[]>([])
-  const [pnpDocumentRoadmap, setPnpDocumentRoadmap] = useState<PathwayCard["documentRoadmap"]>()
+  const [pnpState, setPnpState] = useState<{
+    confidenceLevel?: PathwayCard["confidenceLevel"]
+    whyBullets: string[]
+    whyLimitedBullets: string[]
+    howToImproveBullets: string[]
+    documentRoadmap?: PathwayCard["documentRoadmap"]
+  }>({
+    whyBullets: [],
+    whyLimitedBullets: [],
+    howToImproveBullets: [],
+  })
   const [pnpProvinceRouterPrimaryCTA, setPnpProvinceRouterPrimaryCTA] = useState("Refine BC Options")
   const [isLoaded, setIsLoaded] = useState(false)
 
@@ -395,11 +396,13 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
       const pathwayConfidence = selectedPathway?.confidence
       setConfidence(formatConfidence(pathwayConfidence))
       if (slug === "pnp") {
-        setPnpConfidenceLevel(selectedPathway?.confidenceLevel)
-        setPnpWhyBullets(selectedPathway?.whyBullets ?? [])
-        setPnpWhyLimitedBullets(selectedPathway?.whyLimitedBullets ?? [])
-        setPnpHowToImproveBullets(selectedPathway?.howToImproveBullets ?? [])
-        setPnpDocumentRoadmap(selectedPathway?.documentRoadmap)
+        setPnpState({
+          confidenceLevel: selectedPathway?.confidenceLevel,
+          whyBullets: selectedPathway?.whyBullets ?? [],
+          whyLimitedBullets: selectedPathway?.whyLimitedBullets ?? [],
+          howToImproveBullets: selectedPathway?.howToImproveBullets ?? [],
+          documentRoadmap: selectedPathway?.documentRoadmap,
+        })
         const routerDecision = getPNPProvinceRouterDecision({
           pnpInScope: isPNPInScope(data),
           pnpFitScore: typeof selectedPathway?.pnpScore === "number" ? selectedPathway.pnpScore : 0,
@@ -411,20 +414,20 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
         })
         setPnpProvinceRouterPrimaryCTA(routerDecision.primaryCTA)
       } else {
-        setPnpConfidenceLevel(undefined)
-        setPnpWhyBullets([])
-        setPnpWhyLimitedBullets([])
-        setPnpHowToImproveBullets([])
-        setPnpDocumentRoadmap(undefined)
+        setPnpState({
+          whyBullets: [],
+          whyLimitedBullets: [],
+          howToImproveBullets: [],
+        })
         setPnpProvinceRouterPrimaryCTA("Refine BC Options")
       }
     } catch {
       setConfidence("High")
-      setPnpConfidenceLevel(undefined)
-      setPnpWhyBullets([])
-      setPnpWhyLimitedBullets([])
-      setPnpHowToImproveBullets([])
-      setPnpDocumentRoadmap(undefined)
+      setPnpState({
+        whyBullets: [],
+        whyLimitedBullets: [],
+        howToImproveBullets: [],
+      })
       setPnpProvinceRouterPrimaryCTA("Refine BC Options")
     } finally {
       setIsLoaded(true)
@@ -437,13 +440,13 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const pnpBrief = useMemo(() => {
     if (!assessment || !isPnp) return null
     const baseBrief = buildPnpBrief(assessment)
-    return pnpWhyBullets.length > 0
+    return pnpState.whyBullets.length > 0
       ? {
           ...baseBrief,
-          whyBullets: pnpWhyBullets,
+          whyBullets: pnpState.whyBullets,
         }
       : baseBrief
-  }, [assessment, isPnp, pnpWhyBullets])
+  }, [assessment, isPnp, pnpState.whyBullets])
 
   const expressEntryBrief = useMemo(() => {
     if (!assessment || !isExpressEntry) return null
@@ -547,12 +550,12 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
       description="A set of province-specific immigration programs that can nominate candidates for Permanent Residence based on local labour needs and connections to a province."
       confidence={confidence}
       brief={pnpBrief}
-      documentRoadmap={pnpDocumentRoadmap}
+      documentRoadmap={pnpState.documentRoadmap}
       lowConfidenceMessaging={
-        pnpConfidenceLevel === "low"
+        pnpState.confidenceLevel === "low"
           ? {
-              whyLimitedBullets: pnpWhyLimitedBullets,
-              howToImproveBullets: pnpHowToImproveBullets,
+              whyLimitedBullets: pnpState.whyLimitedBullets,
+              howToImproveBullets: pnpState.howToImproveBullets,
             }
           : undefined
       }

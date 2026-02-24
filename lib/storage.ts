@@ -90,6 +90,7 @@ export const defaultAssessmentData: AssessmentData = {
   hasAppliedToExtendStatus: "",
   refusalHistory: "",
   mostRecentRefusalType: "",
+  mostRecentRefusalDate: "",
   priorCanadaApplicationType: "",
   currentlyWorkingInCanada: "",
   currentJobProvinceTerritory: "",

@@ -26,6 +26,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import {
+  computeSupplementalCompletedCount,
   getProvinceFinderRequiredRadioKeys,
   isCompleteProvinceFinderAnswers,
   recommendationForProvince,
@@ -68,7 +69,6 @@ const BC_REFINEMENT_PATH = "/assessment/results/pathways/pnp/bc-refinement"
 const FINDER_RESULTS_PATH = "/assessment/results/pathways/pnp/province-finder/results"
 const CHOICE_CHIP_CLASS =
   "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
-const NOC_CODE_REGEX = /^\d{4,5}$/
 
 const RADIO_QUESTIONS: RadioQuestion[] = [
   {
@@ -290,7 +290,7 @@ export function ProvinceFinderQuestionnaire() {
   const [answers, setAnswers] = useState<ProvinceFinderDraftAnswers>(() => loadPNPProvinceFinderAnswers())
   const [entryContext] = useState(() => loadPNPProvinceFinderEntryContext())
   const [errors, setErrors] = useState<string[]>([])
-  const assessment = useMemo(() => loadAssessment(), [])
+  const [assessment] = useState(() => loadAssessment())
   const { signals: mainSignals, meta } = useMemo(() => buildPNPSignals(assessment ?? {}), [assessment])
   const finderSignals = useMemo(() => buildPNPProvinceFinderSignals(answers), [answers])
   const mvpResolution = useMemo(
@@ -361,57 +361,44 @@ export function ProvinceFinderQuestionnaire() {
     (answers.ee_profile_active === "yes" && answers.ee_crs_known ? 1 : 0) +
     (showEmployerParticipationDetails ? 1 : 0)
   const supplementalCompletedCount =
-    (answers.noc_known ? 1 : 0) +
-    (answers.noc_known === "yes"
-      ? answers.noc_code?.trim() && NOC_CODE_REGEX.test(answers.noc_code.trim())
-        ? 1
-        : 0
-      : answers.noc_known === "no_not_sure"
-        ? answers.teer_level_guess
-          ? 1
-          : 0
-        : 0) +
-    (answers.ee_profile_active ? 1 : 0) +
-    (answers.ee_profile_active === "yes"
-      ? answers.ee_crs_known === "yes"
-        ? answers.ee_crs_score != null
-          ? 1
-          : 0
-        : answers.ee_crs_known === "no"
-          ? answers.ee_crs_range
-            ? 1
-            : 0
-          : 0
-      : 0) +
-    (showEmployerParticipationDetails && answers.employer_operation_years_in_province ? 1 : 0)
+    computeSupplementalCompletedCount({
+      answers,
+      showEmployerParticipationDetails,
+    })
   const totalQuestions = requiredKeys.length + 1 + supplementalRequiredCount
   const progressText = `${Math.min(totalQuestions, completedRequiredCount + 1 + supplementalCompletedCount)}/${totalQuestions}`
 
   useEffect(() => {
-    if (answers.noc_known !== "yes" && answers.noc_code) {
-      updateAnswer("noc_code", undefined)
-    }
-    if (answers.noc_known !== "no_not_sure" && answers.teer_level_guess) {
-      updateAnswer("teer_level_guess", undefined)
-    }
+    const updates: Partial<ProvinceFinderDraftAnswers> = {}
+
+    if (answers.noc_known !== "yes" && answers.noc_code) updates.noc_code = undefined
+    if (answers.noc_known !== "no_not_sure" && answers.teer_level_guess) updates.teer_level_guess = undefined
+
     if (answers.ee_profile_active !== "yes") {
-      if (answers.ee_crs_known) updateAnswer("ee_crs_known", undefined)
-      if (answers.ee_crs_score != null) updateAnswer("ee_crs_score", null)
-      if (answers.ee_crs_range) updateAnswer("ee_crs_range", undefined)
+      if (answers.ee_crs_known) updates.ee_crs_known = undefined
+      if (answers.ee_crs_score != null) updates.ee_crs_score = null
+      if (answers.ee_crs_range) updates.ee_crs_range = undefined
     } else if (answers.ee_crs_known === "yes") {
-      if (answers.ee_crs_range) updateAnswer("ee_crs_range", undefined)
+      if (answers.ee_crs_range) updates.ee_crs_range = undefined
     } else if (answers.ee_crs_known === "no") {
-      if (answers.ee_crs_score != null) updateAnswer("ee_crs_score", null)
+      if (answers.ee_crs_score != null) updates.ee_crs_score = null
     }
+
     if (!showEmployerParticipationDetails) {
-      if (answers.employer_operation_years_in_province) updateAnswer("employer_operation_years_in_province", undefined)
-      if (answers.employer_annual_revenue_range) updateAnswer("employer_annual_revenue_range", undefined)
+      if (answers.employer_operation_years_in_province) updates.employer_operation_years_in_province = undefined
+      if (answers.employer_annual_revenue_range) updates.employer_annual_revenue_range = undefined
     }
+
     if (!hasJobOffer && answers.job_location_postal_code) {
-      updateAnswer("job_location_postal_code", undefined)
+      updates.job_location_postal_code = undefined
     }
+
     if (!showSettlementFundsAmount && answers.settlement_funds_amount_range) {
-      updateAnswer("settlement_funds_amount_range", undefined)
+      updates.settlement_funds_amount_range = undefined
+    }
+
+    if (Object.keys(updates).length > 0) {
+      updateAnswers(updates)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
@@ -431,16 +418,31 @@ export function ProvinceFinderQuestionnaire() {
     showSettlementFundsAmount,
   ])
 
+  function updateAnswers(updates: Partial<ProvinceFinderDraftAnswers>) {
+    setAnswers((previous) => {
+      let changed = false
+      for (const [key, value] of Object.entries(updates)) {
+        if (previous[key as keyof ProvinceFinderDraftAnswers] !== value) {
+          changed = true
+          break
+        }
+      }
+      if (!changed) return previous
+
+      const updated = {
+        ...previous,
+        ...updates,
+      }
+      savePNPProvinceFinderAnswers(updated)
+      return updated
+    })
+  }
+
   function updateAnswer<K extends keyof ProvinceFinderDraftAnswers>(
     key: K,
     value: ProvinceFinderDraftAnswers[K],
   ) {
-    const updated = {
-      ...answers,
-      [key]: value,
-    }
-    setAnswers(updated)
-    savePNPProvinceFinderAnswers(updated)
+    updateAnswers({ [key]: value } as Partial<ProvinceFinderDraftAnswers>)
   }
 
   function onContinue() {
@@ -626,7 +628,7 @@ export function ProvinceFinderQuestionnaire() {
                           <Label
                             key={option.value}
                             htmlFor={id}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                            className={CHOICE_CHIP_CLASS}
                           >
                             <RadioGroupItem value={option.value} id={id} />
                             <span className="text-foreground">{option.label}</span>
@@ -698,7 +700,7 @@ export function ProvinceFinderQuestionnaire() {
                           <Label
                             key={option.value}
                             htmlFor={id}
-                            className="flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
+                            className={CHOICE_CHIP_CLASS}
                           >
                             <RadioGroupItem value={option.value} id={id} />
                             <span className="text-foreground">{option.label}</span>
@@ -865,6 +867,7 @@ export function ProvinceFinderQuestionnaire() {
                       type="number"
                       min={0}
                       max={1200}
+                      step="1"
                       value={answers.ee_crs_score ?? ""}
                       onChange={(event) => {
                         const raw = event.target.value
@@ -873,7 +876,7 @@ export function ProvinceFinderQuestionnaire() {
                           return
                         }
                         const value = Number(raw)
-                        updateAnswer("ee_crs_score", Number.isNaN(value) ? null : value)
+                        updateAnswer("ee_crs_score", Number.isInteger(value) ? value : null)
                       }}
                     />
                   </div>

@@ -240,8 +240,8 @@ function AssessmentPageContent() {
   function handleApplyDemo(demo: DemoApplicant) {
     applyDemoApplicant(demo, TOTAL_STEPS)
     form.reset(demo.answers)
-    setCurrentStep(0)
-    setCompletedSteps(Array(TOTAL_STEPS).fill(false))
+    setCompletedSteps(Array(TOTAL_STEPS).fill(true))
+    setCurrentStep(TOTAL_STEPS - 1)
     router.push("/results")
   }
 

@@ -9,15 +9,22 @@ export type DemoApplicant = {
 }
 
 function withBase(overrides: Partial<AssessmentData>): AssessmentData {
+  const {
+    languageScores: overrideLanguageScores,
+    jobs: overrideJobs,
+    additionalCredentials: overrideAdditionalCredentials,
+    ...restOverrides
+  } = overrides
+
   return {
     ...defaultAssessmentData,
-    ...overrides,
+    ...restOverrides,
     languageScores: {
       ...defaultAssessmentData.languageScores,
-      ...(overrides.languageScores ?? {}),
+      ...(overrideLanguageScores ?? {}),
     },
-    jobs: overrides.jobs ?? defaultAssessmentData.jobs,
-    additionalCredentials: overrides.additionalCredentials ?? defaultAssessmentData.additionalCredentials,
+    jobs: overrideJobs ?? defaultAssessmentData.jobs,
+    additionalCredentials: overrideAdditionalCredentials ?? defaultAssessmentData.additionalCredentials,
   }
 }
 

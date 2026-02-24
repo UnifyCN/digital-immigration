@@ -1,7 +1,6 @@
-import type { AssessmentData } from "./types"
-
 export type AnswersType = {
-  primaryGoal?: AssessmentData["primaryGoal"] | string | string[] | null
+  // Accept typed goals and unknown external values while keeping a simple runtime contract.
+  primaryGoal?: string | string[] | null
   goal?: string | string[] | null
 }
 

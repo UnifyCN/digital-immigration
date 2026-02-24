@@ -74,6 +74,8 @@ export type ProvinceFinderAnswers = {
   settlement_funds_amount_range?: ProvinceFinderSettlementFundsAmountRange
 }
 
+// `getProvinceFinderInitialDraft()` always initializes `hourlyWage` and `ee_crs_score` to `null`,
+// so consumers can rely on null-safe defaults even though `ee_crs_score` remains optional in the draft shape.
 export type ProvinceFinderDraftAnswers = Partial<Omit<ProvinceFinderAnswers, "hourlyWage">> & {
   hourlyWage: number | null
 }
@@ -267,8 +269,51 @@ export function isCompleteProvinceFinderAnswers(
   return REQUIRED_RADIO_KEYS.every((key) => Boolean(draft[key]))
 }
 
-const NOC_CODE_REGEX = /^\d{4,5}$/
-const CANADIAN_POSTAL_CODE_REGEX = /^[A-Za-z]\d[A-Za-z][ -]?\d[A-Za-z]\d$/
+export const NOC_CODE_REGEX = /^\d{4,5}$/
+// Strict format check for Canadian postal codes:
+// first letter excludes D,F,I,O,Q,U,W,Z; letters never include D,F,I,O,Q,U.
+export const CANADIAN_POSTAL_CODE_REGEX =
+  /^(?!.*[DFIOQU])[ABCEGHJ-NPRSTVXY]\d[ABCEGHJ-NPRSTV-Z][ -]?\d[ABCEGHJ-NPRSTV-Z]\d$/i
+
+const EMPLOYER_ANNUAL_REVENUE_OPTIONS = new Set<ProvinceFinderEmployerAnnualRevenueRange>([
+  "under_500k",
+  "500k_1m",
+  "1m_5m",
+  "5m_plus",
+  "not_sure",
+])
+
+export function computeSupplementalCompletedCount(params: {
+  answers: ProvinceFinderDraftAnswers
+  showEmployerParticipationDetails: boolean
+}): number {
+  const { answers, showEmployerParticipationDetails } = params
+
+  let completed = 0
+
+  if (answers.noc_known) completed += 1
+  if (answers.noc_known === "yes") {
+    const nocCode = answers.noc_code?.trim()
+    if (nocCode && NOC_CODE_REGEX.test(nocCode)) completed += 1
+  } else if (answers.noc_known === "no_not_sure" && answers.teer_level_guess) {
+    completed += 1
+  }
+
+  if (answers.ee_profile_active) completed += 1
+  if (answers.ee_profile_active === "yes") {
+    if (answers.ee_crs_known === "yes") {
+      if (answers.ee_crs_score != null) completed += 1
+    } else if (answers.ee_crs_known === "no" && answers.ee_crs_range) {
+      completed += 1
+    }
+  }
+
+  if (showEmployerParticipationDetails && answers.employer_operation_years_in_province) {
+    completed += 1
+  }
+
+  return completed
+}
 
 export type ProvinceFinderValidationContext = {
   hasJobOffer: boolean
@@ -304,8 +349,8 @@ export function validateProvinceFinderSupplementalAnswers(params: {
     } else if (draft.ee_crs_known === "yes") {
       if (draft.ee_crs_score == null || Number.isNaN(draft.ee_crs_score)) {
         errors.push("Please enter your CRS score.")
-      } else if (draft.ee_crs_score < 0 || draft.ee_crs_score > 1200) {
-        errors.push("CRS score must be between 0 and 1200.")
+      } else if (!Number.isInteger(draft.ee_crs_score) || draft.ee_crs_score < 0 || draft.ee_crs_score > 1200) {
+        errors.push("CRS score must be a whole number between 0 and 1200.")
       }
     } else if (draft.ee_crs_known === "no" && !draft.ee_crs_range) {
       errors.push("Please select your estimated CRS range.")
@@ -318,6 +363,12 @@ export function validateProvinceFinderSupplementalAnswers(params: {
     errors.push(
       "Please answer: How long has your employer operated in the province where the job is located?",
     )
+  }
+  if (
+    draft.employer_annual_revenue_range &&
+    !EMPLOYER_ANNUAL_REVENUE_OPTIONS.has(draft.employer_annual_revenue_range)
+  ) {
+    errors.push("Please select a valid employer annual revenue range.")
   }
 
   const postalCode = (draft.job_location_postal_code ?? "").trim()

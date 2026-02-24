@@ -138,6 +138,7 @@ export interface AssessmentData {
   hasAppliedToExtendStatus: YesNoUnsure | ""
   refusalHistory: RefusalHistory | ""
   mostRecentRefusalType: ApplicationType | ""
+  mostRecentRefusalDate: string
   priorCanadaApplicationType: ApplicationType | ""
   currentlyWorkingInCanada: YesNo | ""
   currentJobProvinceTerritory: string
@@ -259,6 +260,55 @@ export type TierLevel = 1 | 2 | 3
 export type TierLabel = "Clean" | "Moderate" | "Complex"
 export type Severity = "low" | "medium" | "high"
 export type ConfidenceLevel = "High" | "Medium" | "Low"
+export type LowercaseConfidenceLevel = "high" | "medium" | "low"
+export type PathwayRecommendationMode = "recommended" | "explore" | "later"
+export type PathwayVisibilityMode = "visible" | "hidden"
+export type PathwayReadinessStatus = "complete" | "attention" | "unknown" | "na"
+export type PathwayOpenQuestionCategory =
+  | "province"
+  | "job"
+  | "work"
+  | "language"
+  | "docs"
+  | "status"
+  | "education"
+  | "risk"
+export type PathwayDocumentCategory = "typical" | "sometimes" | "later"
+export type PathwayDocumentStatus = "ready" | "needs_action" | "conditional" | "later_stage"
+
+export type PathwayReadinessChecklistItem = {
+  id: string
+  label: string
+  status: PathwayReadinessStatus
+  shortText: string
+  reasonCodes?: string[]
+}
+
+export type PathwayOpenQuestion = {
+  id: string
+  prompt: string
+  reason: string
+  priority: number
+  category: PathwayOpenQuestionCategory
+  signalKeys: string[]
+  reasonCodes?: string[]
+}
+
+export type PathwayDocumentRoadmapItem = {
+  id: string
+  label: string
+  category: PathwayDocumentCategory
+  status: PathwayDocumentStatus
+  note?: string
+  signalKeys?: string[]
+  reasonCodes?: string[]
+}
+
+export type PathwayDocumentRoadmap = {
+  typical: PathwayDocumentRoadmapItem[]
+  sometimes: PathwayDocumentRoadmapItem[]
+  later: PathwayDocumentRoadmapItem[]
+}
 
 export interface TierResult {
   level: TierLevel
@@ -274,13 +324,12 @@ export interface PathwayCard {
   confidence: ConfidenceLevel
   pnpScore?: number
   pnpScoreBreakdown?: Record<string, number>
-  confidenceLevel?: "high" | "medium" | "low"
+  confidenceLevel?: LowercaseConfidenceLevel
   confidenceLabel?: string
   confidenceReasonCodes?: string[]
-  recommendationMode?: "recommended" | "explore" | "later"
+  recommendationMode?: PathwayRecommendationMode
   displayPriority?: number
-  shouldShowPNP?: boolean
-  visibilityMode?: "visible" | "hidden"
+  visibilityMode?: PathwayVisibilityMode
   visibilityReasonCode?: string
   displayRank?: number
   whyBullets?: string[]
@@ -289,68 +338,12 @@ export interface PathwayCard {
   whyLimitedBulletIds?: string[]
   howToImproveBullets?: string[]
   howToImproveBulletIds?: string[]
-  readinessChecklist?: {
-    id: string
-    label: string
-    status: "complete" | "attention" | "unknown" | "na"
-    shortText: string
-    reasonCodes?: string[]
-  }[]
-  readinessChecklistAll?: {
-    id: string
-    label: string
-    status: "complete" | "attention" | "unknown" | "na"
-    shortText: string
-    reasonCodes?: string[]
-  }[]
-  openQuestions?: {
-    id: string
-    prompt: string
-    reason: string
-    priority: number
-    category: "province" | "job" | "work" | "language" | "docs" | "status" | "education" | "risk"
-    signalKeys: string[]
-    reasonCodes?: string[]
-  }[]
+  readinessChecklist?: PathwayReadinessChecklistItem[]
+  readinessChecklistAll?: PathwayReadinessChecklistItem[]
+  openQuestions?: PathwayOpenQuestion[]
   openQuestionIds?: string[]
-  documentRoadmap?: {
-    typical: {
-      id: string
-      label: string
-      category: "typical" | "sometimes" | "later"
-      status: "ready" | "needs_action" | "conditional" | "later_stage"
-      note?: string
-      signalKeys?: string[]
-      reasonCodes?: string[]
-    }[]
-    sometimes: {
-      id: string
-      label: string
-      category: "typical" | "sometimes" | "later"
-      status: "ready" | "needs_action" | "conditional" | "later_stage"
-      note?: string
-      signalKeys?: string[]
-      reasonCodes?: string[]
-    }[]
-    later: {
-      id: string
-      label: string
-      category: "typical" | "sometimes" | "later"
-      status: "ready" | "needs_action" | "conditional" | "later_stage"
-      note?: string
-      signalKeys?: string[]
-      reasonCodes?: string[]
-    }[]
-  }
-  documentRoadmapAll?: {
-    id: string
-    label: string
-    category: "typical" | "sometimes" | "later"
-    status: "ready" | "needs_action" | "conditional" | "later_stage"
-    note?: string
-    signalKeys?: string[]
-    reasonCodes?: string[]
-  }[]
+  documentRoadmap?: PathwayDocumentRoadmap
+  documentRoadmapAll?: PathwayDocumentRoadmapItem[]
 }
 
 export type RiskId =

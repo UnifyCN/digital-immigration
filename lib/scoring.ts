@@ -231,7 +231,7 @@ export function computePathways(data: AssessmentData): PathwayCard[] {
       openQuestions: pnpOpenQuestions.openQuestions,
     })
 
-    if (pnpVisibility.shouldShowPNP) {
+    if (pnpVisibility.visibilityMode === "visible") {
       pathways.push({
         id: "pnp",
         name: "Provincial Nominee Program (PNP)",
@@ -250,8 +250,6 @@ export function computePathways(data: AssessmentData): PathwayCard[] {
         confidenceLabel: pnpConfidence.confidenceLabel,
         confidenceReasonCodes: pnpConfidence.confidenceReasonCodes,
         recommendationMode: pnpConfidence.recommendationMode,
-        displayPriority: pnpConfidence.displayPriority,
-        shouldShowPNP: pnpVisibility.shouldShowPNP,
         visibilityMode: pnpVisibility.visibilityMode,
         visibilityReasonCode: pnpVisibility.visibilityReasonCode,
         displayRank: pnpVisibility.displayRank,

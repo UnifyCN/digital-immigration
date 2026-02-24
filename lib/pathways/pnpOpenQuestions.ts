@@ -151,7 +151,7 @@ export const PNP_OPEN_QUESTION_RULES: OpenQuestionRule[] = [
     basePriority: 70,
     category: "language",
     signalKeys: ["languageReady"],
-    when: (ctx) => ctx.signals.languageReady == null || ctx.signals.languageReady === "not_ready",
+    when: (ctx) => ctx.signals.languageReady === "not_ready",
     build: () => ({
       prompt: "Do you have a language test plan (booked date or timeline)?",
       reason: "Most pathways require language results; a plan improves readiness.",
@@ -231,7 +231,7 @@ export const PNP_OPEN_QUESTION_RULES: OpenQuestionRule[] = [
   },
 ]
 
-type RankedQuestion = OpenQuestion & { sourceRuleId: string }
+type RankedQuestion = OpenQuestion
 
 function getCountConfig(confidenceLevel: PNPConfidenceLevel): { max: number; min: number } {
   if (confidenceLevel === "low") return { max: 6, min: 4 }
@@ -293,7 +293,6 @@ export function generatePNPOpenQuestions(params: {
         priority: rule.basePriority + boost,
         category: rule.category,
         signalKeys: rule.signalKeys,
-        sourceRuleId: rule.id,
       }
     })
     .sort((a, b) => {
@@ -301,7 +300,7 @@ export function generatePNPOpenQuestions(params: {
       return a.id.localeCompare(b.id)
     })
 
-  const { max } = getCountConfig(params.confidenceLevel)
+  const { max, min } = getCountConfig(params.confidenceLevel)
   const selected: RankedQuestion[] = []
   const selectedIds = new Set<string>()
   const categoryCounts: Record<string, number> = {}
@@ -311,16 +310,25 @@ export function generatePNPOpenQuestions(params: {
     if (selectedIds.has(candidate.id)) continue
     if (isBlockedByOverlap(candidate.id, selectedIds)) continue
 
-    // Q2 blocks Q8 from being selected later.
-    if (candidate.id === "Q2_job_offer_unknown") {
-      // no-op; overlap enforced via isBlockedByOverlap when Q8 is evaluated
-    }
+    // Q2/Q8 overlap is enforced by `isBlockedByOverlap` when Q8 is evaluated.
 
     if (preferAlternativeByCategoryCap(matched, i, selectedIds, categoryCounts)) continue
 
     selected.push(candidate)
     selectedIds.add(candidate.id)
     categoryCounts[candidate.category] = (categoryCounts[candidate.category] ?? 0) + 1
+  }
+
+  if (selected.length < min) {
+    for (const candidate of matched) {
+      if (selected.length >= min || selected.length >= max) break
+      if (selectedIds.has(candidate.id)) continue
+      if (isBlockedByOverlap(candidate.id, selectedIds)) continue
+
+      selected.push(candidate)
+      selectedIds.add(candidate.id)
+      categoryCounts[candidate.category] = (categoryCounts[candidate.category] ?? 0) + 1
+    }
   }
 
   const openQuestions: OpenQuestion[] = selected.map((item) => ({

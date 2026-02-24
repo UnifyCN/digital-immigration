@@ -1,5 +1,6 @@
 import type { OpenQuestion } from "./pnpOpenQuestions"
 import type { ChecklistItem } from "./pnpReadinessChecklist"
+import { isProvinceDirected } from "./pnpProvinceDirection.ts"
 import type { PNPSignals } from "./pnpSignals"
 
 type LowMessagingContext = {
@@ -26,20 +27,8 @@ const IMPROVE_FALLBACK_ID = "IF1"
 const IMPROVE_FALLBACK_TEXT =
   "Adding province preference, employment details, and language plans can improve accuracy."
 
-const PROVINCE_DIRECTED_FLEXIBILITY = new Set([
-  "preferprovince",
-  "onlyprovince",
-  "prefer-specific",
-  "only-specific",
-])
-
-function normalized(value: string | null | undefined): string {
-  return (value ?? "").trim().toLowerCase()
-}
-
 function hasProvinceDirection(signals: PNPSignals): boolean {
-  if ((signals.preferredProvince ?? "").trim().length > 0) return true
-  return PROVINCE_DIRECTED_FLEXIBILITY.has(normalized(signals.settleFlexibility))
+  return isProvinceDirected(signals)
 }
 
 function isMissingTriState(value: "yes" | "no" | "not_sure" | null | undefined): boolean {
@@ -73,9 +62,7 @@ export const PNP_LOW_LIMITED_BULLET_RULES: LowBulletRule[] = [
     priority: 90,
     when: ({ signals }) =>
       signals.employerSupportPNP !== "yes" &&
-      (signals.hasJobOffer === "yes" ||
-        signals.hasJobOffer === "not_sure" ||
-        isMissingTriState(signals.hasJobOffer)),
+      (signals.hasJobOffer === "yes" || signals.hasJobOffer === "not_sure"),
     text: () =>
       "Employer support for nomination is unclear, and some pathways require active employer participation.",
   },
@@ -203,8 +190,12 @@ function selectLimitedBullets(ctx: LowMessagingContext): {
   const whyLimitedBulletIds = matched.map((rule) => rule.id)
 
   while (whyLimitedBullets.length < MIN_BULLETS_PER_SECTION) {
+    const fallbackId =
+      whyLimitedBulletIds.filter((id) => id.startsWith(LIMITED_FALLBACK_ID)).length === 0
+        ? LIMITED_FALLBACK_ID
+        : `${LIMITED_FALLBACK_ID}-${whyLimitedBullets.length + 1}`
     whyLimitedBullets.push(LIMITED_FALLBACK_TEXT)
-    whyLimitedBulletIds.push(LIMITED_FALLBACK_ID)
+    whyLimitedBulletIds.push(fallbackId)
   }
 
   return { whyLimitedBullets, whyLimitedBulletIds }
@@ -242,8 +233,12 @@ function selectImproveBullets(ctx: LowMessagingContext): {
   const howToImproveBulletIds = selectedRules.map((rule) => rule.id)
 
   while (howToImproveBullets.length < MIN_BULLETS_PER_SECTION) {
+    const fallbackId =
+      howToImproveBulletIds.filter((id) => id.startsWith(IMPROVE_FALLBACK_ID)).length === 0
+        ? IMPROVE_FALLBACK_ID
+        : `${IMPROVE_FALLBACK_ID}-${howToImproveBullets.length + 1}`
     howToImproveBullets.push(IMPROVE_FALLBACK_TEXT)
-    howToImproveBulletIds.push(IMPROVE_FALLBACK_ID)
+    howToImproveBulletIds.push(fallbackId)
   }
 
   return { howToImproveBullets, howToImproveBulletIds }

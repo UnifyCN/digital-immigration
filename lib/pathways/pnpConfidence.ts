@@ -1,8 +1,14 @@
 export const SCORE_THRESHOLD_HIGH = 70
 export const SCORE_THRESHOLD_MEDIUM = 45
 
-export const UNKNOWN_RATE_CAP_LOW = 0.7
-export const UNKNOWN_RATE_CAP_HIGH = 0.5
+export const UNKNOWN_RATE_FORCE_LOW_THRESHOLD = 0.7
+export const UNKNOWN_RATE_CAP_HIGH_THRESHOLD = 0.5
+
+export const PNP_CONFIDENCE_DISPLAY_PRIORITY: Record<PNPConfidenceLevel, number> = {
+  high: 20,
+  medium: 40,
+  low: 60,
+}
 
 export const CONFIDENCE_LABELS = {
   high: "High confidence",
@@ -39,10 +45,8 @@ function getRecommendationMode(confidenceLevel: PNPConfidenceLevel): PNPRecommen
   return "later"
 }
 
-function getDisplayPriority(confidenceLevel: PNPConfidenceLevel): number {
-  if (confidenceLevel === "high") return 20
-  if (confidenceLevel === "medium") return 40
-  return 60
+export function getDisplayPriority(confidenceLevel: PNPConfidenceLevel): number {
+  return PNP_CONFIDENCE_DISPLAY_PRIORITY[confidenceLevel]
 }
 
 export function derivePNPConfidence(
@@ -51,10 +55,10 @@ export function derivePNPConfidence(
   const reasonCodes: string[] = []
   let finalConfidence = getBaseConfidence(params.score)
 
-  if (params.unknownRate > UNKNOWN_RATE_CAP_LOW) {
+  if (params.unknownRate > UNKNOWN_RATE_FORCE_LOW_THRESHOLD) {
     finalConfidence = "low"
     reasonCodes.push("cap_to_low_due_to_extreme_unknown_rate")
-  } else if (params.unknownRate > UNKNOWN_RATE_CAP_HIGH) {
+  } else if (params.unknownRate > UNKNOWN_RATE_CAP_HIGH_THRESHOLD) {
     if (finalConfidence === "high") {
       finalConfidence = "medium"
     }

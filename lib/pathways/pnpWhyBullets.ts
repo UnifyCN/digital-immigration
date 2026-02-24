@@ -1,7 +1,7 @@
 import type { PNPConfidenceLevel } from "./pnpConfidence"
 import type { PNPSignals } from "./pnpSignals"
 
-type WhyRuleParams = {
+export type WhyRuleParams = {
   signals: PNPSignals
   meta: { unknownRate: number }
   dampenersApplied: string[]
@@ -18,6 +18,12 @@ type WhyRule = {
 const FALLBACK_ID = "F1_fallback"
 const FALLBACK_TEXT =
   "PNP is province-specific. Additional details such as province preference, employment, or Canadian experience may help clarify alignment."
+const ALLOWED_PROVINCE_FLEXIBILITY = new Set([
+  "preferprovince",
+  "onlyprovince",
+  "prefer-specific",
+  "only-specific",
+])
 
 function isMediumOrLow(confidenceLevel: PNPConfidenceLevel): boolean {
   return confidenceLevel === "medium" || confidenceLevel === "low"
@@ -26,7 +32,7 @@ function isMediumOrLow(confidenceLevel: PNPConfidenceLevel): boolean {
 function isPreferredProvinceFlexibility(value: string | null): boolean {
   if (!value) return false
   const normalized = value.trim().toLowerCase()
-  return normalized === "preferprovince" || normalized === "onlyprovince" || normalized === "prefer-specific" || normalized === "only-specific"
+  return ALLOWED_PROVINCE_FLEXIBILITY.has(normalized)
 }
 
 export const PNP_WHY_BULLET_RULES: WhyRule[] = [
@@ -154,8 +160,12 @@ export function generatePNPWhyBullets(params: WhyRuleParams): {
   const whyBulletIds = selected.map((rule) => rule.id)
 
   while (whyBullets.length < 2) {
+    const fallbackId =
+      whyBulletIds.filter((id) => id.startsWith(FALLBACK_ID)).length === 0
+        ? FALLBACK_ID
+        : `${FALLBACK_ID}_${whyBullets.length + 1}`
     whyBullets.push(FALLBACK_TEXT)
-    whyBulletIds.push(FALLBACK_ID)
+    whyBulletIds.push(fallbackId)
   }
 
   return { whyBullets, whyBulletIds }

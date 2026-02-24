@@ -34,8 +34,8 @@ function provinceDirectionPoints(settleFlexibility: string | null): number {
   if (!settleFlexibility) return 0
 
   const normalized = settleFlexibility.trim().toLowerCase()
-  if (normalized === "onlyprovince" || normalized === "only-specific") return PROVINCE_ONLY
-  if (normalized === "preferprovince" || normalized === "prefer-specific") return PROVINCE_PREFER
+  if (normalized === "only-specific") return PROVINCE_ONLY
+  if (normalized === "prefer-specific") return PROVINCE_PREFER
   if (normalized === "anywhere" || normalized === "yes-anywhere") return 0
   return 0
 }
@@ -100,7 +100,8 @@ export function scorePNPRelevance(
   const noCanadianTies =
     signals.hasJobOffer === "no" &&
     signals.canadianSkilledWork12mo === "no" &&
-    signals.anyEducationInCanada === "no"
+    signals.anyEducationInCanada === "no" &&
+    signals.currentlyWorkingInCanada === "no"
   if (noCanadianTies) {
     dampenersTotal += DAMPENER_NO_CAN_TIES
     dampenersApplied.push("no_canadian_ties")
@@ -123,7 +124,6 @@ export function scorePNPRelevance(
       bucketD_readiness: bucketD,
       dampeners_total: dampenersTotal,
       total_before_clamp: totalBeforeClamp,
-      final_score: finalScore,
     },
     dampenersApplied,
   }

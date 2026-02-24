@@ -166,7 +166,7 @@ export const PNP_DOCUMENT_RULES: DocumentRule[] = [
       (signals.employerSupportPNP === "yes" ||
         signals.employerSupportPNP === "not_sure" ||
         signals.employerSupportPNP == null),
-    status: ({ signals }) => (signals.employerSupportPNP === "yes" ? "needs_action" : "conditional"),
+    status: ({ signals }) => (signals.employerSupportPNP === "yes" ? "conditional" : "needs_action"),
     note: ({ signals }) =>
       signals.employerSupportPNP === "yes"
         ? "If your employer supports nomination, written support may be required."
@@ -240,9 +240,13 @@ export function buildPNPDocumentRoadmap(params: {
       signalKeys: rule.signalKeys,
     }
 
-    if (rule.category === "typical") typical.push(item)
-    if (rule.category === "sometimes") sometimes.push(item)
-    if (rule.category === "later") later.push(item)
+    if (rule.category === "typical") {
+      typical.push(item)
+    } else if (rule.category === "sometimes") {
+      sometimes.push(item)
+    } else {
+      later.push(item)
+    }
   }
 
   return { typical, sometimes, later }

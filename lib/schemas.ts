@@ -150,6 +150,8 @@ export const step1Schema = step1BaseSchema.superRefine((data, ctx) => {
   }
 })
 
+const mostRecentRefusalDateSchema = z.string().optional()
+
 const step2BaseSchema = z.object({
   currentStatus: z.enum(["citizen", "pr", "visitor", "student", "worker", "other"], {
     required_error: "Please select your status",
@@ -162,6 +164,7 @@ const step2BaseSchema = z.object({
   mostRecentRefusalType: z
     .union([z.enum(["visitor", "study", "work", "pr", "sponsorship", "other", "not-sure"]), z.literal("")])
     .optional(),
+  mostRecentRefusalDate: mostRecentRefusalDateSchema,
   priorCanadaApplicationType: z
     .union([z.enum(["visitor", "study", "work", "pr", "sponsorship", "other", "not-sure"]), z.literal("")])
     .optional(),

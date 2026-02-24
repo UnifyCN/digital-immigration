@@ -177,6 +177,7 @@ export function buildPNPSignals(answers: unknown): { signals: PNPSignals; meta: 
   const hasJobOffer = normalizeTriState(data.hasCanadianJobOffer)
   const occupationCategory = asString(data.occupationCategory)
   const occupationCategoryNormalized = occupationCategory?.toLowerCase() ?? null
+  const languageStatus = normalizeLower(data.languageTestStatus)
 
   const signals: PNPSignals = {
     primaryGoal,
@@ -241,19 +242,19 @@ export function buildPNPSignals(answers: unknown): { signals: PNPSignals; meta: 
 
     deadlineDriver: asString(data.deadlineTrigger),
     deadlineDate: asString(data.deadlineDate),
-    languageReady:
-      data.languageTestStatus === "valid"
-        ? "valid"
-        : data.languageTestStatus === "booked"
-          ? "booked"
-          : "not_ready",
+    languageReady: languageStatus === "valid" ? "valid" : languageStatus === "booked" ? "booked" : "not_ready",
   }
 
-  const unknownCount = KEY_FIELDS.reduce((count, field) => {
+  const unknownRateFields =
+    normalizeLower(signals.currentLocation) === "outside-canada"
+      ? KEY_FIELDS.filter((field) => field !== "currentStatus" && field !== "statusExpiryDate")
+      : KEY_FIELDS
+
+  const unknownCount = unknownRateFields.reduce((count, field) => {
     return count + (isUnknown(signals[field]) ? 1 : 0)
   }, 0)
 
-  const keyFieldsTotal = KEY_FIELDS.length
+  const keyFieldsTotal = unknownRateFields.length
   const unknownRate = keyFieldsTotal === 0 ? 0 : unknownCount / keyFieldsTotal
 
   return {

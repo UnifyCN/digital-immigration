@@ -1,8 +1,5 @@
-import type { PNPConfidenceLevel } from "./pnpConfidence"
+import { getDisplayPriority, type PNPConfidenceLevel } from "./pnpConfidence.ts"
 
-export const PNP_VISIBLE_RANK_HIGH = 20
-export const PNP_VISIBLE_RANK_MEDIUM = 40
-export const PNP_VISIBLE_RANK_LOW = 60
 export const PNP_HIDDEN_RANK = 999
 
 export function derivePNPVisibility(params: {
@@ -23,12 +20,7 @@ export function derivePNPVisibility(params: {
     }
   }
 
-  const displayRank =
-    params.confidenceLevel === "high"
-      ? PNP_VISIBLE_RANK_HIGH
-      : params.confidenceLevel === "medium"
-        ? PNP_VISIBLE_RANK_MEDIUM
-        : PNP_VISIBLE_RANK_LOW
+  const displayRank = getDisplayPriority(params.confidenceLevel)
 
   return {
     shouldShowPNP: true,
