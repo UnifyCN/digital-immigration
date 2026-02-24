@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { DISCLAIMER_SHORT } from "@/lib/copy/compliance"
 
 export default function BCInternationalGraduateDetailsPage() {
   return (
@@ -12,7 +13,7 @@ export default function BCInternationalGraduateDetailsPage() {
             This family is typically explored when Canadian education details and BC ties are present.
           </p>
           <p className="text-xs text-muted-foreground">
-            MVP note: this page is a family-level guide for exploration and not a final determination.
+            {DISCLAIMER_SHORT}
           </p>
         </CardHeader>
         <CardContent>

@@ -1,0 +1,295 @@
+{
+  "rulesVersion": "bc-pnp-mvp-1",
+  "lastUpdated": "2026-02-24",
+  "provinceCode": "BC",
+  "streams": [
+    {
+      "id": "BC_EMPLOYER_SKILLED",
+      "displayName": "BC Employer-Driven Skilled Worker",
+      "shortDescription": "Employer-supported skilled work pathway to explore in British Columbia.",
+      "hardRequirements": [
+        {
+          "id": "job_offer_exists",
+          "label": "Job offer reported",
+          "signalKeys": ["hasJobOffer"],
+          "critical": true,
+          "priority": 100,
+          "pass": { "equals": { "hasJobOffer": "yes" } },
+          "fail": { "equals": { "hasJobOffer": "no" } },
+          "blockerText": "No job offer was reported, which can limit employer-driven options.",
+          "missingPrompt": "Do you currently have a job offer from a BC employer?"
+        },
+        {
+          "id": "job_in_bc",
+          "label": "Job located in British Columbia",
+          "signalKeys": ["jobProvinceCode"],
+          "critical": true,
+          "priority": 90,
+          "pass": { "equals": { "jobProvinceCode": "BC" } },
+          "fail": { "notEquals": { "jobProvinceCode": "BC" } },
+          "blockerText": "Your job location does not appear to be in British Columbia.",
+          "missingPrompt": "Which province is your job located in?"
+        },
+        {
+          "id": "full_time",
+          "label": "Full-time role",
+          "signalKeys": ["jobFullTime"],
+          "critical": true,
+          "priority": 80,
+          "pass": { "equals": { "jobFullTime": "yes" } },
+          "fail": { "equals": { "jobFullTime": "no" } },
+          "blockerText": "The role does not appear to be full-time, which can limit employer-driven options.",
+          "missingPrompt": "Is your job offer full-time (30+ hours/week)?"
+        },
+        {
+          "id": "permanent",
+          "label": "Permanent/ongoing role",
+          "signalKeys": ["jobPermanent"],
+          "critical": false,
+          "priority": 70,
+          "pass": { "equals": { "jobPermanent": "yes" } },
+          "fail": { "equals": { "jobPermanent": "no" } },
+          "blockerText": "The job offer appears temporary, which can reduce fit for employer-driven options.",
+          "missingPrompt": "Is your job offer permanent/ongoing (no end date)?"
+        },
+        {
+          "id": "skilled_teer",
+          "label": "Occupation appears skilled (TEER 0-3)",
+          "signalKeys": ["teer"],
+          "critical": true,
+          "priority": 75,
+          "pass": { "in": { "teer": [0, 1, 2, 3] } },
+          "fail": { "in": { "teer": [4, 5] } },
+          "blockerText": "Your occupation appears to be in a lower TEER category, which can limit skilled worker options.",
+          "missingPrompt": "Do you know your NOC code or TEER level?"
+        },
+        {
+          "id": "language_ready",
+          "label": "Language readiness confirmed",
+          "signalKeys": ["languageTestStatus"],
+          "critical": false,
+          "priority": 50,
+          "pass": { "equals": { "languageTestStatus": "valid" } },
+          "fail": { "equals": { "languageTestStatus": "not_ready" } },
+          "blockerText": "Valid language results are not confirmed yet, which can limit readiness.",
+          "missingPrompt": "Do you have a valid language test result (or a booked test date)?"
+        }
+      ],
+      "softSignals": [
+        { "signalKey": "hasJobOffer", "pointsYes": 35, "pointsNo": 0, "pointsUnknown": 10 },
+        {
+          "signalKey": "jobProvinceCode",
+          "pointsYesIfEquals": { "BC": 20 },
+          "pointsNoDefault": 0,
+          "pointsUnknown": 5
+        },
+        { "signalKey": "jobFullTime", "pointsYes": 10, "pointsNo": 0, "pointsUnknown": 3 },
+        { "signalKey": "jobPermanent", "pointsYes": 10, "pointsNo": 0, "pointsUnknown": 3 },
+        { "signalKey": "employerSupportPNP", "pointsYes": 15, "pointsNo": 0, "pointsUnknown": 7 },
+        { "signalKey": "teer", "pointsIfIn": { "0,1,2,3": 10, "4,5": 2 }, "pointsUnknown": 0 },
+        {
+          "signalKey": "languageTestStatus",
+          "pointsYesIfEquals": { "valid": 5, "booked": 2 },
+          "pointsNoDefault": 0,
+          "pointsUnknown": 2
+        }
+      ],
+      "whyRules": [
+        {
+          "id": "why_job_in_bc",
+          "when": { "equals": { "jobProvinceCode": "BC" } },
+          "text": "You reported a job located in BC, which can support BC-specific employer pathways."
+        },
+        {
+          "id": "why_job_offer",
+          "when": { "equals": { "hasJobOffer": "yes" } },
+          "text": "You reported a job offer, which is commonly used to support employer-driven options."
+        },
+        {
+          "id": "why_teer",
+          "when": { "in": { "teer": [0, 1, 2, 3] } },
+          "text": "Your occupation appears to fall in a skilled TEER category (0-3)."
+        },
+        {
+          "id": "why_employer_support",
+          "when": { "equals": { "employerSupportPNP": "yes" } },
+          "text": "Your employer may support nomination steps, which can matter for employer-supported pathways."
+        }
+      ],
+      "missingPrompts": [
+        { "signalKey": "teer", "id": "missing_teer", "prompt": "Do you know your NOC code or TEER level?" },
+        {
+          "signalKey": "jobFullTime",
+          "id": "missing_full_time",
+          "prompt": "Is your job offer full-time (30+ hours/week)?"
+        },
+        {
+          "signalKey": "jobPermanent",
+          "id": "missing_permanent",
+          "prompt": "Is your job offer permanent/ongoing (no end date)?"
+        },
+        {
+          "signalKey": "languageTestStatus",
+          "id": "missing_language",
+          "prompt": "Do you have a valid language test result (or a booked test date)?"
+        }
+      ]
+    },
+    {
+      "id": "BC_INTL_GRAD",
+      "displayName": "BC International Graduate",
+      "shortDescription": "Graduate-focused pathway to explore for those with recent Canadian study ties.",
+      "hardRequirements": [
+        {
+          "id": "canadian_education",
+          "label": "Canadian education reported",
+          "signalKeys": ["educationInCanada"],
+          "critical": true,
+          "priority": 100,
+          "pass": { "equals": { "educationInCanada": "yes" } },
+          "fail": { "equals": { "educationInCanada": "no" } },
+          "blockerText": "Canadian education was not reported, which can limit graduate options.",
+          "missingPrompt": "Did you complete a program in Canada?"
+        },
+        {
+          "id": "public_institution",
+          "label": "Public institution",
+          "signalKeys": ["institutionType"],
+          "critical": true,
+          "priority": 90,
+          "pass": { "equals": { "institutionType": "public" } },
+          "fail": { "equals": { "institutionType": "private" } },
+          "blockerText": "Your institution appears private, which can reduce fit for some graduate options.",
+          "missingPrompt": "Was your institution public or private?"
+        },
+        {
+          "id": "program_8_months",
+          "label": "Program length 8+ months",
+          "signalKeys": ["programLength8mo"],
+          "critical": true,
+          "priority": 80,
+          "pass": { "equals": { "programLength8mo": "yes" } },
+          "fail": { "equals": { "programLength8mo": "no" } },
+          "blockerText": "Program length appears under 8 months, which can limit graduate options.",
+          "missingPrompt": "Was your program at least 8 months long?"
+        },
+        {
+          "id": "grad_within_3_years",
+          "label": "Graduated within last 3 years",
+          "signalKeys": ["graduatedWithin3Years"],
+          "critical": false,
+          "priority": 70,
+          "pass": { "equals": { "graduatedWithin3Years": "yes" } },
+          "fail": { "equals": { "graduatedWithin3Years": "no" } },
+          "blockerText": "Graduation recency appears outside 3 years, which can reduce fit for graduate options.",
+          "missingPrompt": "Did you graduate within the last 3 years?"
+        },
+        {
+          "id": "bc_anchor",
+          "label": "BC study/work tie",
+          "signalKeys": ["educationProvinceCode", "jobProvinceCode"],
+          "critical": true,
+          "priority": 60,
+          "pass": {
+            "any": [
+              { "equals": { "educationProvinceCode": "BC" } },
+              { "equals": { "jobProvinceCode": "BC" } }
+            ]
+          },
+          "fail": {
+            "allKnownNot": [
+              { "educationProvinceCode": "BC" },
+              { "jobProvinceCode": "BC" }
+            ]
+          },
+          "blockerText": "No clear British Columbia study/work tie was found, which can limit BC-specific graduate options.",
+          "missingPrompt": "Which province did you study in (or where is your job located)?"
+        },
+        {
+          "id": "language_ready",
+          "label": "Language readiness confirmed",
+          "signalKeys": ["languageTestStatus"],
+          "critical": false,
+          "priority": 50,
+          "pass": { "equals": { "languageTestStatus": "valid" } },
+          "fail": { "equals": { "languageTestStatus": "not_ready" } },
+          "blockerText": "Valid language results are not confirmed yet, which can limit readiness.",
+          "missingPrompt": "Do you have a valid language test result (or a booked test date)?"
+        }
+      ],
+      "softSignals": [
+        { "signalKey": "educationInCanada", "pointsYes": 35, "pointsNo": 0, "pointsUnknown": 10 },
+        {
+          "signalKey": "educationProvinceCode",
+          "pointsYesIfEquals": { "BC": 15 },
+          "pointsNoDefault": 0,
+          "pointsUnknown": 5
+        },
+        {
+          "signalKey": "institutionType",
+          "pointsYesIfEquals": { "public": 10 },
+          "pointsNoDefault": 0,
+          "pointsUnknown": 3
+        },
+        { "signalKey": "programLength8mo", "pointsYes": 10, "pointsNo": 0, "pointsUnknown": 3 },
+        { "signalKey": "graduatedWithin3Years", "pointsYes": 10, "pointsNo": 0, "pointsUnknown": 3 },
+        {
+          "signalKey": "jobProvinceCode",
+          "pointsYesIfEquals": { "BC": 15 },
+          "pointsNoDefault": 0,
+          "pointsUnknown": 3
+        },
+        {
+          "signalKey": "languageTestStatus",
+          "pointsYesIfEquals": { "valid": 5, "booked": 2 },
+          "pointsNoDefault": 0,
+          "pointsUnknown": 2
+        }
+      ],
+      "whyRules": [
+        {
+          "id": "why_can_education",
+          "when": { "equals": { "educationInCanada": "yes" } },
+          "text": "You reported education in Canada, which can support graduate-focused options."
+        },
+        {
+          "id": "why_public_institution",
+          "when": { "equals": { "institutionType": "public" } },
+          "text": "Your institution appears public, which can strengthen graduate pathways."
+        },
+        {
+          "id": "why_bc_anchor",
+          "when": {
+            "any": [
+              { "equals": { "educationProvinceCode": "BC" } },
+              { "equals": { "jobProvinceCode": "BC" } }
+            ]
+          },
+          "text": "You indicated a BC study/work tie, which helps for BC-specific options."
+        }
+      ],
+      "missingPrompts": [
+        {
+          "signalKey": "institutionType",
+          "id": "missing_institution_type",
+          "prompt": "Was your institution public or private?"
+        },
+        {
+          "signalKey": "programLength8mo",
+          "id": "missing_program_length",
+          "prompt": "Was your program at least 8 months long?"
+        },
+        {
+          "signalKey": "graduatedWithin3Years",
+          "id": "missing_grad_recency",
+          "prompt": "Did you graduate within the last 3 years?"
+        },
+        {
+          "signalKey": "languageTestStatus",
+          "id": "missing_language",
+          "prompt": "Do you have a valid language test result (or a booked test date)?"
+        }
+      ]
+    }
+  ]
+}

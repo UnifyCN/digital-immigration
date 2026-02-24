@@ -26,6 +26,7 @@ import {
 import { PNP_MVP_DEFAULT_PROVINCE } from "@/lib/config/pnpScope"
 import { isPNPInScope } from "@/lib/pnp-scope"
 import { getPNPProvinceRouterDecision } from "@/lib/pathways/pnpProvinceRouter"
+import { DISCLAIMER_SHORT } from "@/lib/copy/compliance"
 import type { ChecklistStatus } from "@/lib/pathways/types"
 import type { AssessmentData, ConfidenceLevel, PathwayCard } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
@@ -138,7 +139,7 @@ function PathwayBriefLayout({
       </div>
 
       <div className="sticky top-2 z-10 mb-6 rounded-md border border-border bg-background/95 px-4 py-3 text-xs text-muted-foreground backdrop-blur">
-        Not legal advice. This is a structured overview of public requirements. You review and decide.
+        {DISCLAIMER_SHORT}
       </div>
 
       <div className="space-y-4">
@@ -171,7 +172,7 @@ function PathwayBriefLayout({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">2) Fast eligibility checklist (high-level gates)</CardTitle>
+            <CardTitle className="text-base">2) Fast readiness checklist (high-level gates)</CardTitle>
             <p className="text-sm text-muted-foreground">{brief.checklistIntro}</p>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -500,7 +501,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
     return (
       <PathwayBriefLayout
         title="Express Entry"
-        description="Canada's federal system for selecting skilled immigrants, including programs like FSW, CEC, and FST. You create a profile and may receive an invitation to apply based on your points and eligibility."
+        description="Canada's federal system for selecting skilled immigrants, including programs like FSW, CEC, and FST. You create a profile and may receive an invitation to apply based on your points and profile factors."
         confidence={confidence}
         brief={expressEntryBrief}
         onBack={() => router.push("/assessment/results")}
@@ -509,7 +510,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
         pathwaySpecificSection={
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">6) CRS signals & levers (high-level, not guaranteeing outcomes)</CardTitle>
+              <CardTitle className="text-base">6) CRS signals & levers (high-level, not definitive outcomes)</CardTitle>
               <p className="text-sm text-muted-foreground">{expressEntryBrief.crsSignalsIntro}</p>
             </CardHeader>
             <CardContent className="space-y-3">

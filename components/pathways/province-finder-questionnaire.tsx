@@ -347,7 +347,7 @@ export function ProvinceFinderQuestionnaire() {
   const hasJobOffer = assessment?.hasCanadianJobOffer === "yes"
   const currentlyWorkingInCanada = assessment?.currentlyWorkingInCanada === "yes"
   const outsideCanada = assessment?.currentLocation === "outside-canada"
-  const showEmployerEligibilityDetails = hasJobOffer || currentlyWorkingInCanada
+  const showEmployerParticipationDetails = hasJobOffer || currentlyWorkingInCanada
   const showSettlementFundsAmount = outsideCanada || !hasJobOffer
 
   const requiredKeys = getProvinceFinderRequiredRadioKeys()
@@ -359,7 +359,7 @@ export function ProvinceFinderQuestionnaire() {
     2 +
     (answers.noc_known === "yes" || answers.noc_known === "no_not_sure" ? 1 : 0) +
     (answers.ee_profile_active === "yes" && answers.ee_crs_known ? 1 : 0) +
-    (showEmployerEligibilityDetails ? 1 : 0)
+    (showEmployerParticipationDetails ? 1 : 0)
   const supplementalCompletedCount =
     (answers.noc_known ? 1 : 0) +
     (answers.noc_known === "yes"
@@ -383,7 +383,7 @@ export function ProvinceFinderQuestionnaire() {
             : 0
           : 0
       : 0) +
-    (showEmployerEligibilityDetails && answers.employer_operation_years_in_province ? 1 : 0)
+    (showEmployerParticipationDetails && answers.employer_operation_years_in_province ? 1 : 0)
   const totalQuestions = requiredKeys.length + 1 + supplementalRequiredCount
   const progressText = `${Math.min(totalQuestions, completedRequiredCount + 1 + supplementalCompletedCount)}/${totalQuestions}`
 
@@ -403,7 +403,7 @@ export function ProvinceFinderQuestionnaire() {
     } else if (answers.ee_crs_known === "no") {
       if (answers.ee_crs_score != null) updateAnswer("ee_crs_score", null)
     }
-    if (!showEmployerEligibilityDetails) {
+    if (!showEmployerParticipationDetails) {
       if (answers.employer_operation_years_in_province) updateAnswer("employer_operation_years_in_province", undefined)
       if (answers.employer_annual_revenue_range) updateAnswer("employer_annual_revenue_range", undefined)
     }
@@ -426,7 +426,7 @@ export function ProvinceFinderQuestionnaire() {
     answers.employer_annual_revenue_range,
     answers.job_location_postal_code,
     answers.settlement_funds_amount_range,
-    showEmployerEligibilityDetails,
+    showEmployerParticipationDetails,
     hasJobOffer,
     showSettlementFundsAmount,
   ])
@@ -910,7 +910,7 @@ export function ProvinceFinderQuestionnaire() {
           </CardContent>
         </Card>
 
-        {showEmployerEligibilityDetails ? (
+        {showEmployerParticipationDetails ? (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">
@@ -966,7 +966,7 @@ export function ProvinceFinderQuestionnaire() {
               </div>
 
               <p className="text-xs text-muted-foreground">
-                Some employer-driven PNP streams have employer eligibility requirements.
+                Some employer-driven PNP streams have employer participation requirements.
               </p>
             </CardContent>
           </Card>

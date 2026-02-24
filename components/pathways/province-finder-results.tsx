@@ -35,6 +35,8 @@ import {
 } from "@/lib/pathways/bcRecommendationDisplay"
 import { PNP_PROVINCE_LABELS } from "@/lib/config/pnpScope"
 import { loadAssessment } from "@/lib/storage"
+import { DISCLAIMER_SHORT, LABELS, SECTION_TITLES } from "@/lib/copy/compliance"
+import { assertComplianceText } from "@/lib/utils/assertComplianceText"
 import type {
   DisplayConfidenceLabel,
   FitLabel,
@@ -56,9 +58,9 @@ function baselineBadgeVariant(badge: EvaluatedFamily["baselineBadge"]): "default
 }
 
 function matchLevelLabel(matchLevel: MatchLevel): string {
-  if (matchLevel === "strong") return "Strong match"
-  if (matchLevel === "possible") return "Possible match"
-  return "Weak match"
+  if (matchLevel === "strong") return LABELS.matchLevel.strong
+  if (matchLevel === "possible") return LABELS.matchLevel.possible
+  return LABELS.matchLevel.weak
 }
 
 function matchLevelVariant(matchLevel: MatchLevel): "default" | "secondary" | "outline" {
@@ -79,16 +81,28 @@ function displayConfidenceToVariant(confidence: DisplayConfidenceLabel): "defaul
   return "outline"
 }
 
+function fitDisplayLabel(fit: FitLabel): string {
+  if (fit === "High") return LABELS.fit.high
+  if (fit === "Medium") return LABELS.fit.medium
+  return LABELS.fit.low
+}
+
+function confidenceDisplayLabel(confidence: DisplayConfidenceLabel): string {
+  if (confidence === "High") return LABELS.confidence.high
+  if (confidence === "Medium") return LABELS.confidence.medium
+  return LABELS.confidence.low
+}
+
 function modeCopy(mode: "guided" | "explore"): { heading: string; subhead: string } {
   if (mode === "explore") {
     return {
-      heading: "BC pathways you can still explore (low fit so far)",
+      heading: SECTION_TITLES.explore,
       subhead:
         "Based on your current answers, BC PNP may not be the strongest match yet. If you still want to explore, confirm a few details to improve accuracy.",
     }
   }
   return {
-    heading: "Recommended BC pathways to explore",
+    heading: SECTION_TITLES.recommended,
     subhead:
       "Based on your answers so far, these options appear most aligned. You can refine your result by answering a few missing questions.",
   }
@@ -111,6 +125,13 @@ function BCPathwayRecommendationCard({ family, onRefine }: BCPathwayRecommendati
   const limitingFactors = family.hardBlockers.slice(0, 3)
   const showQuickQuestions = family.baselineBadge === "unclear" || confidence === "Low"
   const quickQuestions = family.missingInfo.slice(0, 3)
+  whyBullets.forEach((bullet, index) => assertComplianceText(bullet, `province-finder-why-${family.familyId}-${index}`))
+  limitingFactors.forEach((bullet, index) =>
+    assertComplianceText(bullet, `province-finder-limits-${family.familyId}-${index}`),
+  )
+  quickQuestions.forEach((item, index) =>
+    assertComplianceText(item.prompt, `province-finder-missing-${family.familyId}-${index}`),
+  )
 
   return (
     <Card>
@@ -119,8 +140,10 @@ function BCPathwayRecommendationCard({ family, onRefine }: BCPathwayRecommendati
           <CardTitle className="text-base">{family.title}</CardTitle>
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={matchLevelVariant(family.matchLevel)}>{matchLevelLabel(family.matchLevel)}</Badge>
-            <Badge variant={fitVariant(fit)}>Fit: {fit}</Badge>
-            <Badge variant={displayConfidenceToVariant(confidence)}>Confidence: {confidence}</Badge>
+            <Badge variant={fitVariant(fit)}>Fit: {fitDisplayLabel(fit)}</Badge>
+            <Badge variant={displayConfidenceToVariant(confidence)}>
+              Confidence: {confidenceDisplayLabel(confidence)}
+            </Badge>
             <Badge variant={baselineBadgeVariant(family.baselineBadge)}>
               {baseline.icon} {baseline.label}
             </Badge>
@@ -131,7 +154,7 @@ function BCPathwayRecommendationCard({ family, onRefine }: BCPathwayRecommendati
       </CardHeader>
       <CardContent className="space-y-4">
         <div>
-          <p className="mb-2 text-sm font-medium">Why this appears relevant</p>
+          <p className="mb-2 text-sm font-medium">{SECTION_TITLES.why}</p>
           <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
             {whyBullets.map((bullet) => (
               <li key={bullet}>{bullet}</li>
@@ -141,7 +164,7 @@ function BCPathwayRecommendationCard({ family, onRefine }: BCPathwayRecommendati
 
         {showLimitingFactors ? (
           <div>
-            <p className="mb-2 text-sm font-medium">Current limiting factors</p>
+            <p className="mb-2 text-sm font-medium">{SECTION_TITLES.blockers}</p>
             <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
               {(limitingFactors.length > 0
                 ? limitingFactors
@@ -155,7 +178,7 @@ function BCPathwayRecommendationCard({ family, onRefine }: BCPathwayRecommendati
 
         {showQuickQuestions && quickQuestions.length > 0 ? (
           <div>
-            <p className="mb-2 text-sm font-medium">Quick questions to refine</p>
+            <p className="mb-2 text-sm font-medium">{SECTION_TITLES.missing}</p>
             <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
               {quickQuestions.map((item) => (
                 <li key={item.id}>{item.prompt}</li>
@@ -288,9 +311,7 @@ export function ProvinceFinderResults() {
           <p className="text-sm text-muted-foreground">
             This province appears aligned based on your answers and is worth exploring next.
           </p>
-          <p className="text-xs text-muted-foreground">
-            Not legal advice. Stream criteria change. Confirm official requirements.
-          </p>
+          <p className="text-xs text-muted-foreground">{DISCLAIMER_SHORT}</p>
         </CardHeader>
       </Card>
 

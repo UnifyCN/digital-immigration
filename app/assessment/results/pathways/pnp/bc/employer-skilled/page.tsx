@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { DISCLAIMER_SHORT } from "@/lib/copy/compliance"
 
 export default function BCEmployerSkilledDetailsPage() {
   return (
@@ -12,7 +13,7 @@ export default function BCEmployerSkilledDetailsPage() {
             This family is typically explored when there is a BC job connection and employer-linked details.
           </p>
           <p className="text-xs text-muted-foreground">
-            MVP note: this page is a family-level guide for exploration and not a final determination.
+            {DISCLAIMER_SHORT}
           </p>
         </CardHeader>
         <CardContent>

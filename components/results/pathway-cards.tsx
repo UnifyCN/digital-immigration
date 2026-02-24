@@ -10,6 +10,7 @@ import { Compass, ChevronRight, ArrowRight } from "lucide-react"
 import { saveSelectedPathway } from "@/lib/imm5669/storage"
 import { getPNPProvinceRouterDecision } from "@/lib/pathways/pnpProvinceRouter"
 import { savePNPProvinceFinderEntryContext } from "@/lib/pathways/provinceFinderStorage"
+import { DISCLAIMER_SHORT } from "@/lib/copy/compliance"
 import type { PathwayCard, ConfidenceLevel } from "@/lib/types"
 
 const confidenceColors: Record<ConfidenceLevel, string> = {
@@ -53,7 +54,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
           Relevant Pathways
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          Appears relevant based on your inputs. This is not advice or an eligibility determination.
+          {DISCLAIMER_SHORT}
         </p>
       </div>
 

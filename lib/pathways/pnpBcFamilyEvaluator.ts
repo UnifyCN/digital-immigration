@@ -1,40 +1,23 @@
 import {
-  BC_EMPLOYER_SKILLED_OPENQ_RULES,
-  BC_EMPLOYER_SKILLED_WHY_RULES,
-  BC_INTL_GRAD_OPENQ_RULES,
-  BC_INTL_GRAD_WHY_RULES,
   BC_STREAM_FAMILIES,
-  fallbackOpenQuestion,
-  fallbackWhyBullet,
   type EvaluatedFamily,
   type FamilyConfidence,
   type FamilyOpenQuestion,
-  type FamilyRuleContext,
   type MatchLevel,
   type ProvinceFinderEvaluation,
   type StreamFamilyId,
 } from "../rules/pnp/bcFamilies.ts"
+import { loadBCPNPStreams } from "../rules/loadPNPRules.ts"
 import { evaluateFamilyBaseline } from "./pnpBcFamilyBaseline.ts"
-import type { CombinedPNPSignals } from "./pnpProvinceScope"
-import type { PNPBuildMeta } from "./pnpSignals"
+import { buildRuleSignals } from "./pnpRuleSignals.ts"
+import { generateMissingInfo, generateWhyBullets } from "./explainFromRules.ts"
+import { isUnknownRuleValue } from "./ruleEngine.ts"
+import { scoreStream } from "./scoreFromRules.ts"
+import type { CombinedPNPSignals } from "./pnpProvinceScope.ts"
+import type { PNPBuildMeta } from "./pnpSignals.ts"
 
 type ScoreResult = {
   fitScore: number
-}
-
-type ScoreContext = {
-  combinedSignals: CombinedPNPSignals
-  meta: PNPBuildMeta
-}
-
-function clampScore(value: number): number {
-  if (value < 0) return 0
-  if (value > 100) return 100
-  return Math.round(value)
-}
-
-function isUnknown(value: unknown): boolean {
-  return value === null || value === undefined || value === "not_sure" || value === "not-sure" || value === "unsure"
 }
 
 function confidenceRank(value: FamilyConfidence): number {
@@ -49,92 +32,44 @@ function matchLevelRank(value: MatchLevel): number {
   return 1
 }
 
-function scoreEmployerSkilled({ combinedSignals }: ScoreContext): ScoreResult {
-  let score = 0
-
-  if (combinedSignals.hasJobOfferRefined === "yes") score += 35
-  else if (combinedSignals.hasJobOfferRefined === "not_sure" || isUnknown(combinedSignals.hasJobOfferRefined)) score += 10
-
-  if (combinedSignals.jobProvinceCode === "BC") score += 20
-  else if (isUnknown(combinedSignals.jobProvinceCode)) score += 5
-
-  if (combinedSignals.jobOfferFullTime === "yes") score += 10
-  else if (combinedSignals.jobOfferFullTime === "not_sure" || isUnknown(combinedSignals.jobOfferFullTime)) score += 3
-
-  if (combinedSignals.jobOfferPermanent === "yes") score += 10
-  else if (combinedSignals.jobOfferPermanent === "not_sure" || isUnknown(combinedSignals.jobOfferPermanent)) score += 3
-
-  if (combinedSignals.employerSupportRefined === "yes") score += 15
-  else if (combinedSignals.employerSupportRefined === "not_sure" || isUnknown(combinedSignals.employerSupportRefined)) score += 7
-
-  if (combinedSignals.teerSkillBand === "teer_0_3") score += 10
-  else if (combinedSignals.teerSkillBand === "teer_4_5") score += 2
-
-  if (combinedSignals.canadianSkilledWork12mo === "yes") score += 5
-
-  return { fitScore: clampScore(score) }
-}
-
-function scoreInternationalGrad({ combinedSignals }: ScoreContext): ScoreResult {
-  let score = 0
-
-  if (combinedSignals.anyEducationInCanada === "yes") score += 35
-  else if (combinedSignals.anyEducationInCanada === "not_sure" || isUnknown(combinedSignals.anyEducationInCanada)) score += 10
-
-  if (combinedSignals.educationProvinceCode === "BC") score += 15
-  else if (isUnknown(combinedSignals.educationProvinceCode)) score += 3
-
-  if (combinedSignals.institutionType === "public" || combinedSignals.publicInstitutionInCanada === "yes") score += 10
-  else if (combinedSignals.institutionType === "unsure" || combinedSignals.publicInstitutionInCanada === "not_sure") score += 3
-
-  if (combinedSignals.programAtLeast8Months === "yes") score += 10
-  else if (combinedSignals.programAtLeast8Months === "not_sure" || isUnknown(combinedSignals.programAtLeast8Months)) score += 3
-
-  if (combinedSignals.completedWithin3Years === "yes") score += 10
-  else if (combinedSignals.completedWithin3Years === "not_sure" || isUnknown(combinedSignals.completedWithin3Years)) score += 3
-
-  if (combinedSignals.hasJobOfferRefined === "yes" && combinedSignals.jobProvinceCode === "BC") score += 15
-  else if (combinedSignals.hasJobOfferRefined === "yes" && isUnknown(combinedSignals.jobProvinceCode)) score += 7
-
-  if (combinedSignals.languageReady === "valid") score += 5
-  else if (combinedSignals.languageReady === "booked" || isUnknown(combinedSignals.languageReady)) score += 2
-
-  return { fitScore: clampScore(score) }
+function findStream(familyId: StreamFamilyId) {
+  return loadBCPNPStreams().streams.find((stream) => stream.id === familyId)
 }
 
 export function scoreFamily(
   familyId: StreamFamilyId,
   combinedSignals: CombinedPNPSignals,
-  meta: PNPBuildMeta,
+  _meta: PNPBuildMeta,
 ): ScoreResult {
-  const ctx: ScoreContext = { combinedSignals, meta }
-  if (familyId === "BC_EMPLOYER_SKILLED") return scoreEmployerSkilled(ctx)
-  return scoreInternationalGrad(ctx)
+  const stream = findStream(familyId)
+  if (!stream) return { fitScore: 0 }
+  const ruleSignals = buildRuleSignals(combinedSignals)
+  return { fitScore: scoreStream(stream, ruleSignals) }
 }
 
 function computeUnknownCountForFamily(familyId: StreamFamilyId, combinedSignals: CombinedPNPSignals): number {
-  if (familyId === "BC_EMPLOYER_SKILLED") {
-    const keyFields = [
-      combinedSignals.hasJobOfferRefined,
-      combinedSignals.jobProvinceCode ?? combinedSignals.jobProvince,
-      combinedSignals.jobOfferFullTime,
-      combinedSignals.jobOfferPermanent,
-      combinedSignals.employerSupportRefined,
-      combinedSignals.teerSkillBand ?? combinedSignals.provinceFinder.nocCode,
-    ]
-    return keyFields.filter((value) => isUnknown(value)).length
-  }
+  const ruleSignals = buildRuleSignals(combinedSignals)
+  const keyFields =
+    familyId === "BC_EMPLOYER_SKILLED"
+      ? [
+          ruleSignals.hasJobOffer,
+          ruleSignals.jobProvinceCode,
+          ruleSignals.jobFullTime,
+          ruleSignals.jobPermanent,
+          ruleSignals.employerSupportPNP,
+          ruleSignals.teer,
+        ]
+      : [
+          ruleSignals.educationInCanada,
+          ruleSignals.educationProvinceCode,
+          ruleSignals.institutionType,
+          ruleSignals.programLength8mo,
+          ruleSignals.graduatedWithin3Years,
+          ruleSignals.hasJobOffer,
+          ruleSignals.jobProvinceCode,
+        ]
 
-  const keyFields = [
-    combinedSignals.anyEducationInCanada,
-    combinedSignals.educationProvinceCode ?? combinedSignals.educationProvince,
-    combinedSignals.institutionType ?? combinedSignals.publicInstitutionInCanada,
-    combinedSignals.programAtLeast8Months,
-    combinedSignals.completedWithin3Years,
-    combinedSignals.hasJobOfferRefined,
-    combinedSignals.jobProvinceCode ?? combinedSignals.jobProvince,
-  ]
-  return keyFields.filter((value) => isUnknown(value)).length
+  return keyFields.filter((value) => isUnknownRuleValue(value)).length
 }
 
 function applyMetaCaps(base: FamilyConfidence, unknownRate: number): FamilyConfidence {
@@ -159,106 +94,60 @@ export function computeFamilyConfidence(
 export function generateFamilyWhyBullets(
   familyId: StreamFamilyId,
   combinedSignals: CombinedPNPSignals,
-  confidence: FamilyConfidence,
+  _confidence: FamilyConfidence,
 ): { whyBullets: string[]; whyBulletIds: string[] } {
-  const rules = familyId === "BC_EMPLOYER_SKILLED" ? BC_EMPLOYER_SKILLED_WHY_RULES : BC_INTL_GRAD_WHY_RULES
-  const ctx: FamilyRuleContext = { combinedSignals, confidence }
-  const matched = rules
-    .filter((rule) => rule.when(ctx))
-    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
-    .slice(0, 4)
-
-  const whyBullets = matched.map((rule) => rule.text(ctx))
-  const whyBulletIds = matched.map((rule) => rule.id)
-
-  if (whyBullets.length < 2) {
-    const fallback = fallbackWhyBullet(familyId)
-    whyBullets.push(fallback.text)
-    whyBulletIds.push(fallback.id)
-  }
-  if (whyBullets.length < 2) {
-    whyBullets.push("We can refine this recommendation with a few more details.")
-    whyBulletIds.push("fallback_refine_details")
+  const stream = findStream(familyId)
+  if (!stream) {
+    return {
+      whyBullets: ["We can refine this recommendation with a few more details."],
+      whyBulletIds: ["missing_stream"],
+    }
   }
 
-  return {
-    whyBullets: whyBullets.slice(0, 4),
-    whyBulletIds: whyBulletIds.slice(0, 4),
-  }
+  const ruleSignals = buildRuleSignals(combinedSignals)
+  return generateWhyBullets(stream, ruleSignals)
 }
 
 export function generateFamilyOpenQuestions(
   familyId: StreamFamilyId,
   combinedSignals: CombinedPNPSignals,
-  confidence: FamilyConfidence,
+  _confidence: FamilyConfidence,
 ): FamilyOpenQuestion[] {
-  const rules = familyId === "BC_EMPLOYER_SKILLED" ? BC_EMPLOYER_SKILLED_OPENQ_RULES : BC_INTL_GRAD_OPENQ_RULES
-  const ctx: FamilyRuleContext = { combinedSignals, confidence }
-  const matched = rules
-    .filter((rule) => rule.when(ctx))
-    .sort((a, b) => b.priority - a.priority || a.id.localeCompare(b.id))
+  const stream = findStream(familyId)
+  if (!stream) return []
 
-  const selected: FamilyOpenQuestion[] = []
-  const usedIds = new Set<string>()
-  for (const rule of matched) {
-    if (selected.length >= 4) break
-    if (usedIds.has(rule.id)) continue
-    selected.push({
-      id: rule.id,
-      prompt: rule.prompt,
-      reason: rule.reason,
-      signalKeys: rule.signalKeys,
-    })
-    usedIds.add(rule.id)
-  }
-
-  while (selected.length < 2) {
-    const fallback = fallbackOpenQuestion(familyId)
-    selected.push({
-      ...fallback,
-      id: `${fallback.id}_${selected.length + 1}`,
-    })
-  }
-
-  return selected.slice(0, 4)
+  const ruleSignals = buildRuleSignals(combinedSignals)
+  return generateMissingInfo(stream, ruleSignals).map((item) => ({
+    id: item.id,
+    prompt: item.prompt,
+    signalKeys: item.signalKeys,
+  }))
 }
 
-function getSignalValueByKey(signals: CombinedPNPSignals, key: string): unknown {
+function getSignalValueByKey(
+  signals: CombinedPNPSignals,
+  ruleSignals: ReturnType<typeof buildRuleSignals>,
+  key: string,
+): unknown {
+  if (key in ruleSignals) {
+    return ruleSignals[key]
+  }
+
   switch (key) {
-    case "hasJobOffer":
-      return signals.hasJobOfferRefined
-    case "jobProvinceCode":
-      return signals.jobProvinceCode
-    case "jobProvinceLabel":
-    case "jobProvince":
-      return signals.jobProvince
-    case "jobFullTime":
-      return signals.jobOfferFullTime
-    case "jobPermanent":
+    case "jobOfferPermanent":
       return signals.jobOfferPermanent
-    case "teer":
-      return signals.teerSkillBand
-    case "nocCode":
-      return signals.provinceFinder.nocCode
-    case "languageTestStatus":
-      return signals.languageReady
-    case "educationInCanada":
-    case "anyEducationInCanada":
-      return signals.anyEducationInCanada
-    case "institutionType":
-      return signals.institutionType ?? signals.publicInstitutionInCanada
-    case "programLength8mo":
-    case "programAtLeast8Months":
-      return signals.programAtLeast8Months
-    case "graduatedWithin3Years":
-      return signals.completedWithin3Years
-    case "educationProvinceCode":
-      return signals.educationProvinceCode
-    case "educationProvinceInCanada":
-      return signals.educationProvince
-    case "employerSupportPNP":
+    case "jobOfferFullTime":
+      return signals.jobOfferFullTime
     case "employerSupport":
       return signals.employerSupportRefined
+    case "programAtLeast8Months":
+      return signals.programAtLeast8Months
+    case "completedWithin3Years":
+      return signals.completedWithin3Years
+    case "educationProvinceInCanada":
+      return signals.educationProvince
+    case "publicInstitutionInCanada":
+      return signals.publicInstitutionInCanada
     default:
       return (signals as unknown as Record<string, unknown>)[key]
   }
@@ -267,9 +156,10 @@ function getSignalValueByKey(signals: CombinedPNPSignals, key: string): unknown 
 function isPromptStillNeeded(
   item: { signalKeys?: string[] },
   signals: CombinedPNPSignals,
+  ruleSignals: ReturnType<typeof buildRuleSignals>,
 ): boolean {
   if (!item.signalKeys || item.signalKeys.length === 0) return true
-  return item.signalKeys.some((key) => isUnknown(getSignalValueByKey(signals, key)))
+  return item.signalKeys.some((key) => isUnknownRuleValue(getSignalValueByKey(signals, ruleSignals, key)))
 }
 
 export function buildMissingInfo(params: {
@@ -289,8 +179,11 @@ export function buildMissingInfo(params: {
     combinedSignals,
   } = params
 
-  const filteredBaseline = baselineMissingRequired.filter((item) => isPromptStillNeeded(item, combinedSignals))
-  const filteredOpen = openQuestions.filter((item) => isPromptStillNeeded(item, combinedSignals))
+  const ruleSignals = buildRuleSignals(combinedSignals)
+  const filteredBaseline = baselineMissingRequired.filter((item) =>
+    isPromptStillNeeded(item, combinedSignals, ruleSignals),
+  )
+  const filteredOpen = openQuestions.filter((item) => isPromptStillNeeded(item, combinedSignals, ruleSignals))
 
   let ordered: Array<{ id: string; prompt: string; reason?: string; signalKeys?: string[] }> = []
   if (baselineBadge === "unclear") {
@@ -298,19 +191,18 @@ export function buildMissingInfo(params: {
   } else if (baselineBadge === "fail") {
     const failHighImpactIds =
       familyId === "BC_EMPLOYER_SKILLED"
-        ? new Set(["A_q_job_offer", "A_q_job_province", "A_q_job_permanent", "A_q_teer", "A_q_employer_support"])
-        : new Set(["B_q_canadian_education", "B_q_education_province", "B_q_program_length", "B_q_recency"])
-    ordered = [
-      ...filteredBaseline,
-      ...filteredOpen.filter((item) => failHighImpactIds.has(item.id)),
-    ]
+        ? new Set(["missing_teer", "missing_full_time", "missing_permanent", "job_offer_exists", "job_in_bc"])
+        : new Set([
+            "missing_institution_type",
+            "missing_program_length",
+            "missing_grad_recency",
+            "canadian_education",
+            "bc_anchor",
+          ])
+    ordered = [...filteredBaseline, ...filteredOpen.filter((item) => failHighImpactIds.has(item.id))]
   } else {
     if (confidence === "high") return []
-    const passHighImpactIds =
-      familyId === "BC_EMPLOYER_SKILLED"
-        ? new Set(["A_q_employer_support", "A_q_teer", "A_q_job_permanent"])
-        : new Set(["B_q_education_province", "B_q_recency", "B_q_program_length"])
-    ordered = filteredOpen.filter((item) => passHighImpactIds.has(item.id))
+    ordered = filteredOpen
   }
 
   const deduped: Array<{ id: string; prompt: string; reason?: string; signalKeys?: string[] }> = []
@@ -358,11 +250,7 @@ export function classifyMatchLevel(params: {
   const { familyId, baselineBadge, fitScore, confidence, combinedSignals } = params
   const employerSupportNo = familyId === "BC_EMPLOYER_SKILLED" && combinedSignals.employerSupportRefined === "no"
 
-  const isStrong =
-    baselineBadge === "pass" &&
-    fitScore >= 70 &&
-    confidence !== "low" &&
-    !employerSupportNo
+  const isStrong = baselineBadge === "pass" && fitScore >= 70 && confidence !== "low" && !employerSupportNo
 
   if (isStrong) return "strong"
 
@@ -382,8 +270,8 @@ function buildEvaluatedFamily(
   combinedSignals: CombinedPNPSignals,
   meta: PNPBuildMeta,
 ): EvaluatedFamily {
-  const family = BC_STREAM_FAMILIES.find((item) => item.familyId === familyId)
-  if (!family) throw new Error(`Unsupported BC family: ${familyId}`)
+  const stream = findStream(familyId)
+  const fallback = BC_STREAM_FAMILIES.find((item) => item.familyId === familyId)
 
   const score = scoreFamily(familyId, combinedSignals, meta)
   const confidence = computeFamilyConfidence(familyId, combinedSignals, meta)
@@ -409,8 +297,8 @@ function buildEvaluatedFamily(
 
   return {
     familyId,
-    title: family.title,
-    shortDescription: family.shortDescription,
+    title: stream?.displayName ?? fallback?.title ?? familyId,
+    shortDescription: stream?.shortDescription ?? fallback?.shortDescription ?? "",
     fitScore: cappedFitScore,
     confidence,
     baselineBadge: baseline.badge,
@@ -440,10 +328,18 @@ export function evaluateBCFamilies(params: {
   meta: PNPBuildMeta
 }): ProvinceFinderEvaluation {
   const { combinedSignals, meta } = params
-  const evaluatedFamilies = rankBCFamilyRecommendations([
-    buildEvaluatedFamily("BC_EMPLOYER_SKILLED", combinedSignals, meta),
-    buildEvaluatedFamily("BC_INTL_GRAD", combinedSignals, meta),
-  ])
+
+  const rules = loadBCPNPStreams()
+  const familyIds = rules.streams
+    .map((stream) => stream.id)
+    .filter((id): id is StreamFamilyId => id === "BC_EMPLOYER_SKILLED" || id === "BC_INTL_GRAD")
+
+  const fallbackFamilyIds: StreamFamilyId[] = ["BC_EMPLOYER_SKILLED", "BC_INTL_GRAD"]
+  const idsToEvaluate = familyIds.length > 0 ? familyIds : fallbackFamilyIds
+
+  const evaluatedFamilies = rankBCFamilyRecommendations(
+    idsToEvaluate.map((familyId) => buildEvaluatedFamily(familyId, combinedSignals, meta)),
+  )
 
   return {
     provinceCode: "BC",

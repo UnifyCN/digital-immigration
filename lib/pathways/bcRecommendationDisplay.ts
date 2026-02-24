@@ -1,5 +1,6 @@
 import type { EvaluatedFamily, FamilyConfidence, StreamFamilyId } from "../rules/pnp/bcFamilies.ts"
 import type { BaselineBadge } from "../rules/pnp/bcHardChecks.ts"
+import { LABELS } from "../copy/compliance.ts"
 
 export type FitLabel = "High" | "Medium" | "Low"
 export type DisplayConfidenceLabel = "High" | "Medium" | "Low"
@@ -31,9 +32,9 @@ export function mapFitLabel(family: EvaluatedFamily): FitLabel {
 export function mapBaselineDisplay(
   baselineBadge: BaselineBadge,
 ): { icon: "✅" | "⚠️" | "❌"; label: string } {
-  if (baselineBadge === "pass") return { icon: "✅", label: "Baseline met" }
-  if (baselineBadge === "unclear") return { icon: "⚠️", label: "Baseline unclear" }
-  return { icon: "❌", label: "Baseline limited" }
+  if (baselineBadge === "pass") return LABELS.baseline.pass
+  if (baselineBadge === "unclear") return LABELS.baseline.unclear
+  return LABELS.baseline.fail
 }
 
 function confidenceToDisplay(confidence: FamilyConfidence): DisplayConfidenceLabel {
