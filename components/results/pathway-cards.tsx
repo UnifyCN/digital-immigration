@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Compass, ChevronRight, ArrowRight } from "lucide-react"
 import { saveSelectedPathway } from "@/lib/imm5669/storage"
+import { getPNPProvinceRouterDecision } from "@/lib/pathways/pnpProvinceRouter"
+import { savePNPProvinceFinderEntryContext } from "@/lib/pathways/provinceFinderStorage"
 import type { PathwayCard, ConfidenceLevel } from "@/lib/types"
 
 const confidenceColors: Record<ConfidenceLevel, string> = {
@@ -20,6 +22,7 @@ const pathwayHref: Record<string, string> = {
   pnp: "/assessment/results/pathways/pnp",
   "express-entry": "/assessment/results/pathways/express-entry",
 }
+const BC_REFINEMENT_PATH = "/assessment/results/pathways/pnp/bc-refinement"
 
 export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
   const router = useRouter()
@@ -27,6 +30,20 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
   function handleProceed(pathway: PathwayCard) {
     saveSelectedPathway({ pathwayId: pathway.id, pathwayName: pathway.name })
     router.push("/next-steps")
+  }
+
+  function handleOpenProvinceFinderFromCard(pathway: PathwayCard) {
+    const decision = getPNPProvinceRouterDecision({
+      pnpInScope: true,
+      pnpFitScore: typeof pathway.pnpScore === "number" ? pathway.pnpScore : 0,
+      pnpConfidence: pathway.confidenceLevel,
+      missingItems: (pathway.openQuestions ?? []).map((item) => ({
+        id: item.id,
+        prompt: item.prompt,
+      })),
+    })
+    savePNPProvinceFinderEntryContext(decision)
+    router.push(BC_REFINEMENT_PATH)
   }
 
   return (
@@ -43,6 +60,18 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
       <div className="grid gap-3 sm:grid-cols-2 sm:items-stretch">
         {pathways.map((pathway) => {
           const href = pathwayHref[pathway.id]
+          const pnpRouterDecision =
+            pathway.id === "pnp"
+              ? getPNPProvinceRouterDecision({
+                  pnpInScope: true,
+                  pnpFitScore: typeof pathway.pnpScore === "number" ? pathway.pnpScore : 0,
+                  pnpConfidence: pathway.confidenceLevel,
+                  missingItems: (pathway.openQuestions ?? []).map((item) => ({
+                    id: item.id,
+                    prompt: item.prompt,
+                  })),
+                })
+              : null
 
           const cardBody = (
             <>
@@ -99,10 +128,14 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
+                    if (pathway.id === "pnp") {
+                      handleOpenProvinceFinderFromCard(pathway)
+                      return
+                    }
                     handleProceed(pathway)
                   }}
                 >
-                  Proceed to Next Steps
+                  {pathway.id === "pnp" ? pnpRouterDecision?.primaryCTA ?? "Refine BC Options" : "Proceed to Next Steps"}
                   <ArrowRight className="size-3.5" />
                 </Button>
               </CardContent>

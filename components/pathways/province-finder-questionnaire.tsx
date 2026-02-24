@@ -35,6 +35,8 @@ import {
 } from "@/lib/pathways/provinceFinder"
 import {
   loadPNPProvinceFinderAnswers,
+  loadPNPProvinceFinderEntryContext,
+  savePNPProvinceFinderEntryContext,
   savePNPProvinceFinderResult,
   saveProvinceFinderRecommendations,
   savePNPProvinceFinderAnswers,
@@ -43,8 +45,14 @@ import { buildPNPSignals } from "@/lib/pathways/pnpSignals"
 import { buildPNPProvinceFinderSignals, mergeSignals, resolveMVPProvince } from "@/lib/pathways/pnpProvinceScope"
 import { evaluatePNPProvince } from "@/lib/pathways/pnpProvinceEvaluator"
 import { buildBCProvinceFinderResult } from "@/lib/pathways/pnpBcFamilyEvaluator"
+import { getPNPProvinceRouterDecision } from "@/lib/pathways/pnpProvinceRouter"
 import { PNP_PROVINCE_LABELS } from "@/lib/config/pnpScope"
 import { loadAssessment } from "@/lib/storage"
+import { isPNPInScope } from "@/lib/pnp-scope"
+import { scorePNPRelevance } from "@/lib/pathways/pnpRelevanceScore"
+import { derivePNPConfidence } from "@/lib/pathways/pnpConfidence"
+import { buildPNPReadinessChecklistAll } from "@/lib/pathways/pnpReadinessChecklist"
+import { generatePNPOpenQuestions } from "@/lib/pathways/pnpOpenQuestions"
 
 type RadioQuestionKey = Exclude<keyof ProvinceFinderAnswers, "hourlyWage">
 
@@ -56,6 +64,7 @@ type RadioQuestion = {
 }
 
 const PNP_OVERVIEW_PATH = "/assessment/results/pathways/pnp"
+const BC_REFINEMENT_PATH = "/assessment/results/pathways/pnp/bc-refinement"
 const FINDER_RESULTS_PATH = "/assessment/results/pathways/pnp/province-finder/results"
 const CHOICE_CHIP_CLASS =
   "flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-4 py-2.5 text-sm transition-colors hover:bg-accent [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/5"
@@ -279,6 +288,7 @@ function asDraftValue(
 export function ProvinceFinderQuestionnaire() {
   const router = useRouter()
   const [answers, setAnswers] = useState<ProvinceFinderDraftAnswers>(() => loadPNPProvinceFinderAnswers())
+  const [entryContext] = useState(() => loadPNPProvinceFinderEntryContext())
   const [errors, setErrors] = useState<string[]>([])
   const assessment = useMemo(() => loadAssessment(), [])
   const { signals: mainSignals, meta } = useMemo(() => buildPNPSignals(assessment ?? {}), [assessment])
@@ -286,6 +296,53 @@ export function ProvinceFinderQuestionnaire() {
   const mvpResolution = useMemo(
     () => resolveMVPProvince({ mainSignals, finderSignals }),
     [finderSignals, mainSignals],
+  )
+  const pnpInScope = useMemo(() => isPNPInScope(assessment ?? {}), [assessment])
+  const pnpScoring = useMemo(
+    () => scorePNPRelevance(mainSignals, { unknownRate: meta.unknownRate }),
+    [mainSignals, meta.unknownRate],
+  )
+  const pnpConfidence = useMemo(
+    () =>
+      derivePNPConfidence({
+        score: pnpScoring.score,
+        unknownRate: meta.unknownRate,
+        dampenersApplied: pnpScoring.dampenersApplied,
+      }),
+    [meta.unknownRate, pnpScoring.dampenersApplied, pnpScoring.score],
+  )
+  const pnpChecklistAll = useMemo(
+    () =>
+      buildPNPReadinessChecklistAll({
+        signals: mainSignals,
+        meta: { unknownRate: meta.unknownRate },
+      }),
+    [mainSignals, meta.unknownRate],
+  )
+  const pnpOpenQuestions = useMemo(
+    () =>
+      generatePNPOpenQuestions({
+        signals: mainSignals,
+        meta: { unknownRate: meta.unknownRate },
+        dampenersApplied: pnpScoring.dampenersApplied,
+        confidenceLevel: pnpConfidence.confidenceLevel,
+        readinessChecklistAll: pnpChecklistAll,
+      }),
+    [mainSignals, meta.unknownRate, pnpChecklistAll, pnpConfidence.confidenceLevel, pnpScoring.dampenersApplied],
+  )
+  const provinceRouterDecision = useMemo(
+    () =>
+      entryContext ??
+      getPNPProvinceRouterDecision({
+        pnpInScope,
+        pnpFitScore: pnpScoring.score,
+        pnpConfidence: pnpConfidence.confidenceLevel,
+        missingItems: pnpOpenQuestions.openQuestions.map((item) => ({
+          id: item.id,
+          prompt: item.prompt,
+        })),
+      }),
+    [entryContext, pnpConfidence.confidenceLevel, pnpInScope, pnpOpenQuestions.openQuestions, pnpScoring.score],
   )
   const hasJobOffer = assessment?.hasCanadianJobOffer === "yes"
   const currentlyWorkingInCanada = assessment?.currentlyWorkingInCanada === "yes"
@@ -497,6 +554,44 @@ export function ProvinceFinderQuestionnaire() {
               You can still explore BC pathways.
             </p>
           ) : null}
+          {provinceRouterDecision.bannerStyle !== "none" ? (
+            <div
+              className={`rounded-md border px-3 py-2 text-xs ${
+                provinceRouterDecision.bannerStyle === "info"
+                  ? "border-blue-200 bg-blue-50 text-blue-900"
+                  : "border-amber-200 bg-amber-50 text-amber-900"
+              }`}
+            >
+              {provinceRouterDecision.bannerTitle ? (
+                <p className="font-medium">{provinceRouterDecision.bannerTitle}</p>
+              ) : null}
+              {provinceRouterDecision.bannerBody ? (
+                <p className="mt-1">{provinceRouterDecision.bannerBody}</p>
+              ) : null}
+              {provinceRouterDecision.bannerMissingItems && provinceRouterDecision.bannerMissingItems.length > 0 ? (
+                <ul className="mt-2 list-disc space-y-1 pl-5">
+                  {provinceRouterDecision.bannerMissingItems.map((item) => (
+                    <li key={item.id}>{item.prompt}</li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
+            Mode: {provinceRouterDecision.mode === "guided" ? "Guided refinement" : "Explore mode"}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() => {
+              savePNPProvinceFinderEntryContext(provinceRouterDecision)
+              router.push(BC_REFINEMENT_PATH)
+            }}
+          >
+            Figure out which BC stream fits me
+          </Button>
           <p className="text-xs text-muted-foreground">Progress: {progressText}</p>
         </CardHeader>
       </Card>

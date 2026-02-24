@@ -2,6 +2,7 @@ import type { CombinedPNPSignals } from "../../pathways/pnpProvinceScope"
 
 export type StreamFamilyId = "BC_EMPLOYER_SKILLED" | "BC_INTL_GRAD"
 export type FamilyConfidence = "high" | "medium" | "low"
+export type MatchLevel = "strong" | "possible" | "weak"
 
 export type FamilyOpenQuestion = {
   id: string
@@ -10,7 +11,7 @@ export type FamilyOpenQuestion = {
   signalKeys?: string[]
 }
 
-export type FamilyRecommendation = {
+export type EvaluatedFamily = {
   familyId: StreamFamilyId
   title: string
   shortDescription: string
@@ -18,15 +19,15 @@ export type FamilyRecommendation = {
   confidence: FamilyConfidence
   baselineBadge: "pass" | "unclear" | "fail"
   hardBlockers: string[]
-  missingRequired: Array<{ id: string; prompt: string; signalKeys?: string[] }>
+  missingInfo: Array<{ id: string; prompt: string; reason?: string; signalKeys?: string[] }>
   whyBullets: string[]
   whyBulletIds: string[]
-  openQuestions: FamilyOpenQuestion[]
+  matchLevel: MatchLevel
 }
 
-export type ProvinceFinderResult = {
+export type ProvinceFinderEvaluation = {
   provinceCode: "BC"
-  recommendations: FamilyRecommendation[]
+  evaluatedFamilies: EvaluatedFamily[]
   generatedAt: string
 }
 

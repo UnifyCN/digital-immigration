@@ -2,6 +2,7 @@
 
 import Link from "next/link"
 import { useEffect, useMemo, useState } from "react"
+import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,46 +19,170 @@ import { isCompleteProvinceFinderAnswers } from "@/lib/pathways/provinceFinder"
 import {
   loadPNPProvinceFinderResult,
   loadPNPProvinceFinderAnswers,
+  loadPNPProvinceFinderEntryContext,
   loadProvinceFinderMVPResolution,
   savePNPProvinceFinderResult,
 } from "@/lib/pathways/provinceFinderStorage"
 import { buildPNPSignals } from "@/lib/pathways/pnpSignals"
 import { buildPNPProvinceFinderSignals, mergeSignals, resolveMVPProvince } from "@/lib/pathways/pnpProvinceScope"
 import { buildBCProvinceFinderResult } from "@/lib/pathways/pnpBcFamilyEvaluator"
+import {
+  getFamilyDetailsRoute,
+  mapBaselineDisplay,
+  mapConfidenceDisplay,
+  mapFitLabel,
+  selectRecommendedFamilies,
+} from "@/lib/pathways/bcRecommendationDisplay"
 import { PNP_PROVINCE_LABELS } from "@/lib/config/pnpScope"
 import { loadAssessment } from "@/lib/storage"
-import type { FamilyConfidence, ProvinceFinderResult } from "@/lib/rules/pnp/bcFamilies"
-import type { BaselineBadge } from "@/lib/rules/pnp/bcHardChecks"
+import type {
+  DisplayConfidenceLabel,
+  FitLabel,
+} from "@/lib/pathways/bcRecommendationDisplay"
+import type {
+  EvaluatedFamily,
+  MatchLevel,
+  ProvinceFinderEvaluation,
+} from "@/lib/rules/pnp/bcFamilies"
 
 const PNP_OVERVIEW_PATH = "/assessment/results/pathways/pnp"
 const FINDER_PATH = "/assessment/results/pathways/pnp/province-finder"
+const BC_REFINEMENT_PATH = "/assessment/results/pathways/pnp/bc-refinement"
 
-function confidenceVariant(confidence: FamilyConfidence): "default" | "secondary" | "outline" {
-  if (confidence === "high") return "default"
-  if (confidence === "medium") return "secondary"
-  return "outline"
-}
-
-function confidenceLabel(confidence: FamilyConfidence): string {
-  if (confidence === "high") return "High confidence"
-  if (confidence === "medium") return "Medium confidence"
-  return "Low confidence"
-}
-
-function baselineBadgeLabel(badge: BaselineBadge): string {
-  if (badge === "pass") return "✅ Baseline met"
-  if (badge === "unclear") return "⚠️ Baseline unclear"
-  return "❌ Baseline limited"
-}
-
-function baselineBadgeVariant(badge: BaselineBadge): "default" | "secondary" | "outline" {
+function baselineBadgeVariant(badge: EvaluatedFamily["baselineBadge"]): "default" | "secondary" | "outline" {
   if (badge === "pass") return "default"
   if (badge === "unclear") return "secondary"
   return "outline"
 }
 
+function matchLevelLabel(matchLevel: MatchLevel): string {
+  if (matchLevel === "strong") return "Strong match"
+  if (matchLevel === "possible") return "Possible match"
+  return "Weak match"
+}
+
+function matchLevelVariant(matchLevel: MatchLevel): "default" | "secondary" | "outline" {
+  if (matchLevel === "strong") return "default"
+  if (matchLevel === "possible") return "secondary"
+  return "outline"
+}
+
+function fitVariant(fit: FitLabel): "default" | "secondary" | "outline" {
+  if (fit === "High") return "default"
+  if (fit === "Medium") return "secondary"
+  return "outline"
+}
+
+function displayConfidenceToVariant(confidence: DisplayConfidenceLabel): "default" | "secondary" | "outline" {
+  if (confidence === "High") return "default"
+  if (confidence === "Medium") return "secondary"
+  return "outline"
+}
+
+function modeCopy(mode: "guided" | "explore"): { heading: string; subhead: string } {
+  if (mode === "explore") {
+    return {
+      heading: "BC pathways you can still explore (low fit so far)",
+      subhead:
+        "Based on your current answers, BC PNP may not be the strongest match yet. If you still want to explore, confirm a few details to improve accuracy.",
+    }
+  }
+  return {
+    heading: "Recommended BC pathways to explore",
+    subhead:
+      "Based on your answers so far, these options appear most aligned. You can refine your result by answering a few missing questions.",
+  }
+}
+
+type BCPathwayRecommendationCardProps = {
+  family: EvaluatedFamily
+  onRefine: () => void
+}
+
+function BCPathwayRecommendationCard({ family, onRefine }: BCPathwayRecommendationCardProps) {
+  const fit = mapFitLabel(family)
+  const confidence = mapConfidenceDisplay(family)
+  const baseline = mapBaselineDisplay(family.baselineBadge)
+  const whyBullets = family.whyBullets.slice(0, 4)
+  while (whyBullets.length < 2) {
+    whyBullets.push("We can refine this recommendation with a couple more details.")
+  }
+  const showLimitingFactors = family.matchLevel === "weak" || family.baselineBadge === "fail"
+  const limitingFactors = family.hardBlockers.slice(0, 3)
+  const showQuickQuestions = family.baselineBadge === "unclear" || confidence === "Low"
+  const quickQuestions = family.missingInfo.slice(0, 3)
+
+  return (
+    <Card>
+      <CardHeader className="gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base">{family.title}</CardTitle>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={matchLevelVariant(family.matchLevel)}>{matchLevelLabel(family.matchLevel)}</Badge>
+            <Badge variant={fitVariant(fit)}>Fit: {fit}</Badge>
+            <Badge variant={displayConfidenceToVariant(confidence)}>Confidence: {confidence}</Badge>
+            <Badge variant={baselineBadgeVariant(family.baselineBadge)}>
+              {baseline.icon} {baseline.label}
+            </Badge>
+          </div>
+        </div>
+        <p className="line-clamp-1 text-sm text-muted-foreground">{family.shortDescription}</p>
+        <p className="text-xs text-muted-foreground">Fit score: {family.fitScore}/100</p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="mb-2 text-sm font-medium">Why this appears relevant</p>
+          <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+            {whyBullets.map((bullet) => (
+              <li key={bullet}>{bullet}</li>
+            ))}
+          </ul>
+        </div>
+
+        {showLimitingFactors ? (
+          <div>
+            <p className="mb-2 text-sm font-medium">Current limiting factors</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+              {(limitingFactors.length > 0
+                ? limitingFactors
+                : ["Some key baseline signals are not confirmed yet."]
+              ).map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {showQuickQuestions && quickQuestions.length > 0 ? (
+          <div>
+            <p className="mb-2 text-sm font-medium">Quick questions to refine</p>
+            <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
+              {quickQuestions.map((item) => (
+                <li key={item.id}>{item.prompt}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" asChild>
+            <Link href={getFamilyDetailsRoute(family.familyId)}>See details</Link>
+          </Button>
+          {(family.missingInfo.length > 0 || family.confidence === "low") && (
+            <Button type="button" variant="secondary" onClick={onRefine}>
+              Answer 2-3 questions to refine
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
 export function ProvinceFinderResults() {
+  const router = useRouter()
   const [draft] = useState(() => loadPNPProvinceFinderAnswers())
+  const [entryContext] = useState(() => loadPNPProvinceFinderEntryContext())
   const assessment = useMemo(() => loadAssessment(), [])
   const { signals: mainSignals, meta } = useMemo(() => buildPNPSignals(assessment ?? {}), [assessment])
   const finderSignals = useMemo(() => buildPNPProvinceFinderSignals(draft), [draft])
@@ -74,13 +199,20 @@ export function ProvinceFinderResults() {
     [finderSignals, mainSignals],
   )
   const [mvpResolution] = useState(() => loadProvinceFinderMVPResolution() ?? fallbackResolution)
-  const [familyResult, setFamilyResult] = useState<ProvinceFinderResult | null>(() =>
+  const [familyResult, setFamilyResult] = useState<ProvinceFinderEvaluation | null>(() =>
     loadPNPProvinceFinderResult(),
   )
+  const mode = entryContext?.mode ?? "guided"
+  const sectionCopy = modeCopy(mode)
+  const selectedFamilies = useMemo(
+    () => selectRecommendedFamilies(familyResult?.evaluatedFamilies ?? []),
+    [familyResult],
+  )
+  const allShownWeak = selectedFamilies.length > 0 && selectedFamilies.every((item) => item.matchLevel === "weak")
 
   useEffect(() => {
     if (!isCompleteProvinceFinderAnswers(draft)) return
-    if (familyResult?.provinceCode === "BC" && familyResult.recommendations.length > 0) return
+    if (familyResult?.provinceCode === "BC" && familyResult.evaluatedFamilies.length > 0) return
     const computed = buildBCProvinceFinderResult({
       combinedSignals,
       meta,
@@ -164,87 +296,34 @@ export function ProvinceFinderResults() {
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Best BC PNP pathways to explore</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Ranked pathway families based on your BC-related profile signals.
-          </p>
+          <CardTitle>{sectionCopy.heading}</CardTitle>
+          <p className="text-sm text-muted-foreground">{sectionCopy.subhead}</p>
+          {allShownWeak ? (
+            <p className="text-xs text-muted-foreground">
+              Tip: Answer a few missing questions to improve recommendation accuracy.
+            </p>
+          ) : null}
         </CardHeader>
       </Card>
 
       <div className="mt-4 space-y-4">
-        {(familyResult?.recommendations ?? []).map((recommendation) => (
-          <Card key={recommendation.familyId}>
-            <CardHeader className="gap-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle className="text-base">{recommendation.title}</CardTitle>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={baselineBadgeVariant(recommendation.baselineBadge)}>
-                    {baselineBadgeLabel(recommendation.baselineBadge)}
-                  </Badge>
-                  <Badge variant={confidenceVariant(recommendation.confidence)}>
-                    {confidenceLabel(recommendation.confidence)}
-                  </Badge>
-                </div>
-              </div>
-              <p className="text-sm text-muted-foreground">{recommendation.shortDescription}</p>
-              <p className="text-sm text-muted-foreground">Fit score: {recommendation.fitScore}/100</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {recommendation.baselineBadge === "fail" ? (
-                <div>
-                  <p className="mb-2 text-sm font-medium">Current limits</p>
-                  <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                    {recommendation.hardBlockers.slice(0, 3).map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {recommendation.baselineBadge === "unclear" ? (
-                <div>
-                  <p className="mb-2 text-sm font-medium">We still need a few required details</p>
-                  <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
-                    {recommendation.missingRequired.slice(0, 3).map((item) => (
-                      <li key={item.id}>{item.prompt}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {recommendation.baselineBadge === "pass" ? (
-                <div>
-                  <p className="mb-2 text-sm font-medium">Why this fits</p>
-                  <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
-                    {recommendation.whyBullets.map((bullet) => (
-                      <li key={bullet}>{bullet}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              <div>
-                <p className="mb-2 text-sm font-medium">What we still need</p>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-foreground">
-                  {recommendation.openQuestions.map((question) => (
-                    <li key={question.id}>
-                      <span>{question.prompt}</span>
-                      {question.reason ? (
-                        <span className="block text-xs text-muted-foreground">{question.reason}</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <Button variant="outline" asChild>
-                <Link href={`/assessment/results/pathways/pnp/province-finder/family/${recommendation.familyId}`}>
-                  See details
-                </Link>
-              </Button>
+        {selectedFamilies.length === 0 ? (
+          <Card>
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground">
+                No BC pathway recommendations are available yet. Try refining your answers first.
+              </p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          selectedFamilies.map((family) => (
+            <BCPathwayRecommendationCard
+              key={family.familyId}
+              family={family}
+              onRefine={() => router.push(BC_REFINEMENT_PATH)}
+            />
+          ))
+        )}
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">

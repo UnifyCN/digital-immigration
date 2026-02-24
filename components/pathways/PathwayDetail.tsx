@@ -19,13 +19,18 @@ import {
 } from "@/lib/pathways/provinceFinder"
 import {
   loadProvinceFinderRecommendations,
+  savePNPProvinceFinderEntryContext,
   savePNPProvinceFinderAnswers,
   saveProvinceFinderRecommendations,
 } from "@/lib/pathways/provinceFinderStorage"
 import { PNP_MVP_DEFAULT_PROVINCE } from "@/lib/config/pnpScope"
+import { isPNPInScope } from "@/lib/pnp-scope"
+import { getPNPProvinceRouterDecision } from "@/lib/pathways/pnpProvinceRouter"
 import type { ChecklistStatus } from "@/lib/pathways/types"
 import type { AssessmentData, ConfidenceLevel, PathwayCard } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+
+const BC_REFINEMENT_PATH = "/assessment/results/pathways/pnp/bc-refinement"
 
 type PathwayDetailProps = {
   slug: string
@@ -370,6 +375,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
   const [pnpHowToImproveBullets, setPnpHowToImproveBullets] = useState<string[]>([])
   const [provinceShortlist, setProvinceShortlist] = useState<ProvinceRecommendation[]>([])
   const [pnpDocumentRoadmap, setPnpDocumentRoadmap] = useState<PathwayCard["documentRoadmap"]>()
+  const [pnpProvinceRouterPrimaryCTA, setPnpProvinceRouterPrimaryCTA] = useState("Refine BC Options")
   const [isLoaded, setIsLoaded] = useState(false)
 
   useEffect(() => {
@@ -393,12 +399,23 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
         setPnpWhyLimitedBullets(selectedPathway?.whyLimitedBullets ?? [])
         setPnpHowToImproveBullets(selectedPathway?.howToImproveBullets ?? [])
         setPnpDocumentRoadmap(selectedPathway?.documentRoadmap)
+        const routerDecision = getPNPProvinceRouterDecision({
+          pnpInScope: isPNPInScope(data),
+          pnpFitScore: typeof selectedPathway?.pnpScore === "number" ? selectedPathway.pnpScore : 0,
+          pnpConfidence: selectedPathway?.confidenceLevel,
+          missingItems: (selectedPathway?.openQuestions ?? []).map((item) => ({
+            id: item.id,
+            prompt: item.prompt,
+          })),
+        })
+        setPnpProvinceRouterPrimaryCTA(routerDecision.primaryCTA)
       } else {
         setPnpConfidenceLevel(undefined)
         setPnpWhyBullets([])
         setPnpWhyLimitedBullets([])
         setPnpHowToImproveBullets([])
         setPnpDocumentRoadmap(undefined)
+        setPnpProvinceRouterPrimaryCTA("Refine BC Options")
       }
     } catch {
       setConfidence("High")
@@ -407,6 +424,7 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
       setPnpWhyLimitedBullets([])
       setPnpHowToImproveBullets([])
       setPnpDocumentRoadmap(undefined)
+      setPnpProvinceRouterPrimaryCTA("Refine BC Options")
     } finally {
       setIsLoaded(true)
     }
@@ -542,10 +560,26 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
       refinePlanLabel="Refine my PNP plan"
       nextActionsPrimary={
         <div className="space-y-2">
-          <Button asChild>
-            <Link href="/assessment/results/pathways/pnp/province-finder">
-              See which provinces align with you
-            </Link>
+          <Button
+            type="button"
+            onClick={() => {
+              if (!assessment) return
+              const computed = computeResults(assessment)
+              const selectedPathway = computed.pathways.find((pathway) => pathway.id === "pnp")
+              const routerDecision = getPNPProvinceRouterDecision({
+                pnpInScope: isPNPInScope(assessment),
+                pnpFitScore: typeof selectedPathway?.pnpScore === "number" ? selectedPathway.pnpScore : 0,
+                pnpConfidence: selectedPathway?.confidenceLevel,
+                missingItems: (selectedPathway?.openQuestions ?? []).map((item) => ({
+                  id: item.id,
+                  prompt: item.prompt,
+                })),
+              })
+              savePNPProvinceFinderEntryContext(routerDecision)
+              router.push(BC_REFINEMENT_PATH)
+            }}
+          >
+            {pnpProvinceRouterPrimaryCTA}
           </Button>
           <p className="text-xs text-muted-foreground">
             Answer a few questions to shortlist provinces to explore for PNP.
