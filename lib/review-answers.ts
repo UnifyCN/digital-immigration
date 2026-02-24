@@ -46,6 +46,8 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "workPermitHasJobOffer", label: "Work permit: Job offer available" },
       { key: "sponsorshipRelation", label: "Sponsorship relationship" },
       { key: "openToPNP", label: "Open to PNP if strongest option" },
+      { key: "expressEntryIntentOutsideQuebec", label: "Express Entry intent outside Quebec" },
+      { key: "currentlyAuthorizedToWorkInCanada", label: "Currently authorized to work in Canada" },
     ],
   },
   {
@@ -104,6 +106,8 @@ export const reviewSections: ReviewSectionConfig[] = [
       { key: "foreignSkilledYears", label: "Skilled work outside Canada" },
       { key: "has12MonthsCanadaSkilled", label: "Completed 12 months skilled work in Canada" },
       { key: "workRoles", label: "Detailed work roles" },
+      { key: "fswPrimaryOccupationRoleId", label: "FSW primary occupation role" },
+      { key: "fstJobOfferEmployers", label: "FST job offer employers" },
     ],
   },
   {

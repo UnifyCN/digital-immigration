@@ -395,6 +395,18 @@ export function PathwayDetail({ slug }: PathwayDetailProps) {
         onBack={() => router.push("/assessment/results")}
         openQuestionsHref="/assessment"
         refinePlanLabel="Refine my Express Entry plan"
+        nextActionsPrimary={
+          <div className="space-y-2">
+            <Button asChild>
+              <Link href="/assessment/results/pathways/express-entry/streams">
+                Determine which Express Entry streams you qualify for
+              </Link>
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Complete a dedicated stream questionnaire, then view your CEC, FSW, and FST classification results.
+            </p>
+          </div>
+        }
         pathwaySpecificSection={
           <Card>
             <CardHeader>
