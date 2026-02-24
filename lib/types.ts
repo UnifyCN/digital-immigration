@@ -126,6 +126,7 @@ export interface WorkRole {
   id: string
   noc2021Code: string
   teer: TeerLevel | ""
+  nocDutiesMatchConfirmed?: boolean
   title: string
   employerName: string
   country: string
@@ -144,8 +145,22 @@ export interface WorkRole {
   authorizationValidFrom: string
   authorizationValidTo: string
   wasFullTimeStudent: YesNoNotSure | ""
+  qualifiedToPracticeInCountry?: YesNoNotSure | ""
   physicallyInCanada: YesNoNotSure | ""
   hasOverlapWithOtherRoles: YesNoNotSure | ""
+}
+
+export interface FstJobOfferEmployer {
+  id: string
+  employerName: string
+  province: string
+  noc2021Code: string
+  paid: YesNo | ""
+  fullTime: YesNo | ""
+  continuous: YesNoNotSure | ""
+  nonSeasonal: YesNoNotSure | ""
+  hoursPerWeek: number | null
+  durationMonths: number | null
 }
 
 export interface EducationCredential {
@@ -271,6 +286,10 @@ export interface AssessmentData {
   tradeCertificateIssuingAuthority: string
   tradeCertificateTrade: string
   tradeCertificateIssueDate: string
+  fstJobOfferEmployers: FstJobOfferEmployer[]
+  fswPrimaryOccupationRoleId: string
+  expressEntryIntentOutsideQuebec: YesNoNotSure | ""
+  currentlyAuthorizedToWorkInCanada: YesNoNotSure | ""
 
   // Step 4: Education
   educationLevel: EducationLevel | ""

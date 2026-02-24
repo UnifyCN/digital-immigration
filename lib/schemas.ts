@@ -18,6 +18,7 @@ const workRoleSchema = z.object({
   id: z.string(),
   noc2021Code: z.string().optional(),
   teer: z.union([z.enum(["0", "1", "2", "3", "4", "5"]), z.literal("")]).optional(),
+  nocDutiesMatchConfirmed: z.boolean().optional(),
   title: z.string().optional(),
   employerName: z.string().optional(),
   country: z.string().optional(),
@@ -36,8 +37,22 @@ const workRoleSchema = z.object({
   authorizationValidFrom: z.string().optional(),
   authorizationValidTo: z.string().optional(),
   wasFullTimeStudent: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  qualifiedToPracticeInCountry: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
   physicallyInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
   hasOverlapWithOtherRoles: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+})
+
+const fstJobOfferEmployerSchema = z.object({
+  id: z.string(),
+  employerName: z.string().optional(),
+  province: z.string().optional(),
+  noc2021Code: z.string().optional(),
+  paid: z.union([z.enum(["yes", "no"]), z.literal("")]).optional(),
+  fullTime: z.union([z.enum(["yes", "no"]), z.literal("")]).optional(),
+  continuous: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  nonSeasonal: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  hoursPerWeek: z.number().nullable().optional(),
+  durationMonths: z.number().nullable().optional(),
 })
 
 const educationCredentialSchema = z.object({
@@ -408,6 +423,10 @@ const step3BaseSchema = z.object({
   tradeCertificateIssuingAuthority: z.string().optional(),
   tradeCertificateTrade: z.string().optional(),
   tradeCertificateIssueDate: z.string().optional(),
+  fstJobOfferEmployers: z.array(fstJobOfferEmployerSchema).optional(),
+  fswPrimaryOccupationRoleId: z.string().optional(),
+  expressEntryIntentOutsideQuebec: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
+  currentlyAuthorizedToWorkInCanada: z.union([z.enum(["yes", "no", "not-sure"]), z.literal("")]).optional(),
 })
 
 export const step3Schema = step3BaseSchema.superRefine((data, ctx) => {
