@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "node --test --experimental-strip-types \"lib/**/*.test.mjs\""
+    "test": "node --test --experimental-strip-types \"lib/**/*.test.mjs\"",
+    "report:eligibility-audit": "node --experimental-strip-types ./tools/generate-eligibility-audit-report.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

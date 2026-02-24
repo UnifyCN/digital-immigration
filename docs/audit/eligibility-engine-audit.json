@@ -1,0 +1,2312 @@
+{
+  "generatedAt": "2026-02-24T23:28:45.427Z",
+  "gitCommit": "1bb96d2",
+  "rulesetVersion": {
+    "legacyExpressEntry": "EE-MILESTONE-ELIGIBILITY-2026-02-23",
+    "streamsEngine": "2026-02-24"
+  },
+  "sections": [
+    {
+      "id": "system-architecture",
+      "title": "System Architecture",
+      "summary": "Assessment inputs flow through calculation engines first, then presentation/view-model logic for pathway cards and summaries.",
+      "layer": "calculation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computeResults"
+        },
+        {
+          "filePath": "/lib/express-entry/eligibility.ts",
+          "symbol": "computeExpressEntryEligibility"
+        },
+        {
+          "filePath": "/lib/pathways/expressEntryPresentation.ts",
+          "symbol": "buildExpressEntryPathwayViewModel"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "classifyExpressEntryStreams"
+        },
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "architecture-1",
+          "title": "Main Results Pipeline",
+          "condition": "computeResults(data) always computes tier, legacy EE eligibility, pathways, risk flags, and next steps from current AssessmentData.",
+          "thresholds": [],
+          "dependencies": [
+            "computeTier",
+            "computeExpressEntryEligibility",
+            "computePathways",
+            "computeRiskFlags",
+            "recommendNextSteps"
+          ],
+          "outcome": "The result object includes both machine-facing eligibility structures and UI-facing cards/actions.",
+          "failState": "No hard fail state in orchestration; downstream engines carry pass/fail/needs_info statuses.",
+          "missingDataState": "Missing data is represented as needs_more_info in EE engines and as lower confidence in pathway/risk calculations.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/scoring.ts",
+              "symbol": "computeResults"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ee-overall-status",
+      "title": "EE Overall Status",
+      "summary": "Legacy EE engine computes program-level statuses, then presentation mapping converts those statuses to UI labels.",
+      "layer": "presentation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/express-entry/eligibility.ts",
+          "symbol": "overallStatusForPrograms"
+        },
+        {
+          "filePath": "/lib/pathways/expressEntryPresentation.ts",
+          "symbol": "toPresentationStatus"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "ee-status-1",
+          "title": "Legacy Overall Status Aggregation",
+          "condition": "If any of CEC/FSW/FST is eligible => overall eligible; else if any needs_more_info => overall needs_more_info; else ineligible.",
+          "thresholds": [],
+          "dependencies": [
+            "checkCEC",
+            "checkFSW",
+            "checkFST",
+            "uniqueMissingFields"
+          ],
+          "outcome": "Legacy status drives whether Express Entry pathway card is eligible, needs info, or hidden.",
+          "failState": "overallStatus = ineligible when no program is eligible and no missing-data path remains.",
+          "missingDataState": "overallStatus = needs_more_info when at least one program is unresolved.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/express-entry/eligibility.ts",
+              "symbol": "computeExpressEntryEligibility"
+            }
+          ]
+        },
+        {
+          "id": "ee-status-2",
+          "title": "Presentation Status Mapping",
+          "condition": "eligible -> eligible; needs_more_info -> low_eligibility; ineligible -> low_eligibility only for actionable soft-ineligible reasons without hard inadmissibility blockers, otherwise not_eligible.",
+          "thresholds": [],
+          "dependencies": [
+            "isSoftIneligible",
+            "hasHardInadmissibilityBlockers",
+            "ACTIONABLE_SOFT_INELIGIBLE_CODES"
+          ],
+          "outcome": "UI badge/status summary can show low_eligibility despite legacy ineligible when gaps are actionable.",
+          "failState": "Hard inadmissibility flags (criminal/medical/misrepresentation) force not_eligible presentation when overall status is ineligible.",
+          "missingDataState": "Missing fields are surfaced as low_eligibility with targeted next actions.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/pathways/expressEntryPresentation.ts",
+              "symbol": "toPresentationStatus"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ee-streams-orchestrator",
+      "title": "EE Streams Orchestrator",
+      "summary": "Streams engine normalizes profile data, runs CEC/FSW/FST checks, and generates deduped follow-up questions from missing fields.",
+      "layer": "calculation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "buildProfileFromAnswers"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "classifyExpressEntryStreams"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/followUpQuestions.ts",
+          "symbol": "buildFollowUpQuestions"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "streams-orchestrator-1",
+          "title": "Profile Normalization",
+          "condition": "AssessmentData is transformed to CandidateProfile with role-level fields (NOC/TEER/dates/hours/paid/employment/authorization/student flags), language metadata, and FST offer-employer array.",
+          "thresholds": [
+            "FST employers capped to 2 in normalization output"
+          ],
+          "dependencies": [
+            "buildProfileFromAnswers",
+            "normalizeLanguageTest"
+          ],
+          "outcome": "Program checks consume a consistent profile regardless of legacy vs new intake shape.",
+          "failState": "Invalid/incomplete normalized values cause program checks to return ineligible or needs_more_info.",
+          "missingDataState": "Unresolved fields are kept as empty/null sentinels and translated into explicit missingFields by each checker.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "buildProfileFromAnswers"
+            }
+          ]
+        },
+        {
+          "id": "streams-orchestrator-2",
+          "title": "Classification Output",
+          "condition": "checkCEC/checkFSW/checkFST run with same asOfDate; eligiblePrograms is the set of programs where status=eligible; nextQuestions are generated from union of missing fields.",
+          "thresholds": [
+            "rulesetDate included in result",
+            "asOfDate serialized as YYYY-MM-DD"
+          ],
+          "dependencies": [
+            "checkCEC",
+            "checkFSW",
+            "checkFST",
+            "buildFollowUpQuestions"
+          ],
+          "outcome": "Single payload returns program cards, reasons, machine-readable missing fields, and dynamic follow-up prompts.",
+          "failState": "Programs with unmet thresholds return ineligible with reasons.",
+          "missingDataState": "Programs with unresolved required inputs return needs_more_info and missing field keys.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "classifyExpressEntryStreams"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cec-logic",
+      "title": "CEC Logic",
+      "summary": "CEC requires qualifying Canadian skilled work, valid language, and 1,560 countable hours in a 3-year window.",
+      "layer": "calculation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "checkCEC"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/workHours.ts",
+          "symbol": "summarizeHours"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "cec-1",
+          "title": "Quebec Intent Gate",
+          "condition": "If intentOutsideQuebec is unknown/not-sure => needs_more_info; if intentOutsideQuebec=no => ineligible.",
+          "thresholds": [],
+          "dependencies": [
+            "evaluateQuebecGate"
+          ],
+          "outcome": "CEC only proceeds when intent is clearly outside Quebec.",
+          "failState": "ineligible with reason: Express Entry requires intent to live outside Quebec.",
+          "missingDataState": "needs_more_info with missing field shared.intentOutsideQuebec.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "evaluateQuebecGate"
+            }
+          ]
+        },
+        {
+          "id": "cec-2",
+          "title": "Role Completeness and Qualifying Filters",
+          "condition": "Canadian roles must have valid NOC/TEER/dates/hours/paid/employment/authorization/student/physical-in-Canada fields; qualifying roles require TEER 0-3, paid, employee, authorized=yes, student=no, physicallyInCanada=yes.",
+          "thresholds": [],
+          "dependencies": [
+            "resolveRoleTeer",
+            "isValidNocCode",
+            "isSkilledTeer"
+          ],
+          "outcome": "Only compliant Canadian roles are counted toward CEC minimum hours.",
+          "failState": "ineligible when no qualifying roles remain after CEC-specific exclusions.",
+          "missingDataState": "needs_more_info when any required role field is missing/unknown.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkCEC"
+            }
+          ]
+        },
+        {
+          "id": "cec-3",
+          "title": "Language + Hours Threshold",
+          "condition": "Language threshold is CLB7 all abilities if any qualifying TEER 0/1 role exists; otherwise CLB5 all abilities. Countable hours in last 3 years must be >=1560 with a 30-hour/week overlap cap.",
+          "thresholds": [
+            "CEC_MIN_HOURS=1560",
+            "WORK_WINDOW_YEARS=3",
+            "HOURS_PER_WEEK_CAP=30",
+            "LANGUAGE_VALIDITY_YEARS=2"
+          ],
+          "dependencies": [
+            "evaluateLanguage",
+            "summarizeHours"
+          ],
+          "outcome": "CEC status eligible only when both language validity and minimum hours pass.",
+          "failState": "ineligible for expired/below-threshold language or insufficient hours.",
+          "missingDataState": "needs_more_info when language metadata/scores are missing or invalid test type/stream.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkCEC"
+            },
+            {
+              "filePath": "/lib/immigration/expressEntry/workHours.ts",
+              "symbol": "summarizeHours"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fsw-logic",
+      "title": "FSW Logic",
+      "summary": "FSW enforces minimum requirements, continuity in a selected primary role, funds decisioning, and the 67-point grid.",
+      "layer": "calculation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "checkFSW"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "fsw-1",
+          "title": "Required Data and Primary Occupation Selection",
+          "condition": "Skilled role identity fields, language metadata, and education/ECA data must be complete. If multiple skilled roles exist, fswPrimaryOccupationRoleId is required.",
+          "thresholds": [],
+          "dependencies": [
+            "resolveRoleTeer",
+            "isValidNocCode",
+            "bestEducationLevel",
+            "hasValidEca"
+          ],
+          "outcome": "FSW minimum check is anchored to one selected primary role and complete profile factors.",
+          "failState": "ineligible when minimum conditions fail after data is complete.",
+          "missingDataState": "needs_more_info when any required factor or primary role selection is missing.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkFSW"
+            }
+          ]
+        },
+        {
+          "id": "fsw-2",
+          "title": "Minimum Program Thresholds",
+          "condition": "Language must be valid and CLB7+, selected primary role must satisfy 1 continuous year and 1,560 hours in 10 years, and education must be at least secondary with valid ECA if foreign.",
+          "thresholds": [
+            "FSW_MIN_HOURS=1560",
+            "WORK_WINDOW_YEARS=10",
+            "LANGUAGE_VALIDITY_YEARS=2",
+            "ECA_VALIDITY_YEARS=5"
+          ],
+          "dependencies": [
+            "evaluateLanguage",
+            "hasContinuousYearForRole",
+            "summarizeHours"
+          ],
+          "outcome": "Only candidates passing all minimums proceed to funds decision and 67 grid scoring.",
+          "failState": "ineligible for language, continuity/hours, or education minimum failures.",
+          "missingDataState": "needs_more_info if any prerequisite data is incomplete.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkFSW"
+            }
+          ]
+        },
+        {
+          "id": "fsw-3",
+          "title": "Funds Decision and 67-Point Grid",
+          "condition": "Funds requirement is exempt only when authorized to work in Canada and valid offer status supports exemption; otherwise funds family size + available CAD must be provided. Grid uses language, education, experience, age, arranged employment, adaptability; pass mark is 67.",
+          "thresholds": [
+            "FSW_PASS_MARK=67"
+          ],
+          "dependencies": [
+            "determineFundsRequirement",
+            "fswLanguagePoints",
+            "fswEducationPoints",
+            "fswExperiencePoints",
+            "fswAgePoints"
+          ],
+          "outcome": "FSW eligible requires completed funds branch and score >=67.",
+          "failState": "ineligible when final 67 score is below pass mark.",
+          "missingDataState": "needs_more_info for unresolved funds exemption facts, funds fields, spouse language, or spouse education when spouse is accompanying.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkFSW"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fst-logic",
+      "title": "FST Logic",
+      "summary": "FST requires eligible trade-NOC work history, language minimums, 3,120 hours in one eligible trade NOC, and a valid certificate or offer path.",
+      "layer": "calculation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "checkFST"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/nocLookup.ts",
+          "symbol": "isEligibleFstTradeNoc"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "fst-1",
+          "title": "Trade Role Completeness and Eligibility",
+          "condition": "Role must include identity/work fields plus student and qualified-to-practice flags; eligible trade roles require paid=true, TEER 2/3, NOC in defined FST trade groups, student=no, qualifiedToPractice=yes.",
+          "thresholds": [],
+          "dependencies": [
+            "resolveRoleTeer",
+            "isEligibleFstTradeNoc"
+          ],
+          "outcome": "Only eligible trade roles are grouped by NOC for hour counting.",
+          "failState": "ineligible when no eligible trade roles remain.",
+          "missingDataState": "needs_more_info when role details are incomplete.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkFST"
+            }
+          ]
+        },
+        {
+          "id": "fst-2",
+          "title": "Language + Trade Hours Minimum",
+          "condition": "Language requires L/S >= CLB5 and R/W >= CLB4 with valid approved test within 2 years. Best single eligible trade NOC must reach 3,120 countable hours in the last 5 years.",
+          "thresholds": [
+            "FST_MIN_HOURS=3120",
+            "WORK_WINDOW_YEARS=5",
+            "LANGUAGE_VALIDITY_YEARS=2",
+            "HOURS_PER_WEEK_CAP=30"
+          ],
+          "dependencies": [
+            "evaluateLanguage",
+            "summarizeHours"
+          ],
+          "outcome": "FST advances only when language and one-trade-NOC hour threshold are met.",
+          "failState": "ineligible for language or minimum-hour failure.",
+          "missingDataState": "needs_more_info when language metadata/scores are incomplete.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkFST"
+            },
+            {
+              "filePath": "/lib/immigration/expressEntry/workHours.ts",
+              "symbol": "summarizeHours"
+            }
+          ]
+        },
+        {
+          "id": "fst-3",
+          "title": "Offer/Certificate Path + Funds",
+          "condition": "Candidate must have either complete certificate details or at least one valid offer among up to two employers (paid=yes, fullTime=yes, continuous=yes, >=30 hours/week, >=12 months). Funds decision mirrors authorized+offer exemption logic.",
+          "thresholds": [
+            "Offer duration >=12 months",
+            "Offer hours/week >=30",
+            "Max employers considered = 2"
+          ],
+          "dependencies": [
+            "evaluateFstOffer",
+            "determineFundsRequirement"
+          ],
+          "outcome": "FST eligible only after qualifying offer/certificate path and resolved funds branch.",
+          "failState": "ineligible when neither qualifying certificate nor qualifying offer exists.",
+          "missingDataState": "needs_more_info for incomplete offer/certificate or unresolved funds fields.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+              "symbol": "checkFST"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pnp-pathway-relevance",
+      "title": "PNP Pathway Relevance",
+      "summary": "PNP in current implementation is pathway-card relevance logic tied primarily to stated immigration goal, not stream-level legal eligibility.",
+      "layer": "presentation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computePathways"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "pnp-relevance-1",
+          "title": "PNP Card Inclusion",
+          "condition": "PNP card is added when primaryGoal is 'pr', 'work-permit', or 'not-sure'.",
+          "thresholds": [],
+          "dependencies": [
+            "computePathways"
+          ],
+          "outcome": "PNP appears as a relevant pathway with generic why/next guidance.",
+          "failState": "No PNP card when goal is outside supported set.",
+          "missingDataState": "No explicit needs_more_info status; confidence decreases indirectly via input completeness.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/scoring.ts",
+              "symbol": "computePathways"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pnp-province-alignment",
+      "title": "PNP Province Alignment",
+      "summary": "Province finder computes weighted alignment scores (0-100) for BC/AB/ON/SK/MB from questionnaire answers and ranks recommendations.",
+      "layer": "calculation",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "pnp-alignment-1",
+          "title": "Weighted Provincial Scoring",
+          "condition": "Each province profile applies multipliers over factors (employer support, tenure, wage, rural preference, education, funds, French, sector). Raw score is normalized by denominator 140 to 0-100.",
+          "thresholds": [
+            "NORMALIZATION_DENOMINATOR=140",
+            "Labels: >=70 Strong, >=45 Moderate, else Exploratory"
+          ],
+          "dependencies": [
+            "computeProvinceRecommendations",
+            "scoreLabel",
+            "buildRiskFlags"
+          ],
+          "outcome": "Returns sorted recommendation list with whyBullets, riskFlags, and whatToConfirmNext.",
+          "failState": "No strict fail/ineligible; outputs always produced for provided answers.",
+          "missingDataState": "Draft completion is validated separately; incomplete answers can still reduce factor points or trigger confirmation prompts.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/pathways/provinceFinder.ts",
+              "symbol": "computeProvinceRecommendations"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "audit-gaps",
+      "title": "Audit Gaps",
+      "summary": "Critical logic not currently implemented is explicitly captured to prevent over-claiming deterministic eligibility coverage.",
+      "layer": "gap",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computePathways"
+        },
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        }
+      ],
+      "decisionConditions": [
+        {
+          "id": "gap-1",
+          "title": "PNP Base vs Enhanced",
+          "condition": "No deterministic classifier exists for base vs enhanced PNP stream determination.",
+          "thresholds": [],
+          "dependencies": [],
+          "outcome": "Current output is relevance + province alignment, not legal stream eligibility.",
+          "failState": "Cannot return base/enhanced status from current engines.",
+          "missingDataState": "No follow-up workflow exists in code to close this gap today.",
+          "sourceRefs": [
+            {
+              "filePath": "/lib/scoring.ts",
+              "symbol": "computePathways"
+            },
+            {
+              "filePath": "/lib/pathways/provinceFinder.ts",
+              "symbol": "computeProvinceRecommendations"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "decisionTrees": [
+    {
+      "id": "input-to-engine-architecture",
+      "title": "Input-to-Engine Architecture",
+      "summary": "Shows how saved assessment input flows through calculation engines and presentation layers.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computeResults"
+        },
+        {
+          "filePath": "/lib/express-entry/eligibility.ts",
+          "symbol": "computeExpressEntryEligibility"
+        },
+        {
+          "filePath": "/lib/pathways/expressEntryPresentation.ts",
+          "symbol": "buildExpressEntryPathwayViewModel"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "classifyExpressEntryStreams"
+        },
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "n1",
+          "type": "data",
+          "label": "AssessmentData Input"
+        },
+        {
+          "id": "n2",
+          "type": "process",
+          "label": "computeResults()",
+          "detail": "tier, pathways, risk flags, next steps"
+        },
+        {
+          "id": "n3",
+          "type": "process",
+          "label": "Legacy EE Engine",
+          "detail": "CEC/FSW/FST legacy checks + aggregate status"
+        },
+        {
+          "id": "n4",
+          "type": "process",
+          "label": "EE Presentation Mapping",
+          "detail": "eligible / low_eligibility / not_eligible"
+        },
+        {
+          "id": "n5",
+          "type": "process",
+          "label": "Streams Engine",
+          "detail": "CEC/FSW/FST authoritative stream classification"
+        },
+        {
+          "id": "n6",
+          "type": "process",
+          "label": "PNP Relevance + Province Alignment",
+          "detail": "pathway card + province shortlist scoring"
+        },
+        {
+          "id": "n7",
+          "type": "terminal-pass",
+          "label": "Rendered Results + Follow-ups"
+        }
+      ],
+      "edges": [
+        {
+          "from": "n1",
+          "to": "n2"
+        },
+        {
+          "from": "n2",
+          "to": "n3"
+        },
+        {
+          "from": "n3",
+          "to": "n4"
+        },
+        {
+          "from": "n2",
+          "to": "n5"
+        },
+        {
+          "from": "n2",
+          "to": "n6"
+        },
+        {
+          "from": "n4",
+          "to": "n7"
+        },
+        {
+          "from": "n5",
+          "to": "n7"
+        },
+        {
+          "from": "n6",
+          "to": "n7"
+        }
+      ],
+      "layout": {
+        "n1": {
+          "x": 0.22,
+          "y": 0.88,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "n2": {
+          "x": 0.22,
+          "y": 0.77,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "n3": {
+          "x": 0.22,
+          "y": 0.66,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "n4": {
+          "x": 0.22,
+          "y": 0.55,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "n5": {
+          "x": 0.22,
+          "y": 0.44000000000000006,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "n6": {
+          "x": 0.22,
+          "y": 0.33000000000000007,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "n7": {
+          "x": 0.22,
+          "y": 0.22000000000000008,
+          "width": 0.56,
+          "height": 0.08
+        }
+      }
+    },
+    {
+      "id": "ee-status-determination",
+      "title": "EE Status Determination (Legacy + Presentation)",
+      "summary": "Legacy eligibility outcome is mapped to user-facing status with inadmissibility and soft-ineligible logic.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/express-entry/eligibility.ts",
+          "symbol": "computeExpressEntryEligibility"
+        },
+        {
+          "filePath": "/lib/pathways/expressEntryPresentation.ts",
+          "symbol": "toPresentationStatus"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "s1",
+          "type": "process",
+          "label": "Run checkCEC/checkFSW/checkFST"
+        },
+        {
+          "id": "s2",
+          "type": "decision",
+          "label": "Any program eligible?"
+        },
+        {
+          "id": "s3",
+          "type": "terminal-pass",
+          "label": "Legacy overallStatus = eligible"
+        },
+        {
+          "id": "s4",
+          "type": "decision",
+          "label": "Any program needs_more_info?"
+        },
+        {
+          "id": "s5",
+          "type": "terminal-needs-info",
+          "label": "Legacy overallStatus = needs_more_info"
+        },
+        {
+          "id": "s6",
+          "type": "terminal-fail",
+          "label": "Legacy overallStatus = ineligible"
+        },
+        {
+          "id": "s7",
+          "type": "decision",
+          "label": "Presentation mapping"
+        },
+        {
+          "id": "s8",
+          "type": "terminal-pass",
+          "label": "Presentation: eligible"
+        },
+        {
+          "id": "s9",
+          "type": "terminal-needs-info",
+          "label": "Presentation: low_eligibility"
+        },
+        {
+          "id": "s10",
+          "type": "terminal-fail",
+          "label": "Presentation: not_eligible"
+        }
+      ],
+      "edges": [
+        {
+          "from": "s1",
+          "to": "s2"
+        },
+        {
+          "from": "s2",
+          "to": "s3",
+          "label": "yes"
+        },
+        {
+          "from": "s2",
+          "to": "s4",
+          "label": "no"
+        },
+        {
+          "from": "s4",
+          "to": "s5",
+          "label": "yes"
+        },
+        {
+          "from": "s4",
+          "to": "s6",
+          "label": "no"
+        },
+        {
+          "from": "s3",
+          "to": "s7"
+        },
+        {
+          "from": "s5",
+          "to": "s7"
+        },
+        {
+          "from": "s6",
+          "to": "s7"
+        },
+        {
+          "from": "s7",
+          "to": "s8",
+          "label": "legacy eligible"
+        },
+        {
+          "from": "s7",
+          "to": "s9",
+          "label": "legacy needs_info OR soft actionable ineligible"
+        },
+        {
+          "from": "s7",
+          "to": "s10",
+          "label": "hard ineligible / inadmissibility"
+        }
+      ],
+      "layout": {
+        "s1": {
+          "x": 0.2,
+          "y": 0.9,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s2": {
+          "x": 0.2,
+          "y": 0.805,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s3": {
+          "x": 0.2,
+          "y": 0.7100000000000001,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s4": {
+          "x": 0.2,
+          "y": 0.6150000000000001,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s5": {
+          "x": 0.2,
+          "y": 0.5200000000000001,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s6": {
+          "x": 0.2,
+          "y": 0.42500000000000016,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s7": {
+          "x": 0.2,
+          "y": 0.3300000000000002,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s8": {
+          "x": 0.2,
+          "y": 0.23500000000000018,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s9": {
+          "x": 0.2,
+          "y": 0.14000000000000018,
+          "width": 0.6,
+          "height": 0.075
+        },
+        "s10": {
+          "x": 0.2,
+          "y": 0.04500000000000018,
+          "width": 0.6,
+          "height": 0.075
+        }
+      }
+    },
+    {
+      "id": "streams-classification-entry-flow",
+      "title": "Streams Classification Entry Flow",
+      "summary": "Step-10 flow from opening the questionnaire to persisted follow-up and instant reclassification.",
+      "sourceRefs": [
+        {
+          "filePath": "/components/pathways/express-entry-streams-questionnaire-page.tsx",
+          "symbol": "ExpressEntryStreamsQuestionnairePage"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "classifyExpressEntryStreams"
+        },
+        {
+          "filePath": "/lib/storage.ts",
+          "symbol": "saveAssessment"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "e1",
+          "type": "process",
+          "label": "User opens stream questionnaire page"
+        },
+        {
+          "id": "e2",
+          "type": "process",
+          "label": "Load saved assessment + run classifyExpressEntryStreams()"
+        },
+        {
+          "id": "e3",
+          "type": "process",
+          "label": "Render CEC/FSW/FST cards with reasons"
+        },
+        {
+          "id": "e4",
+          "type": "decision",
+          "label": "Missing fields returned?"
+        },
+        {
+          "id": "e5",
+          "type": "process",
+          "label": "Render deduped follow-up questions only"
+        },
+        {
+          "id": "e6",
+          "type": "process",
+          "label": "Persist answers to assessment storage"
+        },
+        {
+          "id": "e7",
+          "type": "process",
+          "label": "Debounced re-run classification"
+        },
+        {
+          "id": "e8",
+          "type": "terminal-pass",
+          "label": "Final stream result page"
+        }
+      ],
+      "edges": [
+        {
+          "from": "e1",
+          "to": "e2"
+        },
+        {
+          "from": "e2",
+          "to": "e3"
+        },
+        {
+          "from": "e3",
+          "to": "e4"
+        },
+        {
+          "from": "e4",
+          "to": "e5",
+          "label": "yes"
+        },
+        {
+          "from": "e5",
+          "to": "e6"
+        },
+        {
+          "from": "e6",
+          "to": "e7"
+        },
+        {
+          "from": "e7",
+          "to": "e3"
+        },
+        {
+          "from": "e4",
+          "to": "e8",
+          "label": "no"
+        }
+      ],
+      "layout": {
+        "e1": {
+          "x": 0.22,
+          "y": 0.88,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e2": {
+          "x": 0.22,
+          "y": 0.772,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e3": {
+          "x": 0.22,
+          "y": 0.664,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e4": {
+          "x": 0.22,
+          "y": 0.556,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e5": {
+          "x": 0.22,
+          "y": 0.44800000000000006,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e6": {
+          "x": 0.22,
+          "y": 0.3400000000000001,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e7": {
+          "x": 0.22,
+          "y": 0.2320000000000001,
+          "width": 0.56,
+          "height": 0.08
+        },
+        "e8": {
+          "x": 0.22,
+          "y": 0.1240000000000001,
+          "width": 0.56,
+          "height": 0.08
+        }
+      }
+    },
+    {
+      "id": "cec-decision-tree",
+      "title": "CEC Decision Tree",
+      "summary": "CEC checks Quebec intent, Canadian skilled role validity, language threshold, and 1,560 countable hours.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "checkCEC"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/workHours.ts",
+          "symbol": "summarizeHours"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "c1",
+          "type": "decision",
+          "label": "Intent outside Quebec known?"
+        },
+        {
+          "id": "c2",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (shared.intentOutsideQuebec)"
+        },
+        {
+          "id": "c3",
+          "type": "decision",
+          "label": "Intent outside Quebec = no?"
+        },
+        {
+          "id": "c4",
+          "type": "terminal-fail",
+          "label": "ineligible (Quebec intent gate)"
+        },
+        {
+          "id": "c5",
+          "type": "decision",
+          "label": "Canadian work roles present and complete?"
+        },
+        {
+          "id": "c6",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (role identity/authorization/student/remote fields)"
+        },
+        {
+          "id": "c7",
+          "type": "decision",
+          "label": "Role filters pass?",
+          "detail": "TEER 0-3, paid, employee, authorized, not student, physically in Canada"
+        },
+        {
+          "id": "c8",
+          "type": "terminal-fail",
+          "label": "ineligible (no qualifying CEC role)"
+        },
+        {
+          "id": "c9",
+          "type": "decision",
+          "label": "Language valid + threshold met?",
+          "detail": "TEER 0/1 -> CLB7; TEER 2/3 -> CLB5; not older than 2 years"
+        },
+        {
+          "id": "c10",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (language fields invalid/missing)"
+        },
+        {
+          "id": "c11",
+          "type": "terminal-fail",
+          "label": "ineligible (language below threshold/expired)"
+        },
+        {
+          "id": "c12",
+          "type": "decision",
+          "label": "Countable hours >= 1560 in last 3 years?",
+          "detail": "30h/week cap with overlap cap"
+        },
+        {
+          "id": "c13",
+          "type": "terminal-fail",
+          "label": "ineligible (hours below minimum)"
+        },
+        {
+          "id": "c14",
+          "type": "terminal-pass",
+          "label": "eligible (CEC)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "c1",
+          "to": "c2",
+          "label": "no"
+        },
+        {
+          "from": "c1",
+          "to": "c3",
+          "label": "yes"
+        },
+        {
+          "from": "c3",
+          "to": "c4",
+          "label": "yes"
+        },
+        {
+          "from": "c3",
+          "to": "c5",
+          "label": "no"
+        },
+        {
+          "from": "c5",
+          "to": "c6",
+          "label": "no"
+        },
+        {
+          "from": "c5",
+          "to": "c7",
+          "label": "yes"
+        },
+        {
+          "from": "c7",
+          "to": "c8",
+          "label": "no"
+        },
+        {
+          "from": "c7",
+          "to": "c9",
+          "label": "yes"
+        },
+        {
+          "from": "c9",
+          "to": "c10",
+          "label": "missing"
+        },
+        {
+          "from": "c9",
+          "to": "c11",
+          "label": "invalid"
+        },
+        {
+          "from": "c9",
+          "to": "c12",
+          "label": "ok"
+        },
+        {
+          "from": "c12",
+          "to": "c13",
+          "label": "no"
+        },
+        {
+          "from": "c12",
+          "to": "c14",
+          "label": "yes"
+        }
+      ],
+      "layout": {
+        "c1": {
+          "x": 0.2,
+          "y": 0.92,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c2": {
+          "x": 0.2,
+          "y": 0.8430000000000001,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c3": {
+          "x": 0.2,
+          "y": 0.7660000000000001,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c4": {
+          "x": 0.2,
+          "y": 0.6890000000000002,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c5": {
+          "x": 0.2,
+          "y": 0.6120000000000002,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c6": {
+          "x": 0.2,
+          "y": 0.5350000000000003,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c7": {
+          "x": 0.2,
+          "y": 0.45800000000000024,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c8": {
+          "x": 0.2,
+          "y": 0.3810000000000002,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c9": {
+          "x": 0.2,
+          "y": 0.3040000000000002,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c10": {
+          "x": 0.2,
+          "y": 0.2270000000000002,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c11": {
+          "x": 0.2,
+          "y": 0.1500000000000002,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c12": {
+          "x": 0.2,
+          "y": 0.07300000000000019,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c13": {
+          "x": 0.2,
+          "y": -0.003999999999999809,
+          "width": 0.6,
+          "height": 0.063
+        },
+        "c14": {
+          "x": 0.2,
+          "y": -0.08099999999999981,
+          "width": 0.6,
+          "height": 0.063
+        }
+      }
+    },
+    {
+      "id": "fsw-decision-tree",
+      "title": "FSW Decision Tree (Minimum + 67 Grid)",
+      "summary": "FSW enforces primary-occupation continuity, language/education minimums, funds decision, and 67-point pass mark.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "checkFSW"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/workHours.ts",
+          "symbol": "hasContinuousYearForRole"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "f1",
+          "type": "decision",
+          "label": "Intent outside Quebec known and yes?"
+        },
+        {
+          "id": "f2",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (shared.intentOutsideQuebec)"
+        },
+        {
+          "id": "f3",
+          "type": "terminal-fail",
+          "label": "ineligible (Quebec intent gate)"
+        },
+        {
+          "id": "f4",
+          "type": "decision",
+          "label": "Skilled role + language + education data complete?"
+        },
+        {
+          "id": "f5",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (work/language/education/ECA gaps)"
+        },
+        {
+          "id": "f6",
+          "type": "decision",
+          "label": "Primary occupation selected if multiple roles?"
+        },
+        {
+          "id": "f7",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (fsw.primaryOccupationRoleId)"
+        },
+        {
+          "id": "f8",
+          "type": "decision",
+          "label": "Language valid and CLB7+ all abilities?"
+        },
+        {
+          "id": "f9",
+          "type": "terminal-fail",
+          "label": "ineligible (language)"
+        },
+        {
+          "id": "f10",
+          "type": "decision",
+          "label": "1 continuous year + 1560 hours in selected primary role?"
+        },
+        {
+          "id": "f11",
+          "type": "terminal-fail",
+          "label": "ineligible (continuous work minimum)"
+        },
+        {
+          "id": "f12",
+          "type": "decision",
+          "label": "Education minimum + valid ECA (if foreign)?"
+        },
+        {
+          "id": "f13",
+          "type": "terminal-fail",
+          "label": "ineligible (education/ECA minimum)"
+        },
+        {
+          "id": "f14",
+          "type": "decision",
+          "label": "Funds exemption known?",
+          "detail": "authorized to work + valid offer => exempt"
+        },
+        {
+          "id": "f15",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (funds exemption facts missing)"
+        },
+        {
+          "id": "f16",
+          "type": "decision",
+          "label": "If funds required, family size + funds entered?"
+        },
+        {
+          "id": "f17",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (funds fields)"
+        },
+        {
+          "id": "f18",
+          "type": "decision",
+          "label": "FSW 67-point grid >= 67?"
+        },
+        {
+          "id": "f19",
+          "type": "terminal-fail",
+          "label": "ineligible (67 score below pass mark)"
+        },
+        {
+          "id": "f20",
+          "type": "terminal-pass",
+          "label": "eligible (FSW)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "f1",
+          "to": "f2",
+          "label": "unknown"
+        },
+        {
+          "from": "f1",
+          "to": "f3",
+          "label": "no"
+        },
+        {
+          "from": "f1",
+          "to": "f4",
+          "label": "yes"
+        },
+        {
+          "from": "f4",
+          "to": "f5",
+          "label": "no"
+        },
+        {
+          "from": "f4",
+          "to": "f6",
+          "label": "yes"
+        },
+        {
+          "from": "f6",
+          "to": "f7",
+          "label": "no"
+        },
+        {
+          "from": "f6",
+          "to": "f8",
+          "label": "yes"
+        },
+        {
+          "from": "f8",
+          "to": "f9",
+          "label": "no"
+        },
+        {
+          "from": "f8",
+          "to": "f10",
+          "label": "yes"
+        },
+        {
+          "from": "f10",
+          "to": "f11",
+          "label": "no"
+        },
+        {
+          "from": "f10",
+          "to": "f12",
+          "label": "yes"
+        },
+        {
+          "from": "f12",
+          "to": "f13",
+          "label": "no"
+        },
+        {
+          "from": "f12",
+          "to": "f14",
+          "label": "yes"
+        },
+        {
+          "from": "f14",
+          "to": "f15",
+          "label": "unknown"
+        },
+        {
+          "from": "f14",
+          "to": "f16",
+          "label": "known"
+        },
+        {
+          "from": "f16",
+          "to": "f17",
+          "label": "no"
+        },
+        {
+          "from": "f16",
+          "to": "f18",
+          "label": "yes"
+        },
+        {
+          "from": "f18",
+          "to": "f19",
+          "label": "no"
+        },
+        {
+          "from": "f18",
+          "to": "f20",
+          "label": "yes"
+        }
+      ],
+      "layout": {
+        "f1": {
+          "x": 0.18,
+          "y": 0.93,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f2": {
+          "x": 0.18,
+          "y": 0.867,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f3": {
+          "x": 0.18,
+          "y": 0.804,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f4": {
+          "x": 0.18,
+          "y": 0.7410000000000001,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f5": {
+          "x": 0.18,
+          "y": 0.6780000000000002,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f6": {
+          "x": 0.18,
+          "y": 0.6150000000000002,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f7": {
+          "x": 0.18,
+          "y": 0.5520000000000003,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f8": {
+          "x": 0.18,
+          "y": 0.48900000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f9": {
+          "x": 0.18,
+          "y": 0.42600000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f10": {
+          "x": 0.18,
+          "y": 0.36300000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f11": {
+          "x": 0.18,
+          "y": 0.30000000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f12": {
+          "x": 0.18,
+          "y": 0.23700000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f13": {
+          "x": 0.18,
+          "y": 0.17400000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f14": {
+          "x": 0.18,
+          "y": 0.11100000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f15": {
+          "x": 0.18,
+          "y": 0.048000000000000265,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f16": {
+          "x": 0.18,
+          "y": -0.014999999999999736,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f17": {
+          "x": 0.18,
+          "y": -0.07799999999999974,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f18": {
+          "x": 0.18,
+          "y": -0.14099999999999974,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f19": {
+          "x": 0.18,
+          "y": -0.20399999999999974,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "f20": {
+          "x": 0.18,
+          "y": -0.26699999999999974,
+          "width": 0.64,
+          "height": 0.053
+        }
+      }
+    },
+    {
+      "id": "fst-decision-tree",
+      "title": "FST Decision Tree",
+      "summary": "FST checks trade-NOC eligibility, language, 3,120-hour threshold, offer/certificate path, and funds decision.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/immigration/expressEntry/streamsEngine.ts",
+          "symbol": "checkFST"
+        },
+        {
+          "filePath": "/lib/immigration/expressEntry/nocLookup.ts",
+          "symbol": "isEligibleFstTradeNoc"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "t1",
+          "type": "decision",
+          "label": "Intent outside Quebec known and yes?"
+        },
+        {
+          "id": "t2",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (shared.intentOutsideQuebec)"
+        },
+        {
+          "id": "t3",
+          "type": "terminal-fail",
+          "label": "ineligible (Quebec intent gate)"
+        },
+        {
+          "id": "t4",
+          "type": "decision",
+          "label": "Trade role fields complete?"
+        },
+        {
+          "id": "t5",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (trade role fields)"
+        },
+        {
+          "id": "t6",
+          "type": "decision",
+          "label": "Eligible trade roles exist?",
+          "detail": "TEER 2/3 + eligible trade NOC + paid + not student + qualified to practice"
+        },
+        {
+          "id": "t7",
+          "type": "terminal-fail",
+          "label": "ineligible (no eligible trade role)"
+        },
+        {
+          "id": "t8",
+          "type": "decision",
+          "label": "Language valid and FST minimum met?",
+          "detail": "L/S CLB5 and R/W CLB4, test within 2 years"
+        },
+        {
+          "id": "t9",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (language fields)"
+        },
+        {
+          "id": "t10",
+          "type": "terminal-fail",
+          "label": "ineligible (language)"
+        },
+        {
+          "id": "t11",
+          "type": "decision",
+          "label": "Best eligible trade NOC has >=3120 hours in 5 years?"
+        },
+        {
+          "id": "t12",
+          "type": "terminal-fail",
+          "label": "ineligible (hours below minimum)"
+        },
+        {
+          "id": "t13",
+          "type": "decision",
+          "label": "Valid certificate OR valid 1-year offer path?"
+        },
+        {
+          "id": "t14",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (offer/certificate details missing)"
+        },
+        {
+          "id": "t15",
+          "type": "terminal-fail",
+          "label": "ineligible (no qualifying offer/certificate)"
+        },
+        {
+          "id": "t16",
+          "type": "decision",
+          "label": "Funds exemption known?"
+        },
+        {
+          "id": "t17",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (funds exemption facts)"
+        },
+        {
+          "id": "t18",
+          "type": "decision",
+          "label": "If required, funds details present?"
+        },
+        {
+          "id": "t19",
+          "type": "terminal-needs-info",
+          "label": "needs_more_info (funds fields)"
+        },
+        {
+          "id": "t20",
+          "type": "terminal-pass",
+          "label": "eligible (FST)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "t1",
+          "to": "t2",
+          "label": "unknown"
+        },
+        {
+          "from": "t1",
+          "to": "t3",
+          "label": "no"
+        },
+        {
+          "from": "t1",
+          "to": "t4",
+          "label": "yes"
+        },
+        {
+          "from": "t4",
+          "to": "t5",
+          "label": "no"
+        },
+        {
+          "from": "t4",
+          "to": "t6",
+          "label": "yes"
+        },
+        {
+          "from": "t6",
+          "to": "t7",
+          "label": "no"
+        },
+        {
+          "from": "t6",
+          "to": "t8",
+          "label": "yes"
+        },
+        {
+          "from": "t8",
+          "to": "t9",
+          "label": "missing"
+        },
+        {
+          "from": "t8",
+          "to": "t10",
+          "label": "invalid"
+        },
+        {
+          "from": "t8",
+          "to": "t11",
+          "label": "ok"
+        },
+        {
+          "from": "t11",
+          "to": "t12",
+          "label": "no"
+        },
+        {
+          "from": "t11",
+          "to": "t13",
+          "label": "yes"
+        },
+        {
+          "from": "t13",
+          "to": "t14",
+          "label": "missing"
+        },
+        {
+          "from": "t13",
+          "to": "t15",
+          "label": "no"
+        },
+        {
+          "from": "t13",
+          "to": "t16",
+          "label": "yes"
+        },
+        {
+          "from": "t16",
+          "to": "t17",
+          "label": "unknown"
+        },
+        {
+          "from": "t16",
+          "to": "t18",
+          "label": "known"
+        },
+        {
+          "from": "t18",
+          "to": "t19",
+          "label": "no"
+        },
+        {
+          "from": "t18",
+          "to": "t20",
+          "label": "yes"
+        }
+      ],
+      "layout": {
+        "t1": {
+          "x": 0.18,
+          "y": 0.93,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t2": {
+          "x": 0.18,
+          "y": 0.867,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t3": {
+          "x": 0.18,
+          "y": 0.804,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t4": {
+          "x": 0.18,
+          "y": 0.7410000000000001,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t5": {
+          "x": 0.18,
+          "y": 0.6780000000000002,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t6": {
+          "x": 0.18,
+          "y": 0.6150000000000002,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t7": {
+          "x": 0.18,
+          "y": 0.5520000000000003,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t8": {
+          "x": 0.18,
+          "y": 0.48900000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t9": {
+          "x": 0.18,
+          "y": 0.42600000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t10": {
+          "x": 0.18,
+          "y": 0.36300000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t11": {
+          "x": 0.18,
+          "y": 0.30000000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t12": {
+          "x": 0.18,
+          "y": 0.23700000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t13": {
+          "x": 0.18,
+          "y": 0.17400000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t14": {
+          "x": 0.18,
+          "y": 0.11100000000000027,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t15": {
+          "x": 0.18,
+          "y": 0.048000000000000265,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t16": {
+          "x": 0.18,
+          "y": -0.014999999999999736,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t17": {
+          "x": 0.18,
+          "y": -0.07799999999999974,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t18": {
+          "x": 0.18,
+          "y": -0.14099999999999974,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t19": {
+          "x": 0.18,
+          "y": -0.20399999999999974,
+          "width": 0.64,
+          "height": 0.053
+        },
+        "t20": {
+          "x": 0.18,
+          "y": -0.26699999999999974,
+          "width": 0.64,
+          "height": 0.053
+        }
+      }
+    },
+    {
+      "id": "pnp-relevance-flow",
+      "title": "PNP Relevance Flow",
+      "summary": "Pathway relevance decision used to include the PNP card in pathway results.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computePathways"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "p1",
+          "type": "decision",
+          "label": "Primary goal in {PR, Work Permit, Not Sure}?"
+        },
+        {
+          "id": "p2",
+          "type": "terminal-fail",
+          "label": "No PNP card injected"
+        },
+        {
+          "id": "p3",
+          "type": "process",
+          "label": "Inject PNP card",
+          "detail": "whyRelevant + whatNext boilerplate"
+        },
+        {
+          "id": "p4",
+          "type": "terminal-pass",
+          "label": "PNP pathway card shown"
+        }
+      ],
+      "edges": [
+        {
+          "from": "p1",
+          "to": "p2",
+          "label": "no"
+        },
+        {
+          "from": "p1",
+          "to": "p3",
+          "label": "yes"
+        },
+        {
+          "from": "p3",
+          "to": "p4"
+        }
+      ],
+      "layout": {
+        "p1": {
+          "x": 0.22,
+          "y": 0.82,
+          "width": 0.56,
+          "height": 0.11
+        },
+        "p2": {
+          "x": 0.22,
+          "y": 0.6499999999999999,
+          "width": 0.56,
+          "height": 0.11
+        },
+        "p3": {
+          "x": 0.22,
+          "y": 0.4799999999999999,
+          "width": 0.56,
+          "height": 0.11
+        },
+        "p4": {
+          "x": 0.22,
+          "y": 0.30999999999999994,
+          "width": 0.56,
+          "height": 0.11
+        }
+      }
+    },
+    {
+      "id": "province-alignment-scoring-flow",
+      "title": "Province Alignment Scoring Flow",
+      "summary": "Questionnaire answers are weighted per province, normalized to 0-100, then sorted into top recommendations.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        },
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "topProvinceRecommendations"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "a1",
+          "type": "data",
+          "label": "ProvinceFinderAnswers input"
+        },
+        {
+          "id": "a2",
+          "type": "process",
+          "label": "Iterate province profiles (BC, AB, ON, SK, MB)"
+        },
+        {
+          "id": "a3",
+          "type": "process",
+          "label": "Apply factor weights",
+          "detail": "employer support, tenure, wage, rural, education, funds, french, sector"
+        },
+        {
+          "id": "a4",
+          "type": "decision",
+          "label": "Add risk flags?",
+          "detail": "prior refusal, licensure, employer support, funds, residence intent"
+        },
+        {
+          "id": "a5",
+          "type": "process",
+          "label": "Normalize raw score to 0-100 and assign label"
+        },
+        {
+          "id": "a6",
+          "type": "process",
+          "label": "Sort descending + top shortlist"
+        },
+        {
+          "id": "a7",
+          "type": "terminal-pass",
+          "label": "Province recommendations (top 3)"
+        }
+      ],
+      "edges": [
+        {
+          "from": "a1",
+          "to": "a2"
+        },
+        {
+          "from": "a2",
+          "to": "a3"
+        },
+        {
+          "from": "a3",
+          "to": "a4"
+        },
+        {
+          "from": "a4",
+          "to": "a5"
+        },
+        {
+          "from": "a5",
+          "to": "a6"
+        },
+        {
+          "from": "a6",
+          "to": "a7"
+        }
+      ],
+      "layout": {
+        "a1": {
+          "x": 0.2,
+          "y": 0.88,
+          "width": 0.6,
+          "height": 0.09
+        },
+        "a2": {
+          "x": 0.2,
+          "y": 0.76,
+          "width": 0.6,
+          "height": 0.09
+        },
+        "a3": {
+          "x": 0.2,
+          "y": 0.64,
+          "width": 0.6,
+          "height": 0.09
+        },
+        "a4": {
+          "x": 0.2,
+          "y": 0.52,
+          "width": 0.6,
+          "height": 0.09
+        },
+        "a5": {
+          "x": 0.2,
+          "y": 0.4,
+          "width": 0.6,
+          "height": 0.09
+        },
+        "a6": {
+          "x": 0.2,
+          "y": 0.28,
+          "width": 0.6,
+          "height": 0.09
+        },
+        "a7": {
+          "x": 0.2,
+          "y": 0.16000000000000003,
+          "width": 0.6,
+          "height": 0.09
+        }
+      }
+    },
+    {
+      "id": "pnp-base-enhanced-gap",
+      "title": "PNP Base vs Enhanced Classification Gap",
+      "summary": "Explicitly marks that the app does not implement deterministic base/enhanced stream classification.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computePathways"
+        },
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "g1",
+          "type": "decision",
+          "label": "Classify candidate as PNP Base vs Enhanced?"
+        },
+        {
+          "id": "g2",
+          "type": "gap",
+          "label": "Not implemented in current codebase"
+        },
+        {
+          "id": "g3",
+          "type": "terminal-needs-info",
+          "label": "Manual/legal review required for stream-level matching"
+        }
+      ],
+      "edges": [
+        {
+          "from": "g1",
+          "to": "g2"
+        },
+        {
+          "from": "g2",
+          "to": "g3"
+        }
+      ],
+      "layout": {
+        "g1": {
+          "x": 0.2,
+          "y": 0.76,
+          "width": 0.6,
+          "height": 0.12
+        },
+        "g2": {
+          "x": 0.2,
+          "y": 0.56,
+          "width": 0.6,
+          "height": 0.12
+        },
+        "g3": {
+          "x": 0.2,
+          "y": 0.36000000000000004,
+          "width": 0.6,
+          "height": 0.12
+        }
+      }
+    }
+  ],
+  "assumptions": [
+    {
+      "domain": "Express Entry Legacy",
+      "rule": "CEC minimum hours",
+      "currentImplementation": "Eligible only when countable Canadian qualifying work hours >= 1,560 in 3-year window.",
+      "source": "/lib/express-entry/rules.ts (CEC_MIN_HOURS), /lib/express-entry/eligibility.ts (checkCEC)",
+      "status": "implemented",
+      "validationNote": "Hour counting uses 30-hour/week cap and overlap suppression via normalizeWorkHours."
+    },
+    {
+      "domain": "Express Entry Legacy",
+      "rule": "FSW continuity + minimum hours",
+      "currentImplementation": "Requires one continuous countable year and >=1,560 skilled paid hours in 10-year window before scoring grid.",
+      "source": "/lib/express-entry/eligibility.ts (checkFSW), /lib/express-entry/work-normalization.ts",
+      "status": "implemented",
+      "validationNote": "Continuity checked with contiguous-day streak and countable-hours threshold."
+    },
+    {
+      "domain": "Express Entry Legacy",
+      "rule": "FST minimum hours",
+      "currentImplementation": "Requires >=3,120 countable skilled-trade hours in 5-year window.",
+      "source": "/lib/express-entry/rules.ts (FST_MIN_HOURS), /lib/express-entry/eligibility.ts (checkFST)",
+      "status": "implemented",
+      "validationNote": "Legacy skilled-trade detection depends on role.isSkilledTradeRole and TEER 2/3."
+    },
+    {
+      "domain": "Express Entry (Both Engines)",
+      "rule": "Language validity window",
+      "currentImplementation": "Language test validity is enforced at 2 years before asOfDate.",
+      "source": "/lib/express-entry/rules.ts (LANGUAGE_VALIDITY_YEARS), /lib/express-entry/clb.ts, /lib/immigration/expressEntry/streamsEngine.ts",
+      "status": "implemented",
+      "validationNote": "Expired tests are fail states; missing/invalid metadata can become needs_more_info."
+    },
+    {
+      "domain": "Express Entry (Both Engines)",
+      "rule": "ECA validity window",
+      "currentImplementation": "Foreign-education ECA treated as valid when issue date is within 5 years and equivalency exists.",
+      "source": "/lib/express-entry/rules.ts (ECA_VALIDITY_YEARS), /lib/express-entry/eligibility.ts, /lib/immigration/expressEntry/streamsEngine.ts",
+      "status": "implemented",
+      "validationNote": "Missing/expired ECA fields typically route to needs_more_info."
+    },
+    {
+      "domain": "Express Entry (Both Engines)",
+      "rule": "Work-hour cap",
+      "currentImplementation": "Countable work is capped at 30 hours/week total, including overlap handling.",
+      "source": "/lib/express-entry/rules.ts (HOURS_PER_WEEK_CAP), /lib/express-entry/work-normalization.ts, /lib/immigration/expressEntry/workHours.ts",
+      "status": "implemented",
+      "validationNote": "Concurrent jobs do not inflate countable hours above cap."
+    },
+    {
+      "domain": "Streams Engine",
+      "rule": "Quebec intent gate",
+      "currentImplementation": "Unknown intent => needs_more_info; intent to live in Quebec => ineligible across CEC/FSW/FST.",
+      "source": "/lib/immigration/expressEntry/streamsEngine.ts (evaluateQuebecGate)",
+      "status": "implemented",
+      "validationNote": "Gate is applied at start of each stream checker."
+    },
+    {
+      "domain": "Streams Engine",
+      "rule": "Invalid language test type/stream",
+      "currentImplementation": "Unapproved test type, wrong stream, or missing language metadata returns needs_more_info rather than CLB conversion.",
+      "source": "/lib/immigration/expressEntry/streamsEngine.ts (evaluateLanguage)",
+      "status": "implemented",
+      "validationNote": "Approved types are restricted to IELTS General, CELPIP General, TEF, TCF, PTE Core."
+    },
+    {
+      "domain": "Streams Engine",
+      "rule": "Funds required vs exempt",
+      "currentImplementation": "Decision = exempt/required/needs_more_info from authorized-work status + qualifying offer/funds-exempt flags; thresholds are not validated here.",
+      "source": "/lib/immigration/expressEntry/streamsEngine.ts (determineFundsRequirement)",
+      "status": "implemented",
+      "validationNote": "Amount thresholds are out of scope in current implementation."
+    },
+    {
+      "domain": "PNP",
+      "rule": "Base vs enhanced stream classification",
+      "currentImplementation": "Not implemented. Current logic provides pathway relevance and province scoring, not legal stream-category classification.",
+      "source": "/lib/scoring.ts (computePathways), /lib/pathways/provinceFinder.ts (computeProvinceRecommendations)",
+      "status": "gap",
+      "validationNote": "Requires dedicated deterministic rules per province and stream family."
+    }
+  ],
+  "gaps": [
+    {
+      "id": "pnp-base-enhanced-missing",
+      "domain": "PNP",
+      "title": "Base vs Enhanced PNP classification is not implemented",
+      "currentBehavior": "PNP is surfaced as a pathway card plus province-alignment score shortlist without deterministic stream-category classification.",
+      "expectedBehavior": "Given candidate profile + province-specific rules, classify or narrow Base vs Enhanced stream categories deterministically.",
+      "impact": "Users and reviewers can over-interpret a province alignment score as legal stream eligibility; manual review remains required.",
+      "sourceRefs": [
+        {
+          "filePath": "/lib/scoring.ts",
+          "symbol": "computePathways"
+        },
+        {
+          "filePath": "/lib/pathways/provinceFinder.ts",
+          "symbol": "computeProvinceRecommendations"
+        }
+      ],
+      "status": "not_implemented"
+    }
+  ]
+}
