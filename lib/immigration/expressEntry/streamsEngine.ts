@@ -373,7 +373,7 @@ function determineFundsRequirement(
     if (isUnknown(profile.jobOfferMeetsValidOfferDefinition)) {
       return {
         decision: "needs_more_info",
-        missingFields: ["auth.currentlyAuthorizedToWorkInCanada", offerMissingFieldKey],
+        missingFields: [offerMissingFieldKey],
       }
     }
 

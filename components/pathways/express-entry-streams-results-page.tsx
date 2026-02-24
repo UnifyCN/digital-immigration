@@ -29,6 +29,10 @@ const streamInfo = {
 
 export function ExpressEntryStreamsResultsPage() {
   const [assessment] = useState(() => loadAssessment())
+  const result = useMemo(
+    () => (assessment ? classifyExpressEntryStreams(assessment) : null),
+    [assessment],
+  )
 
   if (!assessment) {
     return (
@@ -47,8 +51,7 @@ export function ExpressEntryStreamsResultsPage() {
       </div>
     )
   }
-
-  const result = useMemo(() => classifyExpressEntryStreams(assessment), [assessment])
+  if (!result) return null
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-8">

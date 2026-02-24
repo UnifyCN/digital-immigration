@@ -37,6 +37,7 @@ export function buildComprehensiveFollowUpFieldList(profile: CandidateProfile): 
   for (const role of profile.workRoles) {
     const prefix = `work.roles.${role.id}`
     fields.push(
+      `${prefix}.country`,
       `${prefix}.nocCode`,
       `${prefix}.nocDutiesMatchConfirmed`,
       `${prefix}.startDate`,
@@ -198,6 +199,84 @@ export function buildFollowUpQuestions(missingFields: string[], profile: Candida
       continue
     }
 
+    if (field === "education.credentials") {
+      addQuestion(questions, {
+        id: field,
+        program: "FSW",
+        fieldKey: field,
+        prompt: "What is your highest completed education credential?",
+        controlType: "select",
+        required: true,
+        options: [
+          { value: "high-school", label: "High school" },
+          { value: "one-year-diploma", label: "One-year diploma/certificate" },
+          { value: "two-year-diploma", label: "Two-year diploma" },
+          { value: "bachelors", label: "Bachelor's degree" },
+          { value: "two-or-more-degrees", label: "Two or more credentials" },
+          { value: "masters", label: "Master's degree" },
+          { value: "phd", label: "PhD" },
+        ],
+      })
+      continue
+    }
+
+    if (field === "education.eca.issueDate" || field === "education.eca.equivalency") {
+      addQuestion(questions, {
+        id: "education.eca",
+        program: "FSW",
+        fieldKey: "education.eca.issueDate",
+        prompt: "Provide your ECA issue date and equivalency result for foreign education.",
+        controlType: "text",
+        required: true,
+      })
+      continue
+    }
+
+    if (field === "spouse.language") {
+      addQuestion(questions, {
+        id: "spouse.language",
+        program: "FSW",
+        fieldKey: field,
+        prompt: "Enter your spouse/partner language test details and scores for adaptability points.",
+        controlType: "text",
+        required: true,
+      })
+      continue
+    }
+
+    if (field === "spouse.education") {
+      addQuestion(questions, {
+        id: "spouse.education",
+        program: "FSW",
+        fieldKey: field,
+        prompt: "Enter your spouse/partner highest education level for adaptability points.",
+        controlType: "select",
+        required: true,
+        options: [
+          { value: "high-school", label: "High school" },
+          { value: "one-year-diploma", label: "One-year diploma/certificate" },
+          { value: "two-year-diploma", label: "Two-year diploma" },
+          { value: "bachelors", label: "Bachelor's degree" },
+          { value: "two-or-more-degrees", label: "Two or more credentials" },
+          { value: "masters", label: "Master's degree" },
+          { value: "phd", label: "PhD" },
+        ],
+      })
+      continue
+    }
+
+    if (field === "fst.certificate.details") {
+      addQuestion(questions, {
+        id: "fst.certificate.details",
+        program: "FST",
+        fieldKey: field,
+        prompt: "Enter certificate details: issuing authority, trade, and issue date.",
+        controlType: "text",
+        required: true,
+      })
+      continue
+    }
+
     if (field === "jobOffer.validity") {
       addQuestion(questions, {
         id: field,
@@ -233,10 +312,11 @@ export function buildFollowUpQuestions(missingFields: string[], profile: Candida
     }
 
     if (field.startsWith("fst.offer.employer")) {
+      const normalizedEmployerField = field.replace(/^(fst\.offer\.employer)(\..*)?$/, "$1")
       addQuestion(questions, {
-        id: field,
+        id: normalizedEmployerField,
         program: "FST",
-        fieldKey: field,
+        fieldKey: normalizedEmployerField,
         prompt: "Add FST trade offer details (up to two employers): paid, continuous, full-time (30+ hrs/week), and at least 1 year.",
         controlType: "text",
         required: true,
@@ -250,6 +330,12 @@ export function buildFollowUpQuestions(missingFields: string[], profile: Candida
     const roleName = roleLabel(profile, roleId)
 
     const roleQuestionConfig: Array<{ suffix: string; prompt: string; controlType: FollowUpQuestionSpec["controlType"]; options?: FollowUpQuestionSpec["options"]; helpText?: string; program: FollowUpQuestionSpec["program"] }> = [
+      {
+        suffix: "country",
+        prompt: `Which country was ${roleName} performed in?`,
+        controlType: "text",
+        program: "shared",
+      },
       {
         suffix: "nocCode",
         prompt: `Select the NOC 2021 code for ${roleName}.`,

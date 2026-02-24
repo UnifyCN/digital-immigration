@@ -79,6 +79,8 @@ export function computeTier(data: AssessmentData): TierResult {
     data.nonTraditionalEmployment,
     data.missingDocuments,
     data.employmentGaps,
+    data.expressEntryIntentOutsideQuebec,
+    data.currentlyAuthorizedToWorkInCanada,
   ]
   const unsureCount = unsureFields.filter((v) => v === "unsure").length
   const ecaUnsureCount = data.ecaStatus === "not-sure" ? 1 : 0
@@ -114,6 +116,10 @@ function getInputCompleteness(data: AssessmentData): number {
     data.educationLevel,
     data.languageTestPlan,
     data.maritalStatus,
+    data.expressEntryIntentOutsideQuebec,
+    data.currentlyAuthorizedToWorkInCanada,
+    data.fswPrimaryOccupationRoleId,
+    data.fstJobOfferEmployers?.length ? "present" : "",
   ]
 
   for (const c of checks) {
@@ -280,6 +286,18 @@ export function computeRiskFlags(data: AssessmentData): RiskFlag[] {
       label: "Missing or pending language test scores",
       severity: hasNotTaken ? "high" : "medium",
       action: hasNotTaken ? "Schedule a language test" : "Confirm planned test date",
+    })
+  }
+
+  if (
+    !data.currentlyAuthorizedToWorkInCanada ||
+    data.currentlyAuthorizedToWorkInCanada === "not-sure"
+  ) {
+    flags.push({
+      id: "work_authorization_unclear",
+      label: "Current Canadian work authorization is unclear",
+      severity: "medium",
+      action: "Confirm whether you are currently authorized to work in Canada",
     })
   }
 

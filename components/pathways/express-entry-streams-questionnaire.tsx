@@ -63,6 +63,22 @@ function parseFstEmployerIndex(fieldKey: string): number | null {
   return null
 }
 
+function ensurePrimaryLanguageTest(tests: AssessmentData["languageTests"] | undefined): AssessmentData["languageTests"] {
+  const next = [...(tests ?? [])]
+  if (!next[0]) {
+    next[0] = {
+      id: "primary-follow-up",
+      isPrimary: true,
+      testType: "",
+      stream: "",
+      testDate: "",
+      registrationNumber: "",
+      scores: { listening: "", reading: "", writing: "", speaking: "" },
+    }
+  }
+  return next
+}
+
 function getQuestionValue(question: FollowUpQuestionSpec, assessment: AssessmentData): string | boolean {
   if (question.fieldKey === "shared.intentOutsideQuebec") return assessment.expressEntryIntentOutsideQuebec
   if (question.fieldKey === "auth.currentlyAuthorizedToWorkInCanada") return assessment.currentlyAuthorizedToWorkInCanada
@@ -226,18 +242,7 @@ export function ExpressEntryStreamsQuestionnaire({ questions, assessment, onChan
           <Select
             value={assessment.languageTests?.[0]?.testType ?? ""}
             onValueChange={(value) => {
-              const tests = [...(assessment.languageTests ?? [])]
-              if (!tests[0]) {
-                tests[0] = {
-                  id: "primary-follow-up",
-                  isPrimary: true,
-                  testType: "",
-                  stream: "",
-                  testDate: "",
-                  registrationNumber: "",
-                  scores: { listening: "", reading: "", writing: "", speaking: "" },
-                }
-              }
+              const tests = ensurePrimaryLanguageTest(assessment.languageTests)
               tests[0] = { ...tests[0], testType: value as AssessmentData["languageTests"][number]["testType"] }
               updateTopLevel("languageTests", tests)
             }}
@@ -260,18 +265,7 @@ export function ExpressEntryStreamsQuestionnaire({ questions, assessment, onChan
             type="date"
             value={assessment.languageTests?.[0]?.testDate ?? ""}
             onChange={(event) => {
-              const tests = [...(assessment.languageTests ?? [])]
-              if (!tests[0]) {
-                tests[0] = {
-                  id: "primary-follow-up",
-                  isPrimary: true,
-                  testType: "",
-                  stream: "",
-                  testDate: "",
-                  registrationNumber: "",
-                  scores: { listening: "", reading: "", writing: "", speaking: "" },
-                }
-              }
+              const tests = ensurePrimaryLanguageTest(assessment.languageTests)
               tests[0] = { ...tests[0], testDate: event.target.value }
               updateTopLevel("languageTests", tests)
             }}
@@ -282,18 +276,7 @@ export function ExpressEntryStreamsQuestionnaire({ questions, assessment, onChan
           <RadioGroup
             value={assessment.languageTests?.[0]?.stream ?? ""}
             onValueChange={(value) => {
-              const tests = [...(assessment.languageTests ?? [])]
-              if (!tests[0]) {
-                tests[0] = {
-                  id: "primary-follow-up",
-                  isPrimary: true,
-                  testType: "",
-                  stream: "",
-                  testDate: "",
-                  registrationNumber: "",
-                  scores: { listening: "", reading: "", writing: "", speaking: "" },
-                }
-              }
+              const tests = ensurePrimaryLanguageTest(assessment.languageTests)
               tests[0] = { ...tests[0], stream: value as AssessmentData["languageTests"][number]["stream"] }
               updateTopLevel("languageTests", tests)
             }}
@@ -316,18 +299,7 @@ export function ExpressEntryStreamsQuestionnaire({ questions, assessment, onChan
                 <Input
                   value={assessment.languageTests?.[0]?.scores?.[ability] ?? ""}
                   onChange={(event) => {
-                    const tests = [...(assessment.languageTests ?? [])]
-                    if (!tests[0]) {
-                      tests[0] = {
-                        id: "primary-follow-up",
-                        isPrimary: true,
-                        testType: "",
-                        stream: "",
-                        testDate: "",
-                        registrationNumber: "",
-                        scores: { listening: "", reading: "", writing: "", speaking: "" },
-                      }
-                    }
+                    const tests = ensurePrimaryLanguageTest(assessment.languageTests)
                     const prevScores = tests[0].scores ?? { listening: "", reading: "", writing: "", speaking: "" }
                     tests[0] = {
                       ...tests[0],
