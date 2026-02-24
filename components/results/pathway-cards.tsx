@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Compass, ChevronRight, ArrowRight } from "lucide-react"
 import { saveSelectedPathway } from "@/lib/imm5669/storage"
-import type { PathwayCard, ConfidenceLevel } from "@/lib/types"
+import { PATHWAY_STATUS, type PathwayCard, type ConfidenceLevel } from "@/lib/types"
 
 const confidenceColors: Record<ConfidenceLevel, string> = {
   High: "bg-tier-clean/15 text-tier-clean border-tier-clean/30",
@@ -65,7 +65,7 @@ export function PathwayCards({ pathways }: { pathways: PathwayCard[] }) {
                   </Badge>
                   {pathway.statusTag ? (
                     <Badge
-                      variant={pathway.statusTag === "Eligible" ? "default" : "secondary"}
+                      variant={pathway.statusTag === PATHWAY_STATUS.ELIGIBLE ? "default" : "secondary"}
                       className="text-[10px]"
                     >
                       {pathway.statusTag}

@@ -26,7 +26,7 @@ import { X } from "lucide-react"
 import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
 
-const educationLevels = [
+export const educationLevels = [
   { value: "none", label: "No formal education" },
   { value: "high-school", label: "High school diploma" },
   { value: "one-year-diploma", label: "One-year diploma or certificate" },
@@ -69,6 +69,7 @@ const ecaIssuers = [
 
 export function StepEducation() {
   const { control, setValue } = useFormContext<AssessmentData>()
+  const primaryGoal = useWatch({ control, name: "primaryGoal" })
   const ecaStatus = useWatch({ control, name: "ecaStatus" })
   const hasMultipleCredentials = useWatch({ control, name: "hasMultipleCredentials" })
   const educationCompletedInCanada = useWatch({ control, name: "educationCompletedInCanada" })
@@ -84,7 +85,9 @@ export function StepEducation() {
     control,
     name: "educationCredentials",
   })
+  const isPrFlow = primaryGoal === "pr" || primaryGoal === "not-sure"
   const isMaxCredentialsReached = fields.length >= MAX_CREDENTIALS
+  const isMaxEeCredentialsReached = eeCredentialFields.length >= MAX_CREDENTIALS
 
   useEffect(() => {
     if (educationCompletedInCanada !== "yes") {
@@ -543,30 +546,31 @@ export function StepEducation() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <FormLabel>Detailed credential records for Express Entry</FormLabel>
-        <FormDescription>
-          Add each credential you want counted. Foreign credentials need ECA details.
-        </FormDescription>
+      {isPrFlow && (
+        <div className="flex flex-col gap-3">
+          <FormLabel>Detailed credential records for Express Entry</FormLabel>
+          <FormDescription>
+            Add each credential you want counted. Foreign credentials need ECA details.
+          </FormDescription>
 
-        {eeCredentialFields.map((item, index) => (
-          <Card key={item.id} className="relative">
-            <CardContent className="flex flex-col gap-3 pt-4">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-muted-foreground">
-                  EE Credential #{index + 1}
-                </span>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => removeEeCredential(index)}
-                  className="size-7 p-0 text-muted-foreground hover:text-destructive"
-                >
-                  <X className="size-3.5" />
-                  <span className="sr-only">Remove EE credential</span>
-                </Button>
-              </div>
+          {eeCredentialFields.map((item, index) => (
+            <Card key={item.id} className="relative">
+              <CardContent className="flex flex-col gap-3 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-muted-foreground">
+                    EE Credential #{index + 1}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeEeCredential(index)}
+                    className="size-7 p-0 text-muted-foreground hover:text-destructive"
+                  >
+                    <X className="size-3.5" />
+                    <span className="sr-only">Remove EE credential</span>
+                  </Button>
+                </div>
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <FormField
@@ -582,7 +586,7 @@ export function StepEducation() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {educationLevels.map((level) => (
+                          {educationLevels.filter((level) => level.value !== "none").map((level) => (
                             <SelectItem key={level.value} value={level.value}>
                               {level.label}
                             </SelectItem>
@@ -765,40 +769,44 @@ export function StepEducation() {
                   )}
                 />
               </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))}
 
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() =>
-            appendEeCredential({
-              id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
-              level: "",
-              country: "",
-              isCanadianCredential: "",
-              issueDate: "",
-              institutionName: "",
-              programLengthMonths: null,
-              studyLoad: "",
-              startDate: "",
-              endDate: "",
-              physicallyInCanada: "",
-              distanceLearningPercent: null,
-              ecaIssuer: "",
-              ecaOtherIssuer: "",
-              ecaReferenceNumber: "",
-              ecaIssueDate: "",
-              ecaEquivalency: "",
-            })
-          }
-          className="w-fit gap-1.5"
-        >
-          + Add EE credential
-        </Button>
-      </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (isMaxEeCredentialsReached) return
+              appendEeCredential({
+                id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
+                level: "",
+                country: "",
+                isCanadianCredential: "",
+                issueDate: "",
+                institutionName: "",
+                programLengthMonths: null,
+                ecaIssuer: "",
+                ecaReferenceNumber: "",
+                ecaIssueDate: "",
+                ecaEquivalency: "",
+              })
+            }}
+            disabled={isMaxEeCredentialsReached}
+            className="w-fit gap-1.5"
+          >
+            {isMaxEeCredentialsReached
+              ? `Credential limit reached (${MAX_CREDENTIALS})`
+              : "+ Add EE credential"}
+          </Button>
+          {isMaxEeCredentialsReached && (
+            <p className="text-xs text-muted-foreground">
+              You can add up to {MAX_CREDENTIALS} total credentials.
+            </p>
+          )}
+        </div>
+      )}
 
       {ecaStatus === "yes" && (
         <FormField

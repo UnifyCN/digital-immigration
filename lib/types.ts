@@ -156,13 +156,13 @@ export interface EducationCredential {
   issueDate: string
   institutionName: string
   programLengthMonths: number | null
-  studyLoad: "full-time" | "part-time" | ""
-  startDate: string
-  endDate: string
-  physicallyInCanada: YesNoNotSure | ""
-  distanceLearningPercent: number | null
+  studyLoad?: "full-time" | "part-time" | ""
+  startDate?: string
+  endDate?: string
+  physicallyInCanada?: YesNoNotSure | ""
+  distanceLearningPercent?: number | null
   ecaIssuer: EcaIssuer | ""
-  ecaOtherIssuer: string
+  ecaOtherIssuer?: string
   ecaReferenceNumber: string
   ecaIssueDate: string
   ecaEquivalency: EducationLevel | ""
@@ -378,6 +378,11 @@ export type TierLevel = 1 | 2 | 3
 export type TierLabel = "Clean" | "Moderate" | "Complex"
 export type Severity = "low" | "medium" | "high"
 export type ConfidenceLevel = "High" | "Medium" | "Low"
+export const PATHWAY_STATUS = {
+  ELIGIBLE: "Eligible",
+  NEEDS_INFO: "Needs info",
+} as const
+export type PathwayStatusTag = (typeof PATHWAY_STATUS)[keyof typeof PATHWAY_STATUS]
 
 export interface TierResult {
   level: TierLevel
@@ -391,7 +396,7 @@ export interface PathwayCard {
   whyRelevant: string[]
   whatNext: string[]
   confidence: ConfidenceLevel
-  statusTag?: "Eligible" | "Needs info"
+  statusTag?: PathwayStatusTag
   statusNote?: string
   eligibilityStatus?: ProgramEligibilityStatus
 }

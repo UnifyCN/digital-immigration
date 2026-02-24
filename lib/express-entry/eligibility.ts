@@ -567,6 +567,18 @@ export function checkFSW(profile: AssessmentData, asOfDate: Date = new Date()): 
     if (!hasFunds(profile)) {
       if (profile.settlementFundsCad === null || profile.settlementFundsCad === undefined) {
         missingKeys.push("funds.available")
+      } else if (profile.settlementFundsCad <= 0) {
+        addReason(
+          reasonDetails,
+          "fsw_funds_insufficient",
+          "Settlement funds are insufficient for FSW.",
+          "fsw",
+          "fail",
+        )
+        return {
+          ...programResult("ineligible", reasonDetails, [...missingKeys, "funds.available"]),
+          fsw67PassThreshold: FSW_PASS_MARK,
+        }
       } else {
         addReason(
           reasonDetails,

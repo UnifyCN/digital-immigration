@@ -31,7 +31,7 @@ export interface ExpressEntryBrief {
 
 function toChecklistStatus(status: "eligible" | "ineligible" | "needs_more_info"): ChecklistStatus {
   if (status === "eligible") return "complete"
-  if (status === "needs_more_info") return "warning"
+  if (status === "needs_more_info" || status === "ineligible") return "warning"
   return "unknown"
 }
 

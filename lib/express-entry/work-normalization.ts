@@ -1,7 +1,7 @@
 import { subYears } from "date-fns"
 import { isCanadaCountry } from "../canada-helpers.ts"
 import type { WorkRole } from "../types.ts"
-import { HOURS_PER_WEEK_CAP } from "./rules.ts"
+import { COUNTABLE_HOURS_PER_YEAR, HOURS_PER_WEEK_CAP } from "./rules.ts"
 
 const DAY_MS = 24 * 60 * 60 * 1000
 const DAILY_HOURS_CAP = HOURS_PER_WEEK_CAP / 7
@@ -117,7 +117,7 @@ export function hasContinuousCountableYear(summary: NormalizedWorkSummary): bool
       streakHours = summary.dailyHoursMap.get(dayKeys[index]) ?? 0
     }
 
-    if (streakDays >= 365 && streakHours >= 1560) {
+    if (streakDays >= 365 && streakHours >= COUNTABLE_HOURS_PER_YEAR) {
       return true
     }
   }

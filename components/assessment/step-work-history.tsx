@@ -1328,6 +1328,7 @@ export function StepWorkHistory() {
                         <FormLabel>Hours per week</FormLabel>
                         <FormControl>
                           <Input
+                            {...roleField}
                             type="number"
                             min="1"
                             max="80"

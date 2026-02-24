@@ -137,7 +137,7 @@ function clbFromTcfWritingOrSpeaking(score: number): number {
 
 function hasRequiredStream(testType: string, stream: string): boolean {
   if (testType === "ielts-general-training") return stream === "general"
-  return stream !== "academic"
+  return Boolean(stream) && stream !== "academic"
 }
 
 export function deriveClbFromScores(
@@ -203,11 +203,13 @@ export function getPrimaryLanguageTest(profile: AssessmentData): LanguageTestEnt
     return null
   }
 
+  const legacyTestType = profile.englishTestType || profile.frenchTestType || ""
+
   return {
     id: "legacy-primary",
     isPrimary: true,
-    testType: profile.englishTestType || "",
-    stream: profile.englishTestType ? "general" : "",
+    testType: legacyTestType,
+    stream: legacyTestType ? "general" : "",
     testDate: "",
     registrationNumber: "",
     scores: {
@@ -220,6 +222,10 @@ export function getPrimaryLanguageTest(profile: AssessmentData): LanguageTestEnt
 }
 
 export function derivePrimaryClb(profile: AssessmentData, asOfDate: Date): ClbResult {
+  // Normalize both sides of expiry checks to UTC day boundaries.
+  const asOfUtcDay = new Date(asOfDate)
+  asOfUtcDay.setUTCHours(0, 0, 0, 0)
+
   const primary = getPrimaryLanguageTest(profile)
   if (!primary || !primary.testType) {
     return {
@@ -255,7 +261,7 @@ export function derivePrimaryClb(profile: AssessmentData, asOfDate: Date): ClbRe
   }
 
   const expiresOn = addYears(testDate, LANGUAGE_VALIDITY_YEARS)
-  if (!isAfter(expiresOn, asOfDate)) {
+  if (!isAfter(expiresOn, asOfUtcDay)) {
     return {
       clb: deriveClbFromScores(primary.testType, primary.scores),
       isValid: false,

@@ -23,6 +23,7 @@ import { Separator } from "@/components/ui/separator"
 import { RadioCard } from "@/components/ui/radio-card"
 import { CANADIAN_PROVINCES_AND_TERRITORIES } from "@/lib/canada-regions"
 import type { AssessmentData } from "@/lib/types"
+import { educationLevels } from "./step-education"
 
 const maritalStatuses = [
   { value: "single", label: "Single" },
@@ -31,6 +32,20 @@ const maritalStatuses = [
   { value: "separated", label: "Separated" },
   { value: "divorced", label: "Divorced" },
   { value: "widowed", label: "Widowed" },
+]
+
+const spouseLanguageTestTypeOptions = [
+  { value: "ielts-general-training", label: "IELTS (General Training)" },
+  { value: "celpip-general", label: "CELPIP (General)" },
+  { value: "tef-canada", label: "TEF Canada" },
+  { value: "tcf-canada", label: "TCF Canada" },
+  { value: "pte-core", label: "PTE Core" },
+]
+
+const spouseLanguageTestStreamOptions = [
+  { value: "general", label: "General" },
+  { value: "academic", label: "Academic" },
+  { value: "n/a", label: "N/A" },
 ]
 
 export function StepFamily() {
@@ -233,16 +248,7 @@ export function StepFamily() {
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {[
-                      { value: "none", label: "No formal education" },
-                      { value: "high-school", label: "High school diploma" },
-                      { value: "one-year-diploma", label: "One-year diploma or certificate" },
-                      { value: "two-year-diploma", label: "Two-year diploma" },
-                      { value: "bachelors", label: "Bachelor's degree" },
-                      { value: "two-or-more-degrees", label: "Two or more degrees" },
-                      { value: "masters", label: "Master's degree" },
-                      { value: "phd", label: "Doctoral degree (PhD)" },
-                    ].map((option) => (
+                    {educationLevels.map((option) => (
                       <SelectItem key={option.value} value={option.value}>
                         {option.label}
                       </SelectItem>
@@ -288,9 +294,20 @@ export function StepFamily() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Spouse language test type</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g. ielts-general-training" {...field} value={field.value ?? ""} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select language test type" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {spouseLanguageTestTypeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -314,9 +331,20 @@ export function StepFamily() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Spouse test stream</FormLabel>
-                  <FormControl>
-                    <Input placeholder="general" {...field} value={field.value ?? ""} />
-                  </FormControl>
+                  <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select test stream" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {spouseLanguageTestStreamOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
@@ -768,7 +796,7 @@ export function StepFamily() {
             )}
           />
 
-          {fundsExemptByValidJobOffer !== "yes" && (
+          {fundsExemptByValidJobOffer === "no" && (
             <FormField
               control={control}
               name="settlementFundsCad"

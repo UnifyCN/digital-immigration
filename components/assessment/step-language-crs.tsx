@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useFieldArray, useFormContext, useWatch } from "react-hook-form"
 import {
   FormField,
@@ -13,13 +13,36 @@ import { RadioGroup } from "@/components/ui/radio-group"
 import { RadioCard } from "@/components/ui/radio-card"
 import { DatePicker } from "@/components/ui/date-picker"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { AssessmentData } from "@/lib/types"
 
+const languageTestTypeOptions = [
+  { value: "ielts-general-training", label: "IELTS (General Training)" },
+  { value: "celpip-general", label: "CELPIP (General)" },
+  { value: "tef-canada", label: "TEF Canada" },
+  { value: "tcf-canada", label: "TCF Canada" },
+  { value: "pte-core", label: "PTE Core" },
+]
+
+const languageTestStreamOptions = [
+  { value: "general", label: "General" },
+  { value: "academic", label: "Academic" },
+  { value: "n/a", label: "N/A" },
+]
+
 export function StepLanguageCRS() {
   const { control, setValue } = useFormContext<AssessmentData>()
   const languageTestStatus = useWatch({ control, name: "languageTestStatus" })
+  const languageTests = useWatch({ control, name: "languageTests" }) ?? []
+  const [showLanguageTestRequired, setShowLanguageTestRequired] = useState(false)
   const {
     fields: languageTestFields,
     append: appendLanguageTest,
@@ -43,6 +66,7 @@ export function StepLanguageCRS() {
 
   useEffect(() => {
     if (languageTestStatus === "valid" && languageTestFields.length === 0) {
+      setShowLanguageTestRequired(true)
       appendLanguageTest({
         id: `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`,
         isPrimary: true,
@@ -52,8 +76,21 @@ export function StepLanguageCRS() {
         registrationNumber: "",
         scores: { listening: "", reading: "", writing: "", speaking: "" },
       })
+      return
     }
+    setShowLanguageTestRequired(false)
   }, [appendLanguageTest, languageTestFields.length, languageTestStatus])
+
+  useEffect(() => {
+    if (languageTestStatus !== "valid" || languageTests.length === 0) return
+    const primary = languageTests.find((test) => test?.isPrimary) ?? languageTests[0]
+    if (!primary) return
+
+    setValue("languageScores.listening", primary.scores?.listening ?? "", { shouldValidate: true })
+    setValue("languageScores.reading", primary.scores?.reading ?? "", { shouldValidate: true })
+    setValue("languageScores.writing", primary.scores?.writing ?? "", { shouldValidate: true })
+    setValue("languageScores.speaking", primary.scores?.speaking ?? "", { shouldValidate: true })
+  }, [languageTestStatus, languageTests, setValue])
 
   return (
     <div className="flex flex-col gap-8">
@@ -125,13 +162,20 @@ export function StepLanguageCRS() {
                     render={({ field: testField }) => (
                       <FormItem>
                         <FormLabel>Test type</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g. ielts-general-training"
-                            {...testField}
-                            value={testField.value ?? ""}
-                          />
-                        </FormControl>
+                        <Select onValueChange={testField.onChange} value={testField.value ?? ""}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select language test type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {languageTestTypeOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -142,9 +186,20 @@ export function StepLanguageCRS() {
                     render={({ field: testField }) => (
                       <FormItem>
                         <FormLabel>Stream</FormLabel>
-                        <FormControl>
-                          <Input placeholder="general" {...testField} value={testField.value ?? ""} />
-                        </FormControl>
+                        <Select onValueChange={testField.onChange} value={testField.value ?? ""}>
+                          <FormControl>
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Select stream" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {languageTestStreamOptions.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -254,66 +309,9 @@ export function StepLanguageCRS() {
           >
             Add language test
           </Button>
-        </div>
-      )}
-
-      {languageTestStatus === "valid" && (
-        <div className="flex flex-col gap-4">
-          <FormLabel>Enter your exact scores</FormLabel>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FormField
-              control={control}
-              name="languageScores.listening"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Listening</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name="languageScores.reading"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Reading</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name="languageScores.writing"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Writing</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={control}
-              name="languageScores.speaking"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Speaking</FormLabel>
-                  <FormControl>
-                    <Input {...field} value={field.value ?? ""} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
+          {showLanguageTestRequired && (
+            <p className="text-xs text-muted-foreground">At least one test is required.</p>
+          )}
         </div>
       )}
 

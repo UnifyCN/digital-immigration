@@ -11,6 +11,9 @@ export interface DemoProfile {
   data: AssessmentData
 }
 
+// buildProfile intentionally deep-merges only languageScores and spouseLanguageScores.
+// Array/object-heavy sections like workRoles and educationCredentials are replaced wholesale by overrides.
+// If new nested objects are added to AssessmentData, add them here or move this to a dedicated deep-merge helper.
 function buildProfile(overrides: Partial<AssessmentData>): AssessmentData {
   return {
     ...defaultAssessmentData,

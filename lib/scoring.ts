@@ -5,7 +5,8 @@ import type {
   PathwayCard,
   RiskFlag,
   TierResult,
-} from "./types"
+} from "./types.ts"
+import { PATHWAY_STATUS } from "./types.ts"
 import { recommendNextSteps } from "./next-steps.ts"
 import { deriveCanadianSkilledYearsBand } from "./work-derived.ts"
 import { computeExpressEntryEligibility } from "./express-entry/eligibility.ts"
@@ -167,7 +168,7 @@ export function computePathways(
               ? missingActions
               : ["Complete missing profile details", "Recheck Express Entry eligibility"],
         confidence,
-        statusTag: eeEligibility.overallStatus === "eligible" ? "Eligible" : "Needs info",
+        statusTag: eeEligibility.overallStatus === "eligible" ? PATHWAY_STATUS.ELIGIBLE : PATHWAY_STATUS.NEEDS_INFO,
         statusNote:
           eeEligibility.overallStatus === "eligible"
             ? "You currently qualify for at least one Express Entry program."
